@@ -91,17 +91,30 @@ export function usePayments(userId: string | null) {
     }
   }, [updatePayment, addPayment, userId]);
 
-  const clearPaid = useCallback(async () => {
-    if (!userId) return;
-    const paidIds = payments.filter(p => p.is_paid).map(p => p.id);
-    if (paidIds.length === 0) return;
+  const clearPaid = useCallback(async (): Promise<Payment[]> => {
+    if (!userId) return [];
+    const paidPayments = payments.filter(p => p.is_paid);
+    if (paidPayments.length === 0) return [];
+    const paidIds = paidPayments.map(p => p.id);
     const { error } = await supabase
       .from('payments')
       .delete()
       .in('id', paidIds);
     if (error) throw error;
     setPayments(prev => prev.filter(p => !p.is_paid));
+    return paidPayments;
   }, [userId, payments]);
 
-  return { payments, loading, addPayment, updatePayment, deletePayment, markPaid, clearPaid, refetch: fetchPayments };
+  const restorePayments = useCallback(async (items: Payment[]) => {
+    if (!userId || items.length === 0) return;
+    const rows = items.map(({ id, user_id, ...rest }) => ({ ...rest, user_id: userId }));
+    const { error } = await supabase
+      .from('payments')
+      .insert(rows)
+      .select();
+    if (error) throw error;
+    await fetchPayments();
+  }, [userId, fetchPayments]);
+
+  return { payments, loading, addPayment, updatePayment, deletePayment, markPaid, clearPaid, restorePayments, refetch: fetchPayments };
 }

@@ -30,7 +30,7 @@ function getGreeting() {
 export default function Schedule() {
   const { userId, userName } = useUser();
   const { format: formatCurrency } = useCurrency();
-  const { payments, addPayment, updatePayment, deletePayment, markPaid, clearPaid } = usePayments(userId);
+  const { payments, addPayment, updatePayment, deletePayment, markPaid, clearPaid, restorePayments } = usePayments(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
@@ -380,9 +380,9 @@ export default function Schedule() {
                     <Trash2 className="w-7 h-7 text-destructive" />
                   </div>
                   <h3 className="text-lg font-bold text-card-foreground mb-1">Clear Paid List?</h3>
-                  <p className="text-sm text-muted-foreground mb-5">
-                    This will permanently delete {paid.length} paid payment{paid.length !== 1 ? 's' : ''}. This action cannot be undone.
-                  </p>
+                   <p className="text-sm text-muted-foreground mb-5">
+                     This will delete {paid.length} paid payment{paid.length !== 1 ? 's' : ''}. You can undo this briefly after clearing.
+                   </p>
                   <div className="flex gap-3">
                     <motion.button
                       whileTap={{ scale: 0.96 }}
@@ -395,9 +395,23 @@ export default function Schedule() {
                       whileTap={{ scale: 0.96 }}
                       onClick={async () => {
                         try {
-                          await clearPaid();
+                          const count = paid.length;
+                          const deleted = await clearPaid();
                           setShowClearConfirm(false);
-                          toast.success(`${paid.length} paid payment${paid.length !== 1 ? 's' : ''} cleared`);
+                          toast.success(`${count} paid payment${count !== 1 ? 's' : ''} cleared`, {
+                            action: {
+                              label: 'Undo',
+                              onClick: async () => {
+                                try {
+                                  await restorePayments(deleted);
+                                  toast.success('Payments restored');
+                                } catch {
+                                  toast.error('Failed to restore');
+                                }
+                              },
+                            },
+                            duration: 6000,
+                          });
                         } catch {
                           toast.error('Failed to clear');
                         }
