@@ -67,7 +67,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl p-6 max-w-md mx-auto border-t border-border"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl p-6 pb-24 max-w-md mx-auto border-t border-border max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-card-foreground">
