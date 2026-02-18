@@ -857,30 +857,105 @@ export default function Settings() {
         </SettingsModal>
 
         {/* ─── Logout Modal ─── */}
-        <SettingsModal open={activeModal === 'logout'} onClose={close} title="Sign Out">
-          <div className="space-y-5">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10 mb-4">
-                <LogOut className="w-8 h-8 text-destructive" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                This will clear all local data. You can restore it later using your phone number.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
-                <Button variant="secondary" onClick={close} className="w-full rounded-xl h-11">
-                  Cancel
-                </Button>
+        <AnimatePresence>
+          {activeModal === 'logout' && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="fixed inset-0 bg-background/85 backdrop-blur-xl z-[70]"
+                onClick={close}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.88, y: 40 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.88, y: 40 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                className="fixed inset-x-4 top-[20%] z-[70] max-w-sm mx-auto"
+              >
+                <div className="bg-card rounded-3xl border border-border/50 shadow-2xl overflow-hidden">
+                  <div className="px-6 pt-8 pb-6 text-center">
+                    {/* Animated icon with glow */}
+                    <motion.div
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 20 }}
+                      className="relative inline-flex items-center justify-center mb-5"
+                    >
+                      <motion.div
+                        className="absolute w-28 h-28 rounded-full"
+                        style={{ background: 'radial-gradient(circle, hsl(0 84% 60% / 0.12) 0%, transparent 70%)' }}
+                        animate={{ scale: [1, 1.15, 1] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                      />
+                      <div className="w-20 h-20 rounded-[1.25rem] bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+                        <motion.div
+                          initial={{ rotate: 0 }}
+                          animate={{ rotate: [0, -8, 0] }}
+                          transition={{ delay: 0.4, duration: 0.5, ease: 'easeInOut' }}
+                        >
+                          <LogOut className="w-8 h-8 text-destructive" />
+                        </motion.div>
+                      </div>
+                    </motion.div>
+
+                    {/* Title */}
+                    <motion.h3
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 }}
+                      className="text-lg font-bold text-card-foreground tracking-tight"
+                    >
+                      Sign Out?
+                    </motion.h3>
+
+                    {/* Description */}
+                    <motion.p
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.22 }}
+                      className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-[260px] mx-auto"
+                    >
+                      Your local data will be cleared. You can always restore it using your phone number.
+                    </motion.p>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px bg-border/50" />
+
+                  {/* Actions */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.28 }}
+                    className="flex gap-3 p-4"
+                  >
+                    <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
+                      <Button
+                        variant="secondary"
+                        onClick={close}
+                        className="w-full rounded-2xl h-12 text-sm font-semibold"
+                      >
+                        Cancel
+                      </Button>
+                    </motion.div>
+                    <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
+                      <Button
+                        variant="destructive"
+                        onClick={handleLogout}
+                        className="w-full rounded-2xl h-12 text-sm font-semibold shadow-lg shadow-destructive/25"
+                      >
+                        Sign Out
+                      </Button>
+                    </motion.div>
+                  </motion.div>
+                </div>
               </motion.div>
-              <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
-                <Button variant="destructive" onClick={handleLogout} className="w-full rounded-xl h-11">
-                  Sign Out
-                </Button>
-              </motion.div>
-            </div>
-          </div>
-        </SettingsModal>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </PageTransition>
   );
