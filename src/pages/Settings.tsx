@@ -14,9 +14,10 @@ import { toast } from 'sonner';
 import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
   ChevronRight, X, Check, Smartphone, BellRing, AlertTriangle,
-  Clock, CalendarCheck, Send, User, Sun, Moon, Monitor,
+  Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 import {
   getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs,
   requestNotificationPermission, getNotificationStatus, sendTestNotification,
@@ -156,6 +157,8 @@ export default function Settings() {
   const { userId, userName, updateName, logout, restore } = useUser();
   const { currency, setCurrency } = useCurrency();
   const { mode, theme, setMode } = useTheme();
+  const { canInstall, isIOS, hasNativePrompt, promptInstall } = usePWAInstall();
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -368,6 +371,29 @@ export default function Settings() {
             subtitle="Transfer data to a new device"
             onClick={() => { setPhone(''); setActiveModal('restore'); }}
           />
+
+          {/* Install App - only when browsing, not installed */}
+          {canInstall && (
+            <SettingsCard
+              index={5}
+              icon={<Download className="w-5 h-5" />}
+              iconBg="hsl(200 80% 55% / 0.15)"
+              iconColor="hsl(200, 80%, 55%)"
+              title="Install App"
+              subtitle={isIOS ? 'Add to Home Screen' : 'Install for quick access'}
+              onClick={async () => {
+                if (hasNativePrompt) {
+                  const result = await promptInstall();
+                  if (result === 'accepted') {
+                    toast.success('App installed! 🎉');
+                  }
+                } else if (isIOS) {
+                  setShowIOSInstructions(true);
+                }
+              }}
+            />
+          )}
+
           {/* Theme Selector */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -457,6 +483,55 @@ export default function Settings() {
         >
           PayTrack v1.0 · Your data is synced securely
         </motion.p>
+
+        {/* ─── iOS Install Instructions Modal ─── */}
+        <AnimatePresence>
+          {showIOSInstructions && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-md"
+                onClick={() => setShowIOSInstructions(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[110] max-w-sm mx-auto bg-card rounded-2xl border border-border/50 shadow-2xl p-6"
+              >
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-2">
+                    <Share className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-bold text-card-foreground">Install PayTrack</h3>
+                  <div className="space-y-3 text-left">
+                    <div className="flex items-start gap-3 bg-secondary/50 rounded-xl p-3">
+                      <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                      <p className="text-sm text-card-foreground">Tap the <strong>Share</strong> button <Share className="w-3.5 h-3.5 inline -mt-0.5" /> in your browser toolbar</p>
+                    </div>
+                    <div className="flex items-start gap-3 bg-secondary/50 rounded-xl p-3">
+                      <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                      <p className="text-sm text-card-foreground">Scroll down and tap <strong>"Add to Home Screen"</strong></p>
+                    </div>
+                    <div className="flex items-start gap-3 bg-secondary/50 rounded-xl p-3">
+                      <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                      <p className="text-sm text-card-foreground">Tap <strong>"Add"</strong> to install</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setShowIOSInstructions(false)}
+                    className="w-full rounded-xl h-11 mt-2"
+                  >
+                    Got it
+                  </Button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* ─── Name Modal ─── */}
         <SettingsModal
