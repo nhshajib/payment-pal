@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2 } from 'lucide-react';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
@@ -37,6 +37,26 @@ export default function Schedule() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('upcoming');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showLongPressHint, setShowLongPressHint] = useState(false);
+
+  // Show long-press hint once on first visit with payments
+  useEffect(() => {
+    const hintSeen = localStorage.getItem('paytrack_longpress_hint');
+    if (!hintSeen && payments.length > 0) {
+      const timer = setTimeout(() => setShowLongPressHint(true), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [payments.length]);
+
+  useEffect(() => {
+    if (showLongPressHint) {
+      const dismiss = setTimeout(() => {
+        setShowLongPressHint(false);
+        localStorage.setItem('paytrack_longpress_hint', '1');
+      }, 4000);
+      return () => clearTimeout(dismiss);
+    }
+  }, [showLongPressHint]);
 
   const filteredPayments = useMemo(() => {
     if (!activeFilter) return payments;
@@ -325,6 +345,25 @@ export default function Schedule() {
                     </motion.button>
                   </motion.div>
                 )}
+
+                {/* Long-press hint tooltip */}
+                <AnimatePresence>
+                  {showLongPressHint && activeTab === 'upcoming' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                      onClick={() => { setShowLongPressHint(false); localStorage.setItem('paytrack_longpress_hint', '1'); }}
+                      className="flex items-center gap-2 px-4 py-2.5 mb-3 rounded-xl bg-primary/10 border border-primary/20 cursor-pointer"
+                    >
+                      <Hand className="w-4 h-4 text-primary flex-shrink-0" />
+                      <p className="text-xs text-primary font-medium">
+                        Long-press any card for more options
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="space-y-2.5">
                   <AnimatePresence mode="popLayout">
