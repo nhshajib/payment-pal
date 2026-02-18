@@ -297,78 +297,8 @@ export default function Settings() {
         </motion.header>
 
         <div className="space-y-2.5">
-          {/* Theme Selector */}
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0, type: 'spring', stiffness: 350, damping: 28 }}
-            className="w-full bg-card rounded-xl border border-border/50 p-4 space-y-3"
-          >
-            <div className="flex items-center gap-4">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-                style={{ backgroundColor: 'hsl(45 93% 55% / 0.15)' }}
-              >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={theme}
-                    initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
-                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                    exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  >
-                    {theme === 'dark' ? (
-                      <Moon className="w-5 h-5" style={{ color: 'hsl(45, 93%, 55%)' }} />
-                    ) : (
-                      <Sun className="w-5 h-5" style={{ color: 'hsl(45, 93%, 55%)' }} />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-card-foreground">Appearance</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {mode === 'auto' ? 'System default' : mode === 'dark' ? 'Dark mode' : 'Light mode'}
-                </p>
-              </div>
-            </div>
-            {/* Segmented control */}
-            <div className="flex bg-secondary/60 rounded-xl p-1 gap-1">
-              {([
-                { id: 'light' as const, label: 'Light', icon: Sun },
-                { id: 'auto' as const, label: 'Auto', icon: Monitor },
-                { id: 'dark' as const, label: 'Dark', icon: Moon },
-              ]).map(opt => {
-                const Icon = opt.icon;
-                const active = mode === opt.id;
-                return (
-                  <motion.button
-                    key={opt.id}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setMode(opt.id)}
-                    className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                      active ? 'text-card-foreground' : 'text-muted-foreground'
-                    }`}
-                  >
-                    {active && (
-                      <motion.div
-                        layoutId="theme-indicator"
-                        className="absolute inset-0 bg-card rounded-lg shadow-sm border border-border/50"
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10 flex items-center gap-1.5">
-                      <Icon className="w-3.5 h-3.5" />
-                      {opt.label}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-
           <SettingsCard
-            index={1}
+            index={0}
             icon={<User className="w-5 h-5" />}
             iconBg="hsl(358 94% 47% / 0.15)"
             iconColor="hsl(358, 94%, 47%)"
@@ -437,6 +367,75 @@ export default function Settings() {
             subtitle="Transfer data to a new device"
             onClick={() => { setPhone(''); setActiveModal('restore'); }}
           />
+          {/* Theme Selector */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 350, damping: 28 }}
+            className="w-full bg-card rounded-xl border border-border/50 p-4 space-y-3"
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                style={{ backgroundColor: 'hsl(45 93% 55% / 0.15)' }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={theme}
+                    initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
+                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                    exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  >
+                    {theme === 'dark' ? (
+                      <Moon className="w-5 h-5" style={{ color: 'hsl(45, 93%, 55%)' }} />
+                    ) : (
+                      <Sun className="w-5 h-5" style={{ color: 'hsl(45, 93%, 55%)' }} />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-card-foreground">Appearance</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {mode === 'auto' ? 'System default' : mode === 'dark' ? 'Dark mode' : 'Light mode'}
+                </p>
+              </div>
+            </div>
+            <div className="flex bg-secondary/60 rounded-xl p-1 gap-1">
+              {([
+                { id: 'light' as const, label: 'Light', icon: Sun },
+                { id: 'auto' as const, label: 'Auto', icon: Monitor },
+                { id: 'dark' as const, label: 'Dark', icon: Moon },
+              ]).map(opt => {
+                const Icon = opt.icon;
+                const active = mode === opt.id;
+                return (
+                  <motion.button
+                    key={opt.id}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setMode(opt.id)}
+                    className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      active ? 'text-card-foreground' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {active && (
+                      <motion.div
+                        layoutId="theme-indicator"
+                        className="absolute inset-0 bg-card rounded-lg shadow-sm border border-border/50"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5" />
+                      {opt.label}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+
           <SettingsCard
             index={6}
             icon={<LogOut className="w-5 h-5" />}
