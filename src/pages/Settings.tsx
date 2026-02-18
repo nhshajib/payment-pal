@@ -254,38 +254,75 @@ export default function Settings() {
     setTimeout(() => {
       sessionStorage.setItem('paytrack_signed_out', '1');
       logout();
-    }, 600);
+    }, 1800);
   };
 
   const ordinal = (n: number) => n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
 
   return (
     <PageTransition>
-      {/* Sign-out overlay */}
+      {/* Sign-out overlay — cinematic fullscreen transition */}
       <AnimatePresence>
         {signingOut && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeInOut' }}
-            className="fixed inset-0 z-[200] bg-background flex flex-col items-center justify-center gap-4"
+            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            className="fixed inset-0 z-[200] bg-background flex flex-col items-center justify-center overflow-hidden"
           >
+            {/* Radial glow */}
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 25 }}
-              className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center"
+              className="absolute w-64 h-64 rounded-full"
+              style={{ background: 'radial-gradient(circle, hsl(358 94% 47% / 0.12) 0%, transparent 70%)' }}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 2, opacity: 1 }}
+              transition={{ duration: 1.2, ease: 'easeOut' }}
+            />
+
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0, rotate: -20 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 22 }}
+              className="relative w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-lg"
             >
-              <LogOut className="w-7 h-7 text-primary" />
+              <motion.div
+                animate={{ x: [0, 4, 0] }}
+                transition={{ delay: 0.6, duration: 0.5, ease: 'easeInOut' }}
+              >
+                <LogOut className="w-8 h-8 text-primary" />
+              </motion.div>
             </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.4 }}
+              className="text-foreground text-base font-semibold mt-5 tracking-tight"
+            >
+              See you soon!
+            </motion.p>
             <motion.p
               initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="text-muted-foreground text-sm font-medium"
+              animate={{ opacity: 0.6, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.4 }}
+              className="text-muted-foreground text-sm mt-1"
             >
-              Signing out…
+              Signing out securely…
             </motion.p>
+
+            <motion.div
+              className="mt-8 h-0.5 rounded-full bg-primary/20 overflow-hidden"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 140, opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.3 }}
+            >
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ delay: 0.5, duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
