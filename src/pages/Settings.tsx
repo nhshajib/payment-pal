@@ -1,23 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { useUser } from '@/hooks/useUser'; // force resolve
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useUser } from '@/hooks/useUser';
 import { useCurrency, CURRENCIES } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
-import { Search } from 'lucide-react';
+import { Search, Trash2, CalendarDays } from 'lucide-react';
 
 export default function Settings() {
   const { userId, logout, restore } = useUser();
   const { currency, setCurrency } = useCurrency();
   const [phone, setPhone] = useState('');
   const [reminderDays, setReminderDays] = useState(3);
+  const [paidClearDay, setPaidClearDay] = useState(1);
   const [loading, setLoading] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
+
+  // Load user settings
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data } = await supabase.from('users').select('default_reminder_days, paid_clear_day').eq('id', userId).single();
+      if (data) {
+        setReminderDays(data.default_reminder_days);
+        setPaidClearDay(data.paid_clear_day ?? 1);
+      }
+    })();
+  }, [userId]);
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 10);
@@ -49,6 +63,15 @@ export default function Settings() {
     if (userId) {
       await supabase.from('users').update({ default_reminder_days: days }).eq('id', userId);
       toast.success(`Default reminder set to ${days} days`);
+    }
+  };
+
+  const handleUpdateClearDay = async (day: string) => {
+    const dayNum = parseInt(day);
+    setPaidClearDay(dayNum);
+    if (userId) {
+      await supabase.from('users').update({ paid_clear_day: dayNum } as any).eq('id', userId);
+      toast.success(`Paid list clears on day ${dayNum} of each month`);
     }
   };
 
@@ -152,6 +175,36 @@ export default function Settings() {
                 max={14}
                 step={1}
               />
+            </div>
+          </section>
+
+          {/* Paid list clear day */}
+          <section className="bg-card rounded-lg p-4 border border-border">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-status-warning/15 flex items-center justify-center">
+                <Trash2 className="w-4 h-4 text-status-warning" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-card-foreground">Clear Paid List</h2>
+                <p className="text-xs text-muted-foreground">Auto-clear paid payments monthly</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <CalendarDays className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <Label className="text-sm text-muted-foreground flex-shrink-0">Clear on day</Label>
+              <Select value={String(paidClearDay)} onValueChange={handleUpdateClearDay}>
+                <SelectTrigger className="w-24 h-10 bg-secondary/50 border-0 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border z-[200] max-h-60">
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                    <SelectItem key={d} value={String(d)}>
+                      {d}{d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">of month</span>
             </div>
           </section>
 

@@ -66,18 +66,21 @@ export type Database = {
           created_at: string
           default_reminder_days: number
           id: string
+          paid_clear_day: number
           phone_hash: string
         }
         Insert: {
           created_at?: string
           default_reminder_days?: number
           id?: string
+          paid_clear_day?: number
           phone_hash: string
         }
         Update: {
           created_at?: string
           default_reminder_days?: number
           id?: string
+          paid_clear_day?: number
           phone_hash?: string
         }
         Relationships: []
