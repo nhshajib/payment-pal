@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { format, isSameMonth } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
-import { useUser } from '@/hooks/useUser';
+import { useUser } from '@/hooks/useUser'; // force resolve
 import PaymentCard from '@/components/PaymentCard';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import PageTransition from '@/components/PageTransition';
