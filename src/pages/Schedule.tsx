@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles } from 'lucide-react';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
@@ -30,12 +30,13 @@ function getGreeting() {
 export default function Schedule() {
   const { userId, userName } = useUser();
   const { format: formatCurrency } = useCurrency();
-  const { payments, addPayment, updatePayment, deletePayment, markPaid } = usePayments(userId);
+  const { payments, addPayment, updatePayment, deletePayment, markPaid, clearPaid } = usePayments(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('upcoming');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const filteredPayments = useMemo(() => {
     if (!activeFilter) return payments;
@@ -292,22 +293,42 @@ export default function Schedule() {
                 </p>
               </motion.div>
             ) : (
-              <div className="space-y-2.5">
-                <AnimatePresence mode="popLayout">
-                  {currentList.map((p, i) => (
-                    <PaymentCard
-                      key={p.id}
-                      payment={p}
-                      index={i}
-                      onMarkPaid={handleMarkPaid}
-                      onMarkUnpaid={handleMarkUnpaid}
-                      onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
-                      onDelete={handleDelete}
-                      isPaidTab={activeTab === 'paid'}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+              <>
+                {/* Clear all button for paid tab */}
+                {activeTab === 'paid' && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-end mb-2"
+                  >
+                    <motion.button
+                      whileTap={{ scale: 0.93 }}
+                      onClick={() => setShowClearConfirm(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-destructive bg-destructive/10 active:bg-destructive/20 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Clear All
+                    </motion.button>
+                  </motion.div>
+                )}
+
+                <div className="space-y-2.5">
+                  <AnimatePresence mode="popLayout">
+                    {currentList.map((p, i) => (
+                      <PaymentCard
+                        key={p.id}
+                        payment={p}
+                        index={i}
+                        onMarkPaid={handleMarkPaid}
+                        onMarkUnpaid={handleMarkUnpaid}
+                        onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
+                        onDelete={handleDelete}
+                        isPaidTab={activeTab === 'paid'}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </>
             )}
           </motion.div>
         </AnimatePresence>
@@ -334,6 +355,63 @@ export default function Schedule() {
           onSubmit={handleSubmit}
           editing={editing}
         />
+
+        {/* Clear Paid Confirmation */}
+        <AnimatePresence>
+          {showClearConfirm && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-background/80 backdrop-blur-md z-[70]"
+                onClick={() => setShowClearConfirm(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 30 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 30 }}
+                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                className="fixed inset-x-4 top-[30%] z-[70] max-w-sm mx-auto"
+              >
+                <div className="bg-card rounded-2xl border border-border/50 shadow-2xl p-6 text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-destructive/10 mb-4">
+                    <Trash2 className="w-7 h-7 text-destructive" />
+                  </div>
+                  <h3 className="text-lg font-bold text-card-foreground mb-1">Clear Paid List?</h3>
+                  <p className="text-sm text-muted-foreground mb-5">
+                    This will permanently delete {paid.length} paid payment{paid.length !== 1 ? 's' : ''}. This action cannot be undone.
+                  </p>
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => setShowClearConfirm(false)}
+                      className="flex-1 h-11 rounded-xl bg-secondary text-card-foreground font-medium text-sm"
+                    >
+                      Cancel
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={async () => {
+                        try {
+                          await clearPaid();
+                          setShowClearConfirm(false);
+                          toast.success(`${paid.length} paid payment${paid.length !== 1 ? 's' : ''} cleared`);
+                        } catch {
+                          toast.error('Failed to clear');
+                        }
+                      }}
+                      className="flex-1 h-11 rounded-xl bg-destructive text-destructive-foreground font-medium text-sm"
+                    >
+                      Clear All
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </PageTransition>
   );

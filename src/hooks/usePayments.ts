@@ -91,5 +91,17 @@ export function usePayments(userId: string | null) {
     }
   }, [updatePayment, addPayment, userId]);
 
-  return { payments, loading, addPayment, updatePayment, deletePayment, markPaid, refetch: fetchPayments };
+  const clearPaid = useCallback(async () => {
+    if (!userId) return;
+    const paidIds = payments.filter(p => p.is_paid).map(p => p.id);
+    if (paidIds.length === 0) return;
+    const { error } = await supabase
+      .from('payments')
+      .delete()
+      .in('id', paidIds);
+    if (error) throw error;
+    setPayments(prev => prev.filter(p => !p.is_paid));
+  }, [userId, payments]);
+
+  return { payments, loading, addPayment, updatePayment, deletePayment, markPaid, clearPaid, refetch: fetchPayments };
 }
