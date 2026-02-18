@@ -157,22 +157,45 @@ export default function Onboarding() {
               Never miss a payment again
             </motion.p>
 
-            {/* Primary CTA - Sign In */}
-            <motion.div
+            {/* Sign In form directly on landing */}
+            <motion.form
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.4 }}
+              onSubmit={handleLogin}
               className="w-full space-y-3"
             >
-              <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
-                <Button
-                  onClick={() => { resetForm(); setScreen('login'); }}
-                  className="w-full h-14 text-base font-bold rounded-2xl shadow-xl shadow-primary/30 gap-2"
-                >
-                  <LogIn className="w-5 h-5" />
-                  Sign In
-                </Button>
-              </motion.div>
+              <div className="glass rounded-2xl p-5 border border-border/50 space-y-3">
+                <Input
+                  type="tel"
+                  placeholder="Enter 10-digit phone"
+                  value={phone}
+                  onChange={e => setPhone(formatPhone(e.target.value))}
+                  className="text-center text-lg tracking-widest bg-secondary/50 border-0 rounded-xl focus-visible:ring-1 focus-visible:ring-primary h-14"
+                  maxLength={11}
+                />
+
+                <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
+                  <Button
+                    type="submit"
+                    className="w-full h-14 text-base font-bold rounded-xl shadow-xl shadow-primary/30 gap-2"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <motion.div
+                        className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      />
+                    ) : (
+                      <>
+                        <LogIn className="w-5 h-5" />
+                        Sign In
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+              </div>
 
               {/* Divider */}
               <div className="flex items-center gap-3 py-1">
@@ -184,6 +207,7 @@ export default function Onboarding() {
               {/* Secondary CTA - New User */}
               <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={() => { resetForm(); setScreen('signup'); }}
                   className="w-full h-14 text-base font-semibold rounded-2xl border-border/60 bg-card/50 backdrop-blur-sm gap-2"
@@ -192,97 +216,20 @@ export default function Onboarding() {
                   New User? Get Started
                 </Button>
               </motion.div>
-            </motion.div>
+            </motion.form>
 
             {/* Bottom tagline */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.9, duration: 0.5 }}
-              className="text-muted-foreground/40 text-xs mt-10 text-center"
+              className="text-muted-foreground/40 text-xs mt-8 text-center"
             >
               Your data syncs with your phone number
             </motion.p>
           </motion.div>
         )}
 
-        {/* ─── Login Screen ─── */}
-        {screen === 'login' && (
-          <motion.div
-            key="login"
-            initial={{ opacity: 0, x: 60 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -60 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="relative z-10 w-full max-w-xs"
-          >
-            {/* Back button */}
-            <motion.button
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              onClick={() => setScreen('landing')}
-              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors mb-8"
-            >
-              <ChevronLeft className="w-5 h-5" />
-              <span className="text-sm">Back</span>
-            </motion.button>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="mb-8"
-            >
-              <h2 className="text-3xl font-extrabold text-foreground tracking-tight">Welcome back</h2>
-              <p className="text-muted-foreground text-sm mt-1">Sign in with your phone number to restore your data</p>
-            </motion.div>
-
-            <motion.form
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              onSubmit={handleLogin}
-              className="space-y-4"
-            >
-              <div className="glass rounded-2xl p-5 border border-border/50 space-y-4">
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2 block">Phone Number</label>
-                  <Input
-                    type="tel"
-                    placeholder="Enter 10-digit phone"
-                    value={phone}
-                    onChange={e => setPhone(formatPhone(e.target.value))}
-                    className="text-center text-lg tracking-widest bg-secondary/50 border-0 rounded-xl focus-visible:ring-1 focus-visible:ring-primary h-14"
-                    maxLength={11}
-                    autoFocus
-                  />
-                </div>
-
-                <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
-                  <Button
-                    type="submit"
-                    className="w-full h-13 text-base font-bold rounded-xl shadow-lg shadow-primary/25 gap-2"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <motion.div
-                        className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                      />
-                    ) : (
-                      <>
-                        Sign In
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </Button>
-                </motion.div>
-              </div>
-            </motion.form>
-          </motion.div>
-        )}
 
         {/* ─── Signup Screen ─── */}
         {screen === 'signup' && (
