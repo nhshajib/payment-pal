@@ -85,10 +85,18 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
             className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto"
           >
             <div className="bg-card rounded-t-3xl border-t border-border/50 shadow-2xl overflow-hidden">
-              {/* Drag handle (visual only) */}
-              <div className="flex justify-center pt-3 pb-1" onClick={onClose}>
-                <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
-              </div>
+              {/* Drag handle - swipe down to close */}
+              <motion.div
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={0.4}
+                onDragEnd={(_, info) => {
+                  if (info.offset.y > 60 || info.velocity.y > 400) onClose();
+                }}
+                className="flex justify-center pt-3 pb-3 cursor-grab active:cursor-grabbing touch-none"
+              >
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+              </motion.div>
 
               {/* Header */}
               <div className="flex items-center justify-between px-6 pb-4 pt-2">
