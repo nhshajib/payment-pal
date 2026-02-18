@@ -1,0 +1,1 @@
+ALTER TABLE public.users ADD COLUMN paid_clear_day integer NOT NULL DEFAULT 1;
