@@ -47,6 +47,7 @@ function SettingsModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="fixed inset-0 bg-background/80 backdrop-blur-md z-[70]"
             onClick={onClose}
           />
@@ -54,12 +55,12 @@ function SettingsModal({
             initial={{ opacity: 0, scale: 0.92, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 400 }}
             className="fixed inset-x-4 top-[15%] z-[70] max-w-md mx-auto"
           >
-            <div className="bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border/50 shadow-2xl overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
                 <h2 className="text-lg font-bold text-card-foreground">{title}</h2>
                 <motion.button
                   whileTap={{ scale: 0.85, rotate: -90 }}
@@ -77,7 +78,7 @@ function SettingsModal({
 
               {/* Footer */}
               {onSave && (
-                <div className="flex gap-3 px-5 py-4 border-t border-border">
+                <div className="flex gap-3 px-5 py-4 border-t border-border/50">
                   <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
                     <Button variant="secondary" onClick={onClose} className="w-full rounded-xl h-11">
                       Cancel
@@ -127,14 +128,14 @@ function SettingsCard({
     <motion.button
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.05 * index, type: 'spring', stiffness: 300, damping: 25 }}
+      transition={{ delay: 0.04 * index, type: 'spring', stiffness: 350, damping: 28 }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="w-full bg-card rounded-xl border border-border p-4 flex items-center gap-4 text-left active:bg-secondary/50 transition-colors"
+      className="w-full bg-card rounded-xl border border-border/50 p-4 flex items-center gap-4 text-left active:bg-secondary/50 transition-all group"
     >
       <div
-        className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: iconBg }}
+        className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-shadow group-active:shadow-lg"
+        style={{ backgroundColor: iconBg, boxShadow: `0 0 0px ${iconColor}00` }}
       >
         <span style={{ color: iconColor }}>{icon}</span>
       </div>
@@ -144,7 +145,7 @@ function SettingsCard({
         </p>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
       </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
+      <ChevronRight className="w-4 h-4 text-muted-foreground/40 flex-shrink-0 transition-transform group-active:translate-x-0.5" />
     </motion.button>
   );
 }
@@ -154,26 +155,20 @@ export default function Settings() {
   const { userId, logout, restore } = useUser();
   const { currency, setCurrency } = useCurrency();
 
-  // Local state for modals
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
-  // Restore
   const [phone, setPhone] = useState('');
   const [restoreLoading, setRestoreLoading] = useState(false);
 
-  // Reminder
   const [reminderDays, setReminderDays] = useState(3);
   const [tempReminder, setTempReminder] = useState(3);
 
-  // Clear day
   const [paidClearDay, setPaidClearDay] = useState(1);
   const [tempClearDay, setTempClearDay] = useState(1);
 
-  // Currency
   const [currencySearch, setCurrencySearch] = useState('');
   const [tempCurrency, setTempCurrency] = useState(currency);
 
-  // Notifications
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(getNotificationPrefs());
   const [tempNotifPrefs, setTempNotifPrefs] = useState<NotificationPrefs>(notifPrefs);
   const [notifStatus, setNotifStatus] = useState(getNotificationStatus());
@@ -202,7 +197,6 @@ export default function Settings() {
     setCurrencySearch('');
   };
 
-  // ─── Handlers ───
   const handleRestore = async () => {
     const digits = phone.replace(/\D/g, '');
     if (digits.length !== 10) {
@@ -261,11 +255,11 @@ export default function Settings() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Settings</h1>
           <p className="text-muted-foreground text-sm">Customize your experience</p>
         </motion.header>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <SettingsCard
             index={0}
             icon={<Coins className="w-5 h-5" />}

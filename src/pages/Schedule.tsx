@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2 } from 'lucide-react';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
@@ -20,6 +20,13 @@ const TABS: { id: TabId; label: string; icon: typeof CalendarCheck }[] = [
   { id: 'paid', label: 'Paid', icon: CheckCircle2 },
 ];
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export default function Schedule() {
   const { userId } = useUser();
   const { format: formatCurrency } = useCurrency();
@@ -35,7 +42,6 @@ export default function Schedule() {
     return payments.filter(p => (p.category || 'other') === activeFilter);
   }, [payments, activeFilter]);
 
-  const now = new Date();
   const unpaid = filteredPayments.filter(p => !p.is_paid);
   const paid = filteredPayments.filter(p => p.is_paid);
 
@@ -102,27 +108,42 @@ export default function Schedule() {
   };
 
   const currentList = activeTab === 'upcoming' ? unpaid : paid;
+  const progressPct = (summary.totalDue + summary.totalPaid) > 0
+    ? (summary.totalPaid / (summary.totalDue + summary.totalPaid)) * 100
+    : 0;
 
   return (
     <PageTransition>
       <Confetti trigger={confettiTrigger} />
       <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
+        {/* Greeting Header */}
         <motion.header
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-5"
         >
-          <h1 className="text-2xl font-bold text-foreground">Your Payments</h1>
-          <p className="text-muted-foreground text-sm">{format(now, 'MMMM yyyy')}</p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-muted-foreground text-sm"
+          >
+            {getGreeting()} 👋
+          </motion.p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
+          <p className="text-muted-foreground text-xs mt-0.5">{format(new Date(), 'EEEE, MMMM d')}</p>
         </motion.header>
 
-        {/* Summary Card */}
+        {/* Summary Card - Frosted Glass */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-5 rounded-2xl bg-card border border-border overflow-hidden"
+          className="mb-5 rounded-2xl glass border border-border/50 overflow-hidden"
         >
+          {/* Accent line */}
+          <div className="h-0.5 gradient-accent" />
+
           <div className="grid grid-cols-2">
             {/* Due */}
             <div className="p-4 relative">
@@ -130,12 +151,11 @@ export default function Schedule() {
                 <div className="w-7 h-7 rounded-lg bg-status-overdue/15 flex items-center justify-center">
                   <CalendarCheck className="w-3.5 h-3.5 text-status-overdue" />
                 </div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Total Due</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Due</p>
               </div>
               <p className="text-2xl font-bold text-status-overdue">{formatCurrency(summary.totalDue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{summary.unpaidCount} payment{summary.unpaidCount !== 1 ? 's' : ''} pending</p>
-              {/* Divider */}
-              <div className="absolute right-0 top-4 bottom-4 w-px bg-border" />
+              <p className="text-xs text-muted-foreground mt-1">{summary.unpaidCount} pending</p>
+              <div className="absolute right-0 top-4 bottom-4 w-px bg-border/50" />
             </div>
             {/* Paid */}
             <div className="p-4">
@@ -143,12 +163,13 @@ export default function Schedule() {
                 <div className="w-7 h-7 rounded-lg bg-status-success/15 flex items-center justify-center">
                   <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
                 </div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Total Paid</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Paid</p>
               </div>
               <p className="text-2xl font-bold text-status-success">{formatCurrency(summary.totalPaid)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{summary.paidCount} payment{summary.paidCount !== 1 ? 's' : ''} done</p>
+              <p className="text-xs text-muted-foreground mt-1">{summary.paidCount} done</p>
             </div>
           </div>
+
           {/* Progress bar */}
           {(summary.totalDue + summary.totalPaid) > 0 && (
             <div className="px-4 pb-3">
@@ -156,7 +177,7 @@ export default function Schedule() {
                 <motion.div
                   className="h-full rounded-full bg-status-success"
                   initial={{ width: 0 }}
-                  animate={{ width: `${(summary.totalPaid / (summary.totalDue + summary.totalPaid)) * 100}%` }}
+                  animate={{ width: `${progressPct}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
                 />
               </div>
@@ -165,14 +186,15 @@ export default function Schedule() {
         </motion.div>
 
         {/* Tab Switcher */}
-        <div className="relative mb-4 bg-secondary rounded-xl p-1 flex">
+        <div className="relative mb-4 bg-secondary/80 rounded-xl p-1 flex">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
             const count = tab.id === 'upcoming' ? unpaid.length : paid.length;
             return (
-              <button
+              <motion.button
                 key={tab.id}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => setActiveTab(tab.id)}
                 className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors z-10 ${
                   isActive ? 'text-foreground' : 'text-muted-foreground'
@@ -182,7 +204,7 @@ export default function Schedule() {
                   <motion.div
                     layoutId="scheduleTab"
                     className="absolute inset-0 bg-card rounded-lg shadow-sm"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
                 <span className="relative flex items-center gap-1.5">
@@ -196,14 +218,14 @@ export default function Schedule() {
                     </span>
                   )}
                 </span>
-              </button>
+              </motion.button>
             );
           })}
         </div>
 
         {/* Category filter bar */}
         {usedCategories.length > 1 && (
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ maskImage: 'linear-gradient(to right, black 90%, transparent)' }}>
             <motion.button
               whileTap={{ scale: 0.93 }}
               onClick={() => setActiveFilter(null)}
@@ -228,7 +250,7 @@ export default function Schedule() {
                       ? 'text-card-foreground'
                       : 'bg-secondary text-muted-foreground'
                   }`}
-                  style={isActive ? { backgroundColor: `${cat.color}25`, color: cat.color } : undefined}
+                  style={isActive ? { backgroundColor: `${cat.color}20`, color: cat.color, boxShadow: `0 0 12px ${cat.color}15` } : undefined}
                 >
                   <Icon className="w-3 h-3" />
                   {cat.label}
@@ -249,21 +271,28 @@ export default function Schedule() {
           >
             {currentList.length === 0 ? (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
                 className="text-center py-16"
               >
-                <p className="text-muted-foreground text-lg">
+                <motion.div
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-secondary mb-4"
+                >
+                  <Sparkles className="w-7 h-7 text-muted-foreground" />
+                </motion.div>
+                <p className="text-muted-foreground font-medium">
                   {activeTab === 'upcoming' ? 'No upcoming payments' : 'No paid payments yet'}
                 </p>
-                <p className="text-muted-foreground text-sm mt-1">
+                <p className="text-muted-foreground/60 text-sm mt-1">
                   {activeTab === 'upcoming'
                     ? 'Tap + to add your first payment'
                     : 'Swipe right on a payment to mark it paid'}
                 </p>
               </motion.div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <AnimatePresence mode="popLayout">
                   {currentList.map((p, i) => (
                     <PaymentCard
@@ -283,7 +312,7 @@ export default function Schedule() {
           </motion.div>
         </AnimatePresence>
 
-        {/* FAB - only on upcoming tab */}
+        {/* FAB - with glow pulse */}
         {activeTab === 'upcoming' && (
           <motion.button
             initial={{ scale: 0 }}
@@ -293,7 +322,7 @@ export default function Schedule() {
             whileTap={{ scale: 0.85, rotate: 90 }}
             transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             onClick={() => { setEditing(null); setSheetOpen(true); }}
-            className="fixed bottom-28 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-[60]"
+            className="fixed bottom-28 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-[60] glow-pulse"
           >
             <Plus className="w-6 h-6" />
           </motion.button>

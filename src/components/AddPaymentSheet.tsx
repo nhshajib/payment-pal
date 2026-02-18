@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
-import { CATEGORIES, getCategoryById } from '@/lib/categories';
+import { CATEGORIES } from '@/lib/categories';
 import { format } from 'date-fns';
 
 interface Props {
@@ -67,6 +67,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="fixed inset-0 bg-background/80 backdrop-blur-md z-50"
             onClick={onClose}
           />
@@ -76,13 +77,19 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 400 }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100 || info.velocity.y > 500) onClose();
+            }}
             className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto"
           >
-            <div className="bg-card rounded-t-3xl border-t border-border shadow-2xl overflow-hidden">
+            <div className="bg-card rounded-t-3xl border-t border-border/50 shadow-2xl overflow-hidden">
               {/* Drag handle */}
               <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
               </div>
 
               {/* Header */}
@@ -100,8 +107,11 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                 </motion.button>
               </div>
 
+              {/* Divider */}
+              <div className="h-px bg-border/50 mx-6" />
+
               {/* Form */}
-              <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-5 max-h-[70vh] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="px-6 pb-8 pt-5 space-y-5 max-h-[70vh] overflow-y-auto">
                 {/* Payment Name */}
                 <div>
                   <Input
@@ -109,7 +119,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                     onChange={e => setName(e.target.value)}
                     placeholder="Payment name"
                     required
-                    className="h-14 text-lg font-medium bg-secondary/50 border-0 rounded-2xl px-5 placeholder:text-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-primary"
+                    className="h-14 text-lg font-medium bg-secondary/50 border-0 rounded-2xl px-5 placeholder:text-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-primary transition-shadow"
                   />
                 </div>
 
@@ -124,9 +134,12 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                     onChange={e => setAmount(e.target.value)}
                     placeholder="0.00"
                     required
-                    className="h-16 text-3xl font-bold bg-secondary/50 border-0 rounded-2xl pl-12 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="h-16 text-3xl font-bold bg-secondary/50 border-0 rounded-2xl pl-12 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary transition-shadow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
+
+                {/* Divider */}
+                <div className="h-px bg-border/30" />
 
                 {/* Category picker */}
                 <div>
@@ -162,7 +175,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                         value={dueDate}
                         onChange={e => setDueDate(e.target.value)}
                         required
-                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary"
+                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow"
                       />
                     </div>
                   </div>
@@ -176,12 +189,15 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                         onChange={e => setReminderDays(e.target.value)}
                         min="0"
                         max="30"
-                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary"
+                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow"
                       />
                       <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/50">days</span>
                     </div>
                   </div>
                 </div>
+
+                {/* Divider */}
+                <div className="h-px bg-border/30" />
 
                 {/* Recurring toggle */}
                 <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3.5">
@@ -201,10 +217,10 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                 </div>
 
                 {/* Submit button */}
-                <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
+                <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
                   <Button
                     type="submit"
-                    className="w-full h-13 rounded-2xl text-base font-semibold shadow-lg shadow-primary/25 mt-2"
+                    className="w-full rounded-2xl text-base font-semibold shadow-lg shadow-primary/25 mt-2"
                     style={{ height: '52px' }}
                   >
                     {editing ? 'Save Changes' : 'Add Payment'}
