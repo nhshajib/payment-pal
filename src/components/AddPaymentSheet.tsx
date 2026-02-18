@@ -111,7 +111,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
               <div className="h-px bg-border/50 mx-6" />
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="px-6 pb-8 pt-5 space-y-5 max-h-[70vh] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="px-6 pb-32 pt-5 space-y-5 max-h-[75vh] overflow-y-auto">
                 {/* Payment Name */}
                 <div>
                   <Input
@@ -165,8 +165,8 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                 </div>
 
                 {/* Date & Reminder Row */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="relative">
+                <div className="space-y-3">
+                  <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Due Date</label>
                     <div className="relative">
                       <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
@@ -175,7 +175,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                         value={dueDate}
                         onChange={e => setDueDate(e.target.value)}
                         required
-                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow"
+                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow w-full"
                       />
                     </div>
                   </div>
@@ -189,7 +189,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                         onChange={e => setReminderDays(e.target.value)}
                         min="0"
                         max="30"
-                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow"
+                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 pr-14 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow w-full"
                       />
                       <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/50">days</span>
                     </div>
