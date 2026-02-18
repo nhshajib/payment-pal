@@ -9,6 +9,7 @@ import { CATEGORIES } from '@/lib/categories';
 import PaymentCard from '@/components/PaymentCard';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import Confetti from '@/components/Confetti';
+import MonthlyChart from '@/components/MonthlyChart';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
@@ -260,6 +261,9 @@ export default function Schedule() {
             </div>
           )}
         </motion.div>
+
+        {/* Monthly Breakdown Chart */}
+        <MonthlyChart payments={payments} />
 
         {/* Tab Switcher */}
         <div className="relative mb-4 bg-secondary/80 rounded-xl p-1 flex">
