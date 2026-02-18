@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, TrendingUp, TrendingDown, RefreshCw, Loader2, SlidersHorizontal, ArrowDownAZ, ArrowDownUp, Clock } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, RefreshCw, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -10,7 +10,6 @@ import PaymentCard from '@/components/PaymentCard';
 import PaymentCardSkeleton from '@/components/PaymentCardSkeleton';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import Confetti from '@/components/Confetti';
-import MonthlyChart from '@/components/MonthlyChart';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
@@ -134,39 +133,10 @@ export default function Schedule() {
 
   const summary = useMemo(() => {
     const now = new Date();
-    const totalDue = payments.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
-    const totalPaid = payments.filter(p => p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
     const unpaidCount = payments.filter(p => !p.is_paid).length;
     const paidCount = payments.filter(p => p.is_paid).length;
     const overdueCount = payments.filter(p => !p.is_paid && new Date(p.due_date) < now).length;
-    return { totalDue, totalPaid, unpaidCount, paidCount, overdueCount };
-  }, [payments]);
-
-  // Monthly insight: compare this month total vs last month
-  const monthlyInsight = useMemo(() => {
-    const now = new Date();
-    const thisStart = startOfMonth(now);
-    const thisEnd = endOfMonth(now);
-    const lastStart = startOfMonth(subMonths(now, 1));
-    const lastEnd = endOfMonth(subMonths(now, 1));
-
-    const thisMonthTotal = payments
-      .filter(p => {
-        const d = new Date(p.due_date);
-        return isWithinInterval(d, { start: thisStart, end: thisEnd });
-      })
-      .reduce((s, p) => s + Number(p.amount), 0);
-
-    const lastMonthTotal = payments
-      .filter(p => {
-        const d = new Date(p.due_date);
-        return isWithinInterval(d, { start: lastStart, end: lastEnd });
-      })
-      .reduce((s, p) => s + Number(p.amount), 0);
-
-    if (lastMonthTotal === 0) return { total: thisMonthTotal, change: null };
-    const pctChange = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
-    return { total: thisMonthTotal, change: Math.round(pctChange) };
+    return { unpaidCount, paidCount, overdueCount };
   }, [payments]);
 
   useEffect(() => { requestNotificationPermission(); }, []);
@@ -241,9 +211,6 @@ export default function Schedule() {
   };
 
   const currentList = activeTab === 'upcoming' ? unpaid : paid;
-  const progressPct = (summary.totalDue + summary.totalPaid) > 0
-    ? (summary.totalPaid / (summary.totalDue + summary.totalPaid)) * 100
-    : 0;
 
   // Initial loading (no cached data either)
   const showSkeleton = loading && payments.length === 0;
@@ -253,7 +220,7 @@ export default function Schedule() {
       <Confetti trigger={confettiTrigger} />
       <div
         ref={scrollRef}
-        className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto"
+        className="min-h-screen pb-28 px-4 pt-6 max-w-md mx-auto"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -388,75 +355,6 @@ export default function Schedule() {
             </motion.button>
           </div>
         </motion.header>
-
-        {/* Summary Card - Frosted Glass */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-5 rounded-2xl glass border border-border/50 overflow-hidden"
-        >
-          {/* Accent line */}
-          <div className="h-0.5 gradient-accent" />
-
-          <div className="grid grid-cols-2">
-            {/* Due */}
-            <div className="p-4 relative">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-7 h-7 rounded-lg bg-status-overdue/15 flex items-center justify-center">
-                  <CalendarCheck className="w-3.5 h-3.5 text-status-overdue" />
-                </div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Due</p>
-              </div>
-              <p className="text-2xl font-bold text-status-overdue">{formatCurrency(summary.totalDue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{summary.unpaidCount} pending</p>
-              <div className="absolute right-0 top-4 bottom-4 w-px bg-border/50" />
-            </div>
-            {/* Paid */}
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-7 h-7 rounded-lg bg-status-success/15 flex items-center justify-center">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
-                </div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Paid</p>
-              </div>
-              <p className="text-2xl font-bold text-status-success">{formatCurrency(summary.totalPaid)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{summary.paidCount} done</p>
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          {(summary.totalDue + summary.totalPaid) > 0 && (
-            <div className="px-4 pb-3">
-              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-status-success"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progressPct}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Monthly Insight */}
-          {monthlyInsight.total > 0 && (
-            <div className="px-4 pb-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>This month: <span className="font-semibold text-card-foreground">{formatCurrency(monthlyInsight.total)}</span></span>
-                {monthlyInsight.change !== null && (
-                  <span className={`flex items-center gap-0.5 font-medium ${monthlyInsight.change > 0 ? 'text-status-overdue' : 'text-status-success'}`}>
-                    {monthlyInsight.change > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {Math.abs(monthlyInsight.change)}% vs last
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Monthly Breakdown Chart */}
-        <MonthlyChart payments={payments} />
 
         {/* Tab Switcher */}
         <div className="relative mb-4 bg-secondary/80 rounded-xl p-1 flex">
@@ -646,7 +544,7 @@ export default function Schedule() {
             whileTap={{ scale: 0.85, rotate: 90 }}
             transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             onClick={() => { setEditing(null); setSheetOpen(true); haptic(20); }}
-            className="fixed bottom-28 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-[60] glow-pulse"
+            className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-[60] glow-pulse"
           >
             <Plus className="w-6 h-6" />
           </motion.button>
