@@ -74,6 +74,32 @@ export function sendNotification(title: string, body: string, tag?: string) {
   }
 }
 
+// Engaging, urgent notification messages
+const OVERDUE_TITLES = [
+  'Your wallet is crying',
+  'Houston, we have a problem',
+  'Red alert — bills overdue',
+  'Time to face the music',
+];
+
+const TODAY_TITLES = [
+  'Today is D-Day for your bills',
+  'Clock is ticking on payments',
+  'No more procrastinating',
+  'Bills won\'t pay themselves',
+];
+
+const UPCOMING_TITLES = [
+  'Heads up — bills incoming',
+  'Get ahead of your payments',
+  'Future you will thank you',
+  'Bills approaching fast',
+];
+
+function pickRandom(arr: string[]): string {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 export function checkAndNotifyPayments(payments: Array<{
   name: string;
   amount: number;
@@ -113,24 +139,24 @@ export function checkAndNotifyPayments(payments: Array<{
 
   if (overdue.length > 0) {
     sendNotification(
-      `⚠️ ${overdue.length} overdue payment${overdue.length > 1 ? 's' : ''}`,
-      overdue.join(', '),
+      pickRandom(OVERDUE_TITLES),
+      `${overdue.length} overdue: ${overdue.join(', ')}. Handle it now.`,
       'paytrack-overdue'
     );
   }
 
   if (dueToday.length > 0) {
     sendNotification(
-      `📅 ${dueToday.length} payment${dueToday.length > 1 ? 's' : ''} due today`,
-      dueToday.join(', '),
+      pickRandom(TODAY_TITLES),
+      `${dueToday.length} due right now: ${dueToday.join(', ')}. Don't let it slide.`,
       'paytrack-today'
     );
   }
 
   if (upcoming.length > 0) {
     sendNotification(
-      `🔔 ${upcoming.length} payment${upcoming.length > 1 ? 's' : ''} coming up`,
-      upcoming.join(', '),
+      pickRandom(UPCOMING_TITLES),
+      `${upcoming.length} coming up: ${upcoming.join(', ')}. Stay sharp.`,
       'paytrack-upcoming'
     );
   }
@@ -143,8 +169,8 @@ export function checkAndNotifyPayments(payments: Array<{
 /** Send a test notification to verify everything works */
 export function sendTestNotification() {
   sendNotification(
-    '🎉 Notifications are working!',
-    'You\'ll receive payment reminders based on your preferences.',
+    'You\'re all set',
+    'Payment reminders are live. We\'ll keep you on track.',
     'paytrack-test'
   );
 }

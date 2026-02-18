@@ -10,6 +10,7 @@ import { CurrencyProvider } from "@/hooks/useCurrency";
 import { ThemeProvider } from "@/hooks/useTheme";
 import Onboarding from "./pages/Onboarding";
 import Schedule from "./pages/Schedule";
+import Overview from "./pages/Overview";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
@@ -105,6 +106,10 @@ function AppRoutes() {
           <Route
             path="/schedule"
             element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/overview"
+            element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
           />
           <Route
             path="/settings"
