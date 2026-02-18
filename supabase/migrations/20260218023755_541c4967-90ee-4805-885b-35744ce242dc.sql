@@ -1,0 +1,1 @@
+ALTER TABLE public.payments ADD COLUMN category text NOT NULL DEFAULT 'other';
