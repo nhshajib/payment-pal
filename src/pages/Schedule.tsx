@@ -160,7 +160,7 @@ export default function Schedule() {
           whileTap={{ scale: 0.85, rotate: 90 }}
           transition={{ type: 'spring', stiffness: 500, damping: 15 }}
           onClick={() => { setEditing(null); setSheetOpen(true); }}
-          className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-40"
+          className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-[60]"
         >
           <Plus className="w-6 h-6" />
         </motion.button>
