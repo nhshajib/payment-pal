@@ -153,7 +153,7 @@ export default function Schedule() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => { setEditing(null); setSheetOpen(true); }}
-          className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-40"
+          className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-40"
         >
           <Plus className="w-6 h-6" />
         </motion.button>
