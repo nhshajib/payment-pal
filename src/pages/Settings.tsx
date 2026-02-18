@@ -380,23 +380,14 @@ export default function Settings() {
             iconBg="hsl(280 70% 55% / 0.15)"
             iconColor="hsl(280, 70%, 55%)"
             title="Notifications"
-            subtitle={notifStatus === 'denied' ? 'Blocked by browser' : notifPrefs.enabled ? 'Enabled' : 'Disabled'}
-            onClick={async () => {
-              // If not yet asked, trigger browser permission popup first
-              if (notifStatus === 'default') {
-                const granted = await requestNotificationPermission();
-                setNotifStatus(getNotificationStatus());
-                if (granted) {
-                  toast.success('Notifications enabled!');
-                  // Auto-enable prefs
-                  const newPrefs = { ...notifPrefs, enabled: true };
-                  saveNotificationPrefs(newPrefs);
-                  setNotifPrefs(newPrefs);
-                  setTempNotifPrefs(newPrefs);
-                }
-              }
+            subtitle={notifStatus === 'denied' ? 'Blocked by browser' : notifStatus === 'granted' ? (notifPrefs.enabled ? 'Enabled' : 'Disabled') : 'Not set up'}
+            onClick={() => {
               setTempNotifPrefs(notifPrefs);
-              setActiveModal('notifications');
+              if (notifStatus === 'granted') {
+                setActiveModal('notifications');
+              } else {
+                setActiveModal('notif-permission');
+              }
             }}
           />
           <SettingsCard
@@ -697,11 +688,152 @@ export default function Settings() {
           </div>
         </SettingsModal>
 
-        {/* ─── Notifications Modal ─── */}
+        {/* ─── Notification Permission Modal (Allow / Deny flow) ─── */}
+        <AnimatePresence>
+          {activeModal === 'notif-permission' && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="fixed inset-0 bg-background/85 backdrop-blur-xl z-[70]"
+                onClick={close}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.88, y: 40 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.88, y: 40 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                className="fixed inset-x-4 top-[18%] z-[70] max-w-sm mx-auto"
+              >
+                <div className="bg-card rounded-3xl border border-border/50 shadow-2xl overflow-hidden">
+                  <div className="px-6 pt-8 pb-6 text-center">
+                    {/* Animated bell icon with glow */}
+                    <motion.div
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 20 }}
+                      className="relative inline-flex items-center justify-center mb-5"
+                    >
+                      <motion.div
+                        className="absolute w-28 h-28 rounded-full"
+                        style={{ background: 'radial-gradient(circle, hsl(280 70% 55% / 0.12) 0%, transparent 70%)' }}
+                        animate={{ scale: [1, 1.15, 1] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                      />
+                      <div className="w-20 h-20 rounded-[1.25rem] bg-primary/10 border border-primary/20 flex items-center justify-center">
+                        <motion.div
+                          animate={{ rotate: [0, 12, -12, 8, -8, 0] }}
+                          transition={{ delay: 0.4, duration: 0.8, ease: 'easeInOut' }}
+                        >
+                          <BellRing className="w-8 h-8 text-primary" />
+                        </motion.div>
+                      </div>
+                    </motion.div>
+
+                    <motion.h3
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 }}
+                      className="text-lg font-bold text-card-foreground tracking-tight"
+                    >
+                      {notifStatus === 'denied' ? 'Notifications Blocked' : 'Enable Notifications'}
+                    </motion.h3>
+
+                    <motion.p
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.22 }}
+                      className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-[280px] mx-auto"
+                    >
+                      {notifStatus === 'denied'
+                        ? 'Notifications were previously blocked. Please update your browser settings to allow them.'
+                        : 'Get timely reminders for overdue, upcoming, and due-today payments so you never miss one.'}
+                    </motion.p>
+                  </div>
+
+                  <div className="h-px bg-border/50" />
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.28 }}
+                    className="p-4"
+                  >
+                    {notifStatus === 'denied' ? (
+                      <div className="flex gap-3">
+                        <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
+                          <Button variant="secondary" onClick={close} className="w-full rounded-2xl h-12 text-sm font-semibold">
+                            Not Now
+                          </Button>
+                        </motion.div>
+                        <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
+                          <Button
+                            className="w-full rounded-2xl h-12 text-sm font-semibold shadow-lg shadow-primary/20"
+                            onClick={() => {
+                              setNotifStatus(getNotificationStatus());
+                              if (getNotificationStatus() === 'granted') {
+                                toast.success('Notifications enabled!');
+                                const newPrefs = { ...notifPrefs, enabled: true };
+                                saveNotificationPrefs(newPrefs);
+                                setNotifPrefs(newPrefs);
+                                setTempNotifPrefs(newPrefs);
+                                setActiveModal('notifications');
+                              } else {
+                                toast.error('Still blocked — check browser/device settings');
+                              }
+                            }}
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Refresh Status
+                          </Button>
+                        </motion.div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2.5">
+                        <motion.div whileTap={{ scale: 0.97 }}>
+                          <Button
+                            className="w-full rounded-2xl h-12 text-sm font-semibold shadow-lg shadow-primary/20"
+                            onClick={async () => {
+                              const granted = await requestNotificationPermission();
+                              setNotifStatus(getNotificationStatus());
+                              if (granted) {
+                                toast.success('Notifications enabled! 🔔');
+                                const newPrefs = { ...notifPrefs, enabled: true };
+                                saveNotificationPrefs(newPrefs);
+                                setNotifPrefs(newPrefs);
+                                setTempNotifPrefs(newPrefs);
+                                setActiveModal('notifications');
+                              } else {
+                                toast.error('Permission denied');
+                                setNotifStatus(getNotificationStatus());
+                              }
+                            }}
+                          >
+                            <Bell className="w-4 h-4 mr-2" />
+                            Allow Notifications
+                          </Button>
+                        </motion.div>
+                        <motion.div whileTap={{ scale: 0.97 }}>
+                          <Button variant="ghost" onClick={close} className="w-full rounded-2xl h-11 text-sm text-muted-foreground">
+                            Maybe Later
+                          </Button>
+                        </motion.div>
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ─── Notification Preferences Modal (shown only after permission granted) ─── */}
         <SettingsModal
           open={activeModal === 'notifications'}
           onClose={close}
-          title="Notifications"
+          title="Notification Preferences"
           onSave={() => {
             saveNotificationPrefs(tempNotifPrefs);
             setNotifPrefs(tempNotifPrefs);
@@ -710,120 +842,63 @@ export default function Settings() {
           }}
         >
           <div className="space-y-5">
-            {notifStatus === 'denied' ? (
-              <div className="text-center py-4">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10 mb-4">
-                  <BellRing className="w-8 h-8 text-destructive" />
+            {/* Master toggle */}
+            <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <Bell className="w-4 h-4 text-primary" />
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Notifications are blocked. Please enable them in your browser settings, then tap below.
-                </p>
-                <Button
-                  variant="secondary"
-                  className="rounded-xl"
-                  onClick={() => {
-                    // Re-check status (user may have changed browser settings)
-                    setNotifStatus(getNotificationStatus());
-                    if (getNotificationStatus() === 'granted') {
-                      toast.success('Notifications are now enabled!');
-                    } else {
-                      toast.error('Still blocked — check browser settings');
-                    }
-                  }}
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh Permission Status
-                </Button>
-              </div>
-            ) : notifStatus === 'default' ? (
-              <div className="text-center py-4">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 mb-4">
-                  <BellRing className="w-8 h-8 text-primary" />
+                <div>
+                  <p className="text-sm font-medium text-card-foreground">All Notifications</p>
+                  <p className="text-xs text-muted-foreground">Master toggle</p>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Allow notifications to receive payment reminders.
-                </p>
-                <Button
-                  onClick={async () => {
-                    const granted = await requestNotificationPermission();
-                    setNotifStatus(getNotificationStatus());
-                    if (granted) {
-                      toast.success('Notifications enabled!');
-                      const newPrefs = { ...tempNotifPrefs, enabled: true };
-                      setTempNotifPrefs(newPrefs);
-                      saveNotificationPrefs(newPrefs);
-                      setNotifPrefs(newPrefs);
-                    } else {
-                      toast.error('Permission denied');
-                    }
-                  }}
-                  className="rounded-xl"
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  Allow Notifications
-                </Button>
               </div>
-            ) : (
-              <>
-                {/* Master toggle */}
-                <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3.5">
+              <Switch
+                checked={tempNotifPrefs.enabled}
+                onCheckedChange={(v) => setTempNotifPrefs(prev => ({ ...prev, enabled: v }))}
+              />
+            </div>
+
+            {/* Individual toggles */}
+            <div className={`space-y-1 transition-opacity ${tempNotifPrefs.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
+              {[
+                { key: 'overdue' as const, icon: AlertTriangle, label: 'Overdue Payments', desc: 'When a payment is past due', color: 'hsl(0, 84%, 60%)' },
+                { key: 'dueToday' as const, icon: Clock, label: 'Due Today', desc: 'Payments due on the current day', color: 'hsl(38, 92%, 50%)' },
+                { key: 'upcoming' as const, icon: CalendarCheck, label: 'Upcoming Reminders', desc: 'Before the due date', color: 'hsl(200, 80%, 55%)' },
+                { key: 'paid' as const, icon: Check, label: 'Payment Confirmed', desc: 'When you mark a payment as paid', color: 'hsl(152, 69%, 40%)' },
+              ].map(({ key, icon: Icon, label, desc, color }) => (
+                <div key={key} className="flex items-center justify-between bg-secondary/30 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-                      <Bell className="w-4 h-4 text-primary" />
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
+                      <Icon className="w-3.5 h-3.5" style={{ color }} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-card-foreground">All Notifications</p>
-                      <p className="text-xs text-muted-foreground">Master toggle</p>
+                      <p className="text-sm font-medium text-card-foreground">{label}</p>
+                      <p className="text-xs text-muted-foreground">{desc}</p>
                     </div>
                   </div>
                   <Switch
-                    checked={tempNotifPrefs.enabled}
-                    onCheckedChange={(v) => setTempNotifPrefs(prev => ({ ...prev, enabled: v }))}
+                    checked={tempNotifPrefs[key]}
+                    onCheckedChange={(v) => setTempNotifPrefs(prev => ({ ...prev, [key]: v }))}
                   />
                 </div>
+              ))}
+            </div>
 
-                {/* Individual toggles */}
-                <div className={`space-y-1 transition-opacity ${tempNotifPrefs.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
-                  {[
-                    { key: 'overdue' as const, icon: AlertTriangle, label: 'Overdue Payments', desc: 'When a payment is past due', color: 'hsl(0, 84%, 60%)' },
-                    { key: 'dueToday' as const, icon: Clock, label: 'Due Today', desc: 'Payments due on the current day', color: 'hsl(38, 92%, 50%)' },
-                    { key: 'upcoming' as const, icon: CalendarCheck, label: 'Upcoming Reminders', desc: 'Before the due date', color: 'hsl(200, 80%, 55%)' },
-                    { key: 'paid' as const, icon: Check, label: 'Payment Confirmed', desc: 'When you mark a payment as paid', color: 'hsl(152, 69%, 40%)' },
-                  ].map(({ key, icon: Icon, label, desc, color }) => (
-                    <div key={key} className="flex items-center justify-between bg-secondary/30 rounded-xl px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
-                          <Icon className="w-3.5 h-3.5" style={{ color }} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-card-foreground">{label}</p>
-                          <p className="text-xs text-muted-foreground">{desc}</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={tempNotifPrefs[key]}
-                        onCheckedChange={(v) => setTempNotifPrefs(prev => ({ ...prev, [key]: v }))}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Test button (dev) */}
-                <motion.div whileTap={{ scale: 0.97 }}>
-                  <Button
-                    variant="secondary"
-                    className="w-full rounded-xl h-11"
-                    onClick={() => {
-                      sendTestNotification();
-                      toast.success('Test notification sent!');
-                    }}
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    🧪 Test Notification
-                  </Button>
-                </motion.div>
-              </>
-            )}
+            {/* Test button */}
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button
+                variant="secondary"
+                className="w-full rounded-xl h-11"
+                onClick={() => {
+                  sendTestNotification();
+                  toast.success('Test notification sent!');
+                }}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                🧪 Test Notification
+              </Button>
+            </motion.div>
           </div>
         </SettingsModal>
 
