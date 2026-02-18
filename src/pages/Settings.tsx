@@ -380,7 +380,7 @@ export default function Settings() {
             iconBg="hsl(280 70% 55% / 0.15)"
             iconColor="hsl(280, 70%, 55%)"
             title="Notifications"
-            subtitle={notifPrefs.enabled && notifStatus === 'granted' ? 'Enabled' : notifStatus === 'denied' ? 'Blocked by browser' : 'Disabled'}
+            subtitle={notifStatus === 'denied' ? 'Blocked by browser' : notifPrefs.enabled ? 'Enabled' : 'Disabled'}
             onClick={async () => {
               // If not yet asked, trigger browser permission popup first
               if (notifStatus === 'default') {
