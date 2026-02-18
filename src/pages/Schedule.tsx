@@ -5,6 +5,7 @@ import { format, isSameMonth } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
+import { CATEGORIES } from '@/lib/categories';
 import PaymentCard from '@/components/PaymentCard';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import Confetti from '@/components/Confetti';
@@ -19,10 +20,22 @@ export default function Schedule() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+  const filteredPayments = useMemo(() => {
+    if (!activeFilter) return payments;
+    return payments.filter(p => (p.category || 'other') === activeFilter);
+  }, [payments, activeFilter]);
 
   const now = new Date();
-  const unpaid = payments.filter(p => !p.is_paid);
-  const paid = payments.filter(p => p.is_paid);
+  const unpaid = filteredPayments.filter(p => !p.is_paid);
+  const paid = filteredPayments.filter(p => p.is_paid);
+
+  // Categories that actually exist in payments
+  const usedCategories = useMemo(() => {
+    const cats = new Set(payments.map(p => p.category || 'other'));
+    return CATEGORIES.filter(c => cats.has(c.id));
+  }, [payments]);
 
   const summary = useMemo(() => {
     const thisMonth = payments.filter(p => isSameMonth(new Date(p.due_date), now));
@@ -105,6 +118,43 @@ export default function Schedule() {
             <p className="text-xl font-bold text-status-success mt-1">{formatCurrency(summary.totalPaid)}</p>
           </div>
         </motion.div>
+
+        {/* Category filter bar */}
+        {usedCategories.length > 1 && (
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <motion.button
+              whileTap={{ scale: 0.93 }}
+              onClick={() => setActiveFilter(null)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                !activeFilter
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-muted-foreground'
+              }`}
+            >
+              All
+            </motion.button>
+            {usedCategories.map((cat) => {
+              const Icon = cat.icon;
+              const isActive = activeFilter === cat.id;
+              return (
+                <motion.button
+                  key={cat.id}
+                  whileTap={{ scale: 0.93 }}
+                  onClick={() => setActiveFilter(isActive ? null : cat.id)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isActive
+                      ? 'text-card-foreground'
+                      : 'bg-secondary text-muted-foreground'
+                  }`}
+                  style={isActive ? { backgroundColor: `${cat.color}25`, color: cat.color } : undefined}
+                >
+                  <Icon className="w-3 h-3" />
+                  {cat.label}
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
 
         {unpaid.length === 0 && paid.length === 0 && (
           <motion.div
