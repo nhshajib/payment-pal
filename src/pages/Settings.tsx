@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency, CURRENCIES } from '@/hooks/useCurrency';
@@ -12,8 +13,13 @@ import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
-  ChevronRight, X, Check, Smartphone,
+  ChevronRight, X, Check, Smartphone, BellRing, AlertTriangle,
+  Clock, CalendarCheck, Send,
 } from 'lucide-react';
+import {
+  getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs,
+  requestNotificationPermission, getNotificationStatus, sendTestNotification,
+} from '@/lib/notifications';
 
 /* ─── Settings Modal ─── */
 function SettingsModal({
@@ -167,7 +173,11 @@ export default function Settings() {
   const [currencySearch, setCurrencySearch] = useState('');
   const [tempCurrency, setTempCurrency] = useState(currency);
 
-  // Load user settings
+  // Notifications
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(getNotificationPrefs());
+  const [tempNotifPrefs, setTempNotifPrefs] = useState<NotificationPrefs>(notifPrefs);
+  const [notifStatus, setNotifStatus] = useState(getNotificationStatus());
+
   useEffect(() => {
     if (!userId) return;
     (async () => {
@@ -285,6 +295,15 @@ export default function Settings() {
           />
           <SettingsCard
             index={3}
+            icon={<BellRing className="w-5 h-5" />}
+            iconBg="hsl(280 70% 55% / 0.15)"
+            iconColor="hsl(280, 70%, 55%)"
+            title="Notifications"
+            subtitle={notifPrefs.enabled && notifStatus === 'granted' ? 'Enabled' : notifStatus === 'denied' ? 'Blocked by browser' : 'Disabled'}
+            onClick={() => { setTempNotifPrefs(notifPrefs); setActiveModal('notifications'); }}
+          />
+          <SettingsCard
+            index={4}
             icon={<Smartphone className="w-5 h-5" />}
             iconBg="hsl(152 69% 40% / 0.15)"
             iconColor="hsl(152, 69%, 40%)"
@@ -293,7 +312,7 @@ export default function Settings() {
             onClick={() => { setPhone(''); setActiveModal('restore'); }}
           />
           <SettingsCard
-            index={4}
+            index={5}
             icon={<LogOut className="w-5 h-5" />}
             iconBg="hsl(0 84% 60% / 0.15)"
             iconColor="hsl(0, 84%, 60%)"
@@ -406,6 +425,113 @@ export default function Settings() {
               </Select>
               <Label className="text-sm text-muted-foreground">of month</Label>
             </div>
+          </div>
+        </SettingsModal>
+
+        {/* ─── Notifications Modal ─── */}
+        <SettingsModal
+          open={activeModal === 'notifications'}
+          onClose={close}
+          title="Notifications"
+          onSave={() => {
+            saveNotificationPrefs(tempNotifPrefs);
+            setNotifPrefs(tempNotifPrefs);
+            toast.success('Notification preferences saved');
+            close();
+          }}
+        >
+          <div className="space-y-5">
+            {notifStatus === 'denied' ? (
+              <div className="text-center py-4">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10 mb-4">
+                  <BellRing className="w-8 h-8 text-destructive" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Notifications are blocked by your browser. Please enable them in your browser or device settings.
+                </p>
+              </div>
+            ) : notifStatus === 'default' ? (
+              <div className="text-center py-4">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 mb-4">
+                  <BellRing className="w-8 h-8 text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Enable notifications to get payment reminders.
+                </p>
+                <Button
+                  onClick={async () => {
+                    const granted = await requestNotificationPermission();
+                    setNotifStatus(getNotificationStatus());
+                    if (granted) toast.success('Notifications enabled!');
+                    else toast.error('Permission denied');
+                  }}
+                  className="rounded-xl"
+                >
+                  <Bell className="w-4 h-4 mr-2" />
+                  Enable Notifications
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Master toggle */}
+                <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <Bell className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-card-foreground">All Notifications</p>
+                      <p className="text-xs text-muted-foreground">Master toggle</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={tempNotifPrefs.enabled}
+                    onCheckedChange={(v) => setTempNotifPrefs(prev => ({ ...prev, enabled: v }))}
+                  />
+                </div>
+
+                {/* Individual toggles */}
+                <div className={`space-y-1 transition-opacity ${tempNotifPrefs.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
+                  {[
+                    { key: 'overdue' as const, icon: AlertTriangle, label: 'Overdue Payments', desc: 'When a payment is past due', color: 'hsl(0, 84%, 60%)' },
+                    { key: 'dueToday' as const, icon: Clock, label: 'Due Today', desc: 'Payments due on the current day', color: 'hsl(38, 92%, 50%)' },
+                    { key: 'upcoming' as const, icon: CalendarCheck, label: 'Upcoming Reminders', desc: 'Before the due date', color: 'hsl(200, 80%, 55%)' },
+                    { key: 'paid' as const, icon: Check, label: 'Payment Confirmed', desc: 'When you mark a payment as paid', color: 'hsl(152, 69%, 40%)' },
+                  ].map(({ key, icon: Icon, label, desc, color }) => (
+                    <div key={key} className="flex items-center justify-between bg-secondary/30 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
+                          <Icon className="w-3.5 h-3.5" style={{ color }} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-card-foreground">{label}</p>
+                          <p className="text-xs text-muted-foreground">{desc}</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={tempNotifPrefs[key]}
+                        onCheckedChange={(v) => setTempNotifPrefs(prev => ({ ...prev, [key]: v }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Test button */}
+                <motion.div whileTap={{ scale: 0.97 }}>
+                  <Button
+                    variant="secondary"
+                    className="w-full rounded-xl h-11"
+                    onClick={() => {
+                      sendTestNotification();
+                      toast.success('Test notification sent!');
+                    }}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Test Notification
+                  </Button>
+                </motion.div>
+              </>
+            )}
           </div>
         </SettingsModal>
 
