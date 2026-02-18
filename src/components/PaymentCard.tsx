@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, useSpring, PanInfo, AnimatePresence } from 'framer-motion';
 import { Check, Pencil, Trash2, RotateCw, Undo2, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO, format, isToday, isTomorrow, isYesterday, addDays, isSameWeek } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getCategoryById } from '@/lib/categories';
+import { haptic } from '@/lib/haptics';
 
 interface Props {
   payment: Payment;
@@ -22,6 +23,17 @@ function getStatus(payment: Payment) {
   if (daysLeft < 0) return 'overdue';
   if (daysLeft <= payment.reminder_days) return 'warning';
   return 'upcoming';
+}
+
+/** Human-friendly relative date label */
+function getRelativeDate(dateStr: string): string {
+  const date = parseISO(dateStr);
+  if (isToday(date)) return 'Today';
+  if (isTomorrow(date)) return 'Tomorrow';
+  if (isYesterday(date)) return 'Yesterday';
+  const days = differenceInDays(date, new Date());
+  if (days > 0 && days <= 6) return format(date, 'EEEE'); // "Monday", "Tuesday"
+  return format(date, 'MMM d'); // "Feb 20"
 }
 
 function getDaysLabel(payment: Payment) {
@@ -47,10 +59,9 @@ const badgeColors = {
 };
 
 const SWIPE_THRESHOLD = 100;
-const DELETE_THRESHOLD = -100;
+const EDIT_THRESHOLD = -60;
+const DELETE_THRESHOLD = -140;
 const LONG_PRESS_MS = 500;
-
-// Persist hint dismissal
 const HINT_KEY = 'paytrack_swipe_hint_seen';
 
 export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab }: Props) {
@@ -64,8 +75,9 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const [showHint, setShowHint] = useState(false);
+  const [hapticFiredRight, setHapticFiredRight] = useState(false);
+  const [hapticFiredLeft, setHapticFiredLeft] = useState(false);
 
-  // Show swipe hint arrows on first card only, once
   useEffect(() => {
     if (index === 0 && !localStorage.getItem(HINT_KEY)) {
       setShowHint(true);
@@ -78,41 +90,62 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   }, [index]);
 
   // Swipe background transforms
-  const rightProgress = useTransform(rawX, [0, SWIPE_THRESHOLD], [0, 1]);
   const rightIconScale = useTransform(rawX, [0, SWIPE_THRESHOLD * 0.6, SWIPE_THRESHOLD], [0.4, 0.9, 1.15]);
   const rightBgOpacity = useTransform(rawX, [0, 40, SWIPE_THRESHOLD], [0, 0.4, 1]);
 
-  const leftProgress = useTransform(rawX, [DELETE_THRESHOLD, 0], [1, 0]);
-  const leftIconScale = useTransform(rawX, [DELETE_THRESHOLD, DELETE_THRESHOLD * 0.6, 0], [1.15, 0.9, 0.4]);
-  const leftBgOpacity = useTransform(rawX, [DELETE_THRESHOLD, -40, 0], [1, 0.4, 0]);
+  // Left swipe: two zones - edit and delete
+  const leftBgOpacity = useTransform(rawX, [DELETE_THRESHOLD, EDIT_THRESHOLD, -20, 0], [1, 0.8, 0.3, 0]);
+  const editIconScale = useTransform(rawX, [EDIT_THRESHOLD, -30, 0], [1.1, 0.6, 0.3]);
+  const deleteIconScale = useTransform(rawX, [DELETE_THRESHOLD, EDIT_THRESHOLD, 0], [1.15, 0.7, 0.3]);
 
-  // Card shadow/scale based on drag
-  const cardScale = useTransform(rawX, [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD], [0.97, 1, 0.97]);
+  const cardScale = useTransform(rawX, [-DELETE_THRESHOLD, 0, SWIPE_THRESHOLD], [0.97, 1, 0.97]);
   const cardShadow = useTransform(
     rawX,
-    [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
+    [-DELETE_THRESHOLD, 0, SWIPE_THRESHOLD],
     ['0 2px 8px hsl(0 0% 0% / 0.1)', '0 4px 20px hsl(0 0% 0% / 0.15)', '0 2px 8px hsl(0 0% 0% / 0.1)']
   );
 
   const category = getCategoryById(payment.category || 'other');
   const CategoryIcon = category.icon;
 
+  // Haptic on crossing thresholds
+  useEffect(() => {
+    const unsubscribe = rawX.on('change', (v) => {
+      if (v >= SWIPE_THRESHOLD && !hapticFiredRight) {
+        haptic(25);
+        setHapticFiredRight(true);
+      } else if (v < SWIPE_THRESHOLD) {
+        setHapticFiredRight(false);
+      }
+      if (v <= DELETE_THRESHOLD && !hapticFiredLeft) {
+        haptic(25);
+        setHapticFiredLeft(true);
+      } else if (v > DELETE_THRESHOLD) {
+        setHapticFiredLeft(false);
+      }
+    });
+    return unsubscribe;
+  }, [rawX, hapticFiredRight, hapticFiredLeft]);
+
   const handleDragEnd = (_: any, info: PanInfo) => {
     isDragging.current = false;
     if (!payment.is_paid && info.offset.x >= SWIPE_THRESHOLD) {
-      // Dismiss hint on first successful swipe
       if (!localStorage.getItem(HINT_KEY)) localStorage.setItem(HINT_KEY, '1');
       setShowHint(false);
+      haptic(30);
       onMarkPaid(payment);
     } else if (info.offset.x <= DELETE_THRESHOLD) {
+      haptic(30);
       onDelete(payment.id);
+    } else if (info.offset.x <= EDIT_THRESHOLD && info.offset.x > DELETE_THRESHOLD) {
+      haptic(20);
+      onEdit(payment);
     }
   };
 
   const handleDragStart = () => {
     isDragging.current = true;
     cancelLongPress();
-    // Dismiss hints on any swipe
     if (showHint) {
       setShowHint(false);
       localStorage.setItem(HINT_KEY, '1');
@@ -133,7 +166,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
 
     longPressTimer.current = setTimeout(() => {
       if (!isDragging.current) {
-        if (navigator.vibrate) navigator.vibrate(30);
+        haptic(30);
         setMenuPos({ x: posX, y: posY });
         setShowMenu(true);
       }
@@ -189,17 +222,21 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         </motion.div>
       )}
 
-      {/* Swipe left background (delete) */}
+      {/* Swipe left background (edit + delete) */}
       <motion.div
-        className="absolute inset-0 rounded-2xl flex items-center justify-end pr-5"
+        className="absolute inset-0 rounded-2xl flex items-center justify-end pr-4 gap-4"
         style={{
           opacity: leftBgOpacity,
-          background: 'linear-gradient(260deg, hsl(0 72% 51% / 0.3) 0%, hsl(0 72% 51% / 0.08) 100%)',
+          background: 'linear-gradient(260deg, hsl(0 72% 51% / 0.15) 0%, hsl(200 80% 55% / 0.1) 60%, transparent 100%)',
         }}
       >
-        <motion.div style={{ scale: leftIconScale }} className="flex items-center gap-2 text-destructive">
-          <span className="text-sm font-bold tracking-tight">Delete</span>
-          <Trash2 className="w-5 h-5" strokeWidth={2.5} />
+        <motion.div style={{ scale: editIconScale }} className="flex items-center gap-1.5 text-primary">
+          <Pencil className="w-4 h-4" strokeWidth={2.5} />
+          <span className="text-xs font-bold">Edit</span>
+        </motion.div>
+        <motion.div style={{ scale: deleteIconScale }} className="flex items-center gap-1.5 text-destructive">
+          <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+          <span className="text-xs font-bold">Delete</span>
         </motion.div>
       </motion.div>
 
@@ -266,7 +303,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
                 )}
               </div>
               <p className={`text-muted-foreground text-sm mt-0.5 ${payment.is_paid ? 'opacity-50' : ''}`}>
-                {formatCurrency(Number(payment.amount))} · {payment.due_date}
+                {formatCurrency(Number(payment.amount))} · {getRelativeDate(payment.due_date)}
               </p>
               {payment.notes ? (
                 <p className={`text-muted-foreground/70 text-xs mt-1 truncate ${payment.is_paid ? 'opacity-50' : ''}`}>
@@ -327,6 +364,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
                       transition={{ delay: i * 0.05, type: 'spring', stiffness: 400, damping: 25 }}
                       onClick={() => {
                         setShowMenu(false);
+                        haptic(15);
                         item.action();
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-card-foreground hover:bg-secondary/80 active:bg-secondary transition-colors"

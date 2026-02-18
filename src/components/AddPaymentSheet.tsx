@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, Bell, RotateCw } from 'lucide-react';
+import { X, CalendarDays, Bell, RotateCw, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -9,15 +9,17 @@ import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CATEGORIES } from '@/lib/categories';
 import { format } from 'date-fns';
+import { haptic } from '@/lib/haptics';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: Omit<Payment, 'id' | 'user_id' | 'created_at'>) => void;
   editing?: Payment | null;
+  recentPayments?: Payment[];
 }
 
-export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Props) {
+export default function AddPaymentSheet({ open, onClose, onSubmit, editing, recentPayments = [] }: Props) {
   const { currency } = useCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -26,6 +28,23 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
   const [isRecurring, setIsRecurring] = useState(false);
   const [category, setCategory] = useState('other');
   const [notes, setNotes] = useState('');
+
+  // Quick-add: last 3 unique payment names (not editing mode)
+  const quickAddItems = useMemo(() => {
+    if (editing) return [];
+    const seen = new Set<string>();
+    const items: { name: string; amount: number; category: string; is_recurring: boolean }[] = [];
+    // Walk payments in reverse (most recent first)
+    for (let i = recentPayments.length - 1; i >= 0 && items.length < 3; i--) {
+      const p = recentPayments[i];
+      const key = p.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        items.push({ name: p.name, amount: p.amount, category: p.category || 'other', is_recurring: p.is_recurring });
+      }
+    }
+    return items;
+  }, [recentPayments, editing]);
 
   useEffect(() => {
     if (editing) {
@@ -46,6 +65,14 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
       setNotes('');
     }
   }, [editing, open]);
+
+  const handleQuickFill = (item: typeof quickAddItems[0]) => {
+    haptic(15);
+    setName(item.name);
+    setAmount(String(item.amount));
+    setCategory(item.category);
+    setIsRecurring(item.is_recurring);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +112,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
             className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto"
           >
             <div className="bg-card rounded-t-3xl border-t border-border/50 shadow-2xl overflow-hidden">
-              {/* Drag handle - swipe down to close */}
+              {/* Drag handle */}
               <motion.div
                 drag="y"
                 dragConstraints={{ top: 0, bottom: 0 }}
@@ -118,6 +145,30 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="px-6 pb-32 pt-5 space-y-5 max-h-[65vh] overflow-y-auto overscroll-contain touch-pan-y">
+                {/* Quick-Add Shortcuts */}
+                {quickAddItems.length > 0 && !editing && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Zap className="w-3.5 h-3.5 text-status-warning" />
+                      <span className="text-xs font-medium text-muted-foreground">Quick Add</span>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {quickAddItems.map((item, i) => (
+                        <motion.button
+                          key={`${item.name}-${i}`}
+                          type="button"
+                          whileTap={{ scale: 0.93 }}
+                          onClick={() => handleQuickFill(item)}
+                          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/70 border border-border/30 text-sm active:bg-secondary transition-colors"
+                        >
+                          <span className="font-medium text-card-foreground truncate max-w-[100px]">{item.name}</span>
+                          <span className="text-muted-foreground text-xs">{currency.symbol}{item.amount}</span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Payment Name */}
                 <div>
                   <Input
