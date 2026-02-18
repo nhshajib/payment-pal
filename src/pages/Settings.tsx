@@ -503,14 +503,34 @@ export default function Settings() {
           />
         </div>
 
-        <motion.p
+        <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-xs text-muted-foreground text-center mt-8"
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setActiveModal('about')}
+          className="text-xs text-muted-foreground text-center mt-8 w-full py-2"
         >
           PayTrack v1.0 · Your data is synced securely
-        </motion.p>
+        </motion.button>
+
+        {/* ─── About Modal ─── */}
+        <SettingsModal open={activeModal === 'about'} onClose={close} title="About PayTrack">
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20">
+              <Coins className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
+              <p className="text-sm text-muted-foreground">Version 1.0</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              A minimal payment tracker crafted with care. Track due dates, mark payments, and stay on top of your bills.
+            </p>
+            <div className="h-px bg-border/30" />
+            <p className="text-xs text-muted-foreground/60">Made with ❤️</p>
+          </div>
+        </SettingsModal>
 
         {/* ─── iOS Install Instructions Modal ─── */}
         <AnimatePresence>

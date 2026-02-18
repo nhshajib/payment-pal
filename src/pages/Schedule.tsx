@@ -1,25 +1,34 @@
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowUpDown, TrendingUp, TrendingDown, RefreshCw, Loader2 } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CATEGORIES } from '@/lib/categories';
 import PaymentCard from '@/components/PaymentCard';
+import PaymentCardSkeleton from '@/components/PaymentCardSkeleton';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import Confetti from '@/components/Confetti';
 import MonthlyChart from '@/components/MonthlyChart';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
+import { haptic } from '@/lib/haptics';
 
 type TabId = 'upcoming' | 'paid';
+type SortMode = 'date' | 'amount' | 'name';
 
 const TABS: { id: TabId; label: string; icon: typeof CalendarCheck }[] = [
   { id: 'upcoming', label: 'Upcoming', icon: CalendarCheck },
   { id: 'paid', label: 'Paid', icon: CheckCircle2 },
 ];
+
+const SORT_LABELS: Record<SortMode, string> = {
+  date: 'Date',
+  amount: 'Amount',
+  name: 'Name',
+};
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -31,7 +40,7 @@ function getGreeting() {
 export default function Schedule() {
   const { userId, userName } = useUser();
   const { format: formatCurrency } = useCurrency();
-  const { payments, addPayment, updatePayment, deletePayment, markPaid, clearPaid, restorePayments } = usePayments(userId);
+  const { payments, loading, addPayment, updatePayment, deletePayment, markPaid, clearPaid, restorePayments, refetch } = usePayments(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
@@ -41,6 +50,43 @@ export default function Schedule() {
   const [showLongPressHint, setShowLongPressHint] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('date');
+
+  // Pull-to-refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pullY = useMotionValue(0);
+  const pullOpacity = useTransform(pullY, [0, 60], [0, 1]);
+  const pullScale = useTransform(pullY, [0, 60], [0.5, 1]);
+  const pullRotate = useTransform(pullY, [0, 80], [0, 360]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isPulling = useRef(false);
+  const startY = useRef(0);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (scrollRef.current && scrollRef.current.scrollTop <= 0) {
+      startY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling.current) return;
+    const delta = Math.max(0, (e.touches[0].clientY - startY.current) * 0.4);
+    pullY.set(delta);
+  }, [pullY]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    if (pullY.get() >= 60) {
+      setIsRefreshing(true);
+      haptic(20);
+      await refetch();
+      setIsRefreshing(false);
+      toast.success('Refreshed');
+    }
+    pullY.set(0);
+  }, [pullY, refetch]);
 
   // Show long-press hint once on first visit with payments
   useEffect(() => {
@@ -71,8 +117,13 @@ export default function Schedule() {
         (p.notes && p.notes.toLowerCase().includes(q))
       );
     }
-    return list;
-  }, [payments, activeFilter, searchQuery]);
+    // Sort
+    const sorted = [...list];
+    if (sortMode === 'amount') sorted.sort((a, b) => b.amount - a.amount);
+    else if (sortMode === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
+    else sorted.sort((a, b) => a.due_date.localeCompare(b.due_date));
+    return sorted;
+  }, [payments, activeFilter, searchQuery, sortMode]);
 
   const unpaid = filteredPayments.filter(p => !p.is_paid);
   const paid = filteredPayments.filter(p => p.is_paid);
@@ -88,6 +139,33 @@ export default function Schedule() {
     const unpaidCount = payments.filter(p => !p.is_paid).length;
     const paidCount = payments.filter(p => p.is_paid).length;
     return { totalDue, totalPaid, unpaidCount, paidCount };
+  }, [payments]);
+
+  // Monthly insight: compare this month total vs last month
+  const monthlyInsight = useMemo(() => {
+    const now = new Date();
+    const thisStart = startOfMonth(now);
+    const thisEnd = endOfMonth(now);
+    const lastStart = startOfMonth(subMonths(now, 1));
+    const lastEnd = endOfMonth(subMonths(now, 1));
+
+    const thisMonthTotal = payments
+      .filter(p => {
+        const d = new Date(p.due_date);
+        return isWithinInterval(d, { start: thisStart, end: thisEnd });
+      })
+      .reduce((s, p) => s + Number(p.amount), 0);
+
+    const lastMonthTotal = payments
+      .filter(p => {
+        const d = new Date(p.due_date);
+        return isWithinInterval(d, { start: lastStart, end: lastEnd });
+      })
+      .reduce((s, p) => s + Number(p.amount), 0);
+
+    if (lastMonthTotal === 0) return { total: thisMonthTotal, change: null };
+    const pctChange = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+    return { total: thisMonthTotal, change: Math.round(pctChange) };
   }, [payments]);
 
   useEffect(() => { requestNotificationPermission(); }, []);
@@ -135,6 +213,7 @@ export default function Schedule() {
 
   const handleMarkPaid = async (payment: Payment) => {
     try {
+      haptic(25);
       await markPaid(payment);
       setConfettiTrigger(true);
       setTimeout(() => setConfettiTrigger(false), 100);
@@ -153,15 +232,45 @@ export default function Schedule() {
     }
   };
 
+  const cycleSortMode = () => {
+    const modes: SortMode[] = ['date', 'amount', 'name'];
+    const next = modes[(modes.indexOf(sortMode) + 1) % modes.length];
+    setSortMode(next);
+    haptic(15);
+  };
+
   const currentList = activeTab === 'upcoming' ? unpaid : paid;
   const progressPct = (summary.totalDue + summary.totalPaid) > 0
     ? (summary.totalPaid / (summary.totalDue + summary.totalPaid)) * 100
     : 0;
 
+  // Initial loading (no cached data either)
+  const showSkeleton = loading && payments.length === 0;
+
   return (
     <PageTransition>
       <Confetti trigger={confettiTrigger} />
-      <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
+      <div
+        ref={scrollRef}
+        className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        <motion.div
+          style={{ opacity: pullOpacity, scale: pullScale }}
+          className="flex justify-center mb-2"
+        >
+          <motion.div style={{ rotate: isRefreshing ? undefined : pullRotate }}>
+            {isRefreshing ? (
+              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            ) : (
+              <RefreshCw className="w-5 h-5 text-muted-foreground" />
+            )}
+          </motion.div>
+        </motion.div>
+
         {/* Greeting Header */}
         <motion.header
           initial={{ opacity: 0, y: -10 }}
@@ -178,13 +287,28 @@ export default function Schedule() {
           </motion.p>
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => { setSearchOpen(prev => !prev); if (searchOpen) setSearchQuery(''); }}
-              className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center"
-            >
-              {searchOpen ? <X className="w-4 h-4 text-muted-foreground" /> : <Search className="w-4 h-4 text-muted-foreground" />}
-            </motion.button>
+            <div className="flex items-center gap-2">
+              {/* Sort toggle */}
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={cycleSortMode}
+                className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center relative"
+                title={`Sort by ${SORT_LABELS[sortMode]}`}
+              >
+                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary bg-primary/10 px-1 rounded">
+                  {SORT_LABELS[sortMode].charAt(0)}
+                </span>
+              </motion.button>
+              {/* Search */}
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => { setSearchOpen(prev => !prev); if (searchOpen) setSearchQuery(''); }}
+                className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center"
+              >
+                {searchOpen ? <X className="w-4 h-4 text-muted-foreground" /> : <Search className="w-4 h-4 text-muted-foreground" />}
+              </motion.button>
+            </div>
           </div>
           <p className="text-muted-foreground text-xs mt-0.5">{format(new Date(), 'EEEE, MMMM d')}</p>
           <AnimatePresence>
@@ -260,6 +384,21 @@ export default function Schedule() {
               </div>
             </div>
           )}
+
+          {/* Monthly Insight */}
+          {monthlyInsight.total > 0 && (
+            <div className="px-4 pb-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>This month: <span className="font-semibold text-card-foreground">{formatCurrency(monthlyInsight.total)}</span></span>
+                {monthlyInsight.change !== null && (
+                  <span className={`flex items-center gap-0.5 font-medium ${monthlyInsight.change > 0 ? 'text-status-overdue' : 'text-status-success'}`}>
+                    {monthlyInsight.change > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    {Math.abs(monthlyInsight.change)}% vs last
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Monthly Breakdown Chart */}
@@ -275,7 +414,7 @@ export default function Schedule() {
               <motion.button
                 key={tab.id}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => { setActiveTab(tab.id); haptic(15); }}
                 className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors z-10 ${
                   isActive ? 'text-foreground' : 'text-muted-foreground'
                 }`}
@@ -349,7 +488,9 @@ export default function Schedule() {
             exit={{ opacity: 0, x: activeTab === 'upcoming' ? 20 : -20 }}
             transition={{ duration: 0.2 }}
           >
-            {currentList.length === 0 ? (
+            {showSkeleton ? (
+              <PaymentCardSkeleton count={3} />
+            ) : currentList.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -367,9 +508,19 @@ export default function Schedule() {
                 </p>
                 <p className="text-muted-foreground/60 text-sm mt-1">
                   {activeTab === 'upcoming'
-                    ? 'Tap + to add your first payment'
+                    ? 'Add your first payment to get started'
                     : 'Swipe right on a payment to mark it paid'}
                 </p>
+                {activeTab === 'upcoming' && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => { setEditing(null); setSheetOpen(true); }}
+                    className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/25"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Payment
+                  </motion.button>
+                )}
               </motion.div>
             ) : (
               <>
@@ -404,7 +555,7 @@ export default function Schedule() {
                     >
                       <Hand className="w-4 h-4 text-primary flex-shrink-0" />
                       <p className="text-xs text-primary font-medium">
-                        Long-press any card for more options
+                        Swipe or long-press any card for options
                       </p>
                     </motion.div>
                   )}
@@ -440,7 +591,7 @@ export default function Schedule() {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.85, rotate: 90 }}
             transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-            onClick={() => { setEditing(null); setSheetOpen(true); }}
+            onClick={() => { setEditing(null); setSheetOpen(true); haptic(20); }}
             className="fixed bottom-28 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-[60] glow-pulse"
           >
             <Plus className="w-6 h-6" />
@@ -452,6 +603,7 @@ export default function Schedule() {
           onClose={() => { setSheetOpen(false); setEditing(null); }}
           onSubmit={handleSubmit}
           editing={editing}
+          recentPayments={payments}
         />
 
         {/* Clear Paid Confirmation */}
