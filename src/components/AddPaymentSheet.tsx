@@ -4,6 +4,7 @@ import { X, CalendarDays, Bell, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CATEGORIES, getCategoryById } from '@/lib/categories';
@@ -129,35 +130,25 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
 
                 {/* Category picker */}
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-2 block ml-1">Category</label>
-                  <div className="flex flex-wrap gap-2">
-                    {CATEGORIES.map((cat) => {
-                      const Icon = cat.icon;
-                      const isSelected = category === cat.id;
-                      return (
-                        <motion.button
-                          key={cat.id}
-                          type="button"
-                          whileTap={{ scale: 0.9 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                          onClick={() => setCategory(cat.id)}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                            isSelected
-                              ? 'ring-2 ring-offset-1 ring-offset-card'
-                              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-                          }`}
-                          style={isSelected ? {
-                            backgroundColor: `${cat.color}20`,
-                            color: cat.color,
-                            ['--tw-ring-color' as any]: cat.color,
-                          } : undefined}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          {cat.label}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Category</label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger className="h-12 bg-secondary/50 border-0 rounded-xl text-sm focus:ring-1 focus:ring-primary">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border z-[200] max-h-60">
+                      {CATEGORIES.map((cat) => {
+                        const Icon = cat.icon;
+                        return (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            <span className="flex items-center gap-2">
+                              <Icon className="w-4 h-4" style={{ color: cat.color }} />
+                              {cat.label}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Date & Reminder Row */}
