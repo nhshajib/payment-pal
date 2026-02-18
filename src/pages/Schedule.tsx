@@ -270,29 +270,64 @@ export default function Schedule() {
           </motion.div>
         </motion.div>
 
-        {/* Greeting Header */}
+        {/* Header */}
         <motion.header
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-5"
         >
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="text-muted-foreground text-sm"
-          >
-            {getGreeting()}{userName ? `, ${userName}` : ''} 👋
-          </motion.p>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
-              <p className="text-muted-foreground text-xs mt-0.5">{format(new Date(), 'EEEE, MMMM d')}</p>
+          {/* Top row: avatar + date */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              {/* User initial avatar */}
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/20"
+              >
+                <span className="text-sm font-bold text-primary">
+                  {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                </span>
+              </motion.div>
+              <div>
+                <motion.p
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.05 }}
+                  className="text-[13px] text-muted-foreground leading-tight"
+                >
+                  {getGreeting()}{userName ? `, ${userName}` : ''}
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-[11px] text-muted-foreground/60 leading-tight mt-0.5"
+                >
+                  {format(new Date(), 'EEEE, MMMM d')}
+                </motion.p>
+              </div>
             </div>
+
+            {/* Pending badge */}
+            {summary.unpaidCount > 0 && (
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.15, type: 'spring', stiffness: 400, damping: 25 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-status-overdue/10 border border-status-overdue/15"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-status-overdue animate-pulse" />
+                <span className="text-[11px] font-semibold text-status-overdue">
+                  {summary.unpaidCount} pending
+                </span>
+              </motion.div>
+            )}
           </div>
 
-          {/* Search & Sort Bar */}
-          <div className="mt-3 flex items-center gap-2">
+          {/* Search & Sort */}
+          <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 pointer-events-none" />
               <input
@@ -313,7 +348,6 @@ export default function Schedule() {
                 </motion.button>
               )}
             </div>
-            {/* Sort chip */}
             <motion.button
               whileTap={{ scale: 0.92 }}
               onClick={cycleSortMode}
