@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CATEGORIES } from '@/lib/categories';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { haptic } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
 
 interface Props {
   open: boolean;
@@ -23,18 +26,18 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
   const { currency } = useCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [dueDate, setDueDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [dueDate, setDueDate] = useState<Date>(new Date());
   const [reminderDays, setReminderDays] = useState('3');
   const [isRecurring, setIsRecurring] = useState(false);
   const [category, setCategory] = useState('other');
   const [notes, setNotes] = useState('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Quick-add: last 3 unique payment names (not editing mode)
   const quickAddItems = useMemo(() => {
     if (editing) return [];
     const seen = new Set<string>();
     const items: { name: string; amount: number; category: string; is_recurring: boolean }[] = [];
-    // Walk payments in reverse (most recent first)
     for (let i = recentPayments.length - 1; i >= 0 && items.length < 3; i--) {
       const p = recentPayments[i];
       const key = p.name.toLowerCase();
@@ -50,7 +53,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
     if (editing) {
       setName(editing.name);
       setAmount(String(editing.amount));
-      setDueDate(editing.due_date);
+      setDueDate(parseISO(editing.due_date));
       setReminderDays(String(editing.reminder_days));
       setIsRecurring(editing.is_recurring);
       setCategory(editing.category || 'other');
@@ -58,7 +61,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
     } else {
       setName('');
       setAmount('');
-      setDueDate(format(new Date(), 'yyyy-MM-dd'));
+      setDueDate(new Date());
       setReminderDays('3');
       setIsRecurring(false);
       setCategory('other');
@@ -79,7 +82,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
     onSubmit({
       name,
       amount: parseFloat(amount) || 0,
-      due_date: dueDate,
+      due_date: format(dueDate, 'yyyy-MM-dd'),
       is_paid: editing?.is_paid ?? false,
       reminder_days: parseInt(reminderDays) || 3,
       is_recurring: isRecurring,
@@ -235,19 +238,48 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
 
                 {/* Date & Reminder Row */}
                 <div className="space-y-3">
+                  {/* Due Date - Calendar Popover */}
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Due Date</label>
-                    <div className="relative">
-                      <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
-                      <Input
-                        type="date"
-                        value={dueDate}
-                        onChange={e => setDueDate(e.target.value)}
-                        required
-                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow w-full"
-                      />
-                    </div>
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "w-full h-12 bg-secondary/50 border-0 rounded-xl pl-10 pr-4 text-sm text-left relative flex items-center transition-shadow focus:outline-none focus:ring-1 focus:ring-primary",
+                            !dueDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                          <span className="text-card-foreground font-medium">
+                            {format(dueDate, 'EEEE, MMM d, yyyy')}
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto p-0 bg-card border-border z-[200]"
+                        align="start"
+                        side="top"
+                        sideOffset={8}
+                      >
+                        <Calendar
+                          mode="single"
+                          selected={dueDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setDueDate(date);
+                              haptic(15);
+                            }
+                            setCalendarOpen(false);
+                          }}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
+
+                  {/* Reminder */}
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Remind Before</label>
                     <div className="relative">
