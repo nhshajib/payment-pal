@@ -14,7 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          is_paid: boolean
+          is_recurring: boolean
+          name: string
+          reminder_days: number
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          due_date: string
+          id?: string
+          is_paid?: boolean
+          is_recurring?: boolean
+          name: string
+          reminder_days?: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          is_paid?: boolean
+          is_recurring?: boolean
+          name?: string
+          reminder_days?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          default_reminder_days: number
+          id: string
+          phone_hash: string
+        }
+        Insert: {
+          created_at?: string
+          default_reminder_days?: number
+          id?: string
+          phone_hash: string
+        }
+        Update: {
+          created_at?: string
+          default_reminder_days?: number
+          id?: string
+          phone_hash?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
