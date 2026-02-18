@@ -88,7 +88,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUserId(null);
   }, []);
 
-  const value: UserContextType = { phoneHash, userId, loading, isOnboarded: !!phoneHash, register, restore, logout };
+  const value: UserContextType = {
+    phoneHash,
+    userId,
+    loading,
+    isOnboarded: !!phoneHash,
+    register,
+    restore,
+    logout,
+  };
 
   return createElement(UserContext.Provider, { value }, children);
 }

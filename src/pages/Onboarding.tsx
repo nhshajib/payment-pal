@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useUser } from '@/hooks/useUser';
+import { useUser } from '@/hooks/useUser'; // force resolve
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
