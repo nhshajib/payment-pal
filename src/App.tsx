@@ -82,12 +82,13 @@ function AppRoutes() {
   const { isOnboarded, loading } = useUser();
   const [showSplash, setShowSplash] = useState(true);
 
-  if (loading || showSplash) {
+  // Only show splash for returning users
+  if (loading) return null;
+
+  if (isOnboarded && showSplash) {
     return (
       <AnimatePresence mode="wait">
-        {showSplash && (
-          <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
-        )}
+        <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
       </AnimatePresence>
     );
   }
