@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, CalendarCheck, CheckCircle2 } from 'lucide-react';
-import { format, isSameMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -45,10 +45,11 @@ export default function Schedule() {
   }, [payments]);
 
   const summary = useMemo(() => {
-    const thisMonth = payments.filter(p => isSameMonth(new Date(p.due_date), now));
-    const totalDue = thisMonth.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
-    const totalPaid = thisMonth.filter(p => p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
-    return { totalDue, totalPaid, count: thisMonth.length };
+    const totalDue = payments.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
+    const totalPaid = payments.filter(p => p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
+    const unpaidCount = payments.filter(p => !p.is_paid).length;
+    const paidCount = payments.filter(p => p.is_paid).length;
+    return { totalDue, totalPaid, unpaidCount, paidCount };
   }, [payments]);
 
   useEffect(() => { requestNotificationPermission(); }, []);
@@ -120,16 +121,47 @@ export default function Schedule() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-5 rounded-xl bg-card border border-border p-4 grid grid-cols-2 gap-4"
+          className="mb-5 rounded-2xl bg-card border border-border overflow-hidden"
         >
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Due this month</p>
-            <p className="text-xl font-bold text-status-overdue mt-1">{formatCurrency(summary.totalDue)}</p>
+          <div className="grid grid-cols-2">
+            {/* Due */}
+            <div className="p-4 relative">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-lg bg-status-overdue/15 flex items-center justify-center">
+                  <CalendarCheck className="w-3.5 h-3.5 text-status-overdue" />
+                </div>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Total Due</p>
+              </div>
+              <p className="text-2xl font-bold text-status-overdue">{formatCurrency(summary.totalDue)}</p>
+              <p className="text-xs text-muted-foreground mt-1">{summary.unpaidCount} payment{summary.unpaidCount !== 1 ? 's' : ''} pending</p>
+              {/* Divider */}
+              <div className="absolute right-0 top-4 bottom-4 w-px bg-border" />
+            </div>
+            {/* Paid */}
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-lg bg-status-success/15 flex items-center justify-center">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
+                </div>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Total Paid</p>
+              </div>
+              <p className="text-2xl font-bold text-status-success">{formatCurrency(summary.totalPaid)}</p>
+              <p className="text-xs text-muted-foreground mt-1">{summary.paidCount} payment{summary.paidCount !== 1 ? 's' : ''} done</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Paid this month</p>
-            <p className="text-xl font-bold text-status-success mt-1">{formatCurrency(summary.totalPaid)}</p>
-          </div>
+          {/* Progress bar */}
+          {(summary.totalDue + summary.totalPaid) > 0 && (
+            <div className="px-4 pb-3">
+              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-status-success"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(summary.totalPaid / (summary.totalDue + summary.totalPaid)) * 100}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                />
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Tab Switcher */}
