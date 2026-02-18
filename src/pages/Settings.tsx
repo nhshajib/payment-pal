@@ -158,6 +158,7 @@ export default function Settings() {
   const { mode, theme, setMode } = useTheme();
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const [tempName, setTempName] = useState(userName);
 
@@ -245,14 +246,46 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
-    logout();
-    window.location.href = '/';
+    setActiveModal(null);
+    setSigningOut(true);
+    setTimeout(() => {
+      logout();
+    }, 600);
   };
 
   const ordinal = (n: number) => n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
 
   return (
     <PageTransition>
+      {/* Sign-out overlay */}
+      <AnimatePresence>
+        {signingOut && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeInOut' }}
+            className="fixed inset-0 z-[200] bg-background flex flex-col items-center justify-center gap-4"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 25 }}
+              className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center"
+            >
+              <LogOut className="w-7 h-7 text-primary" />
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="text-muted-foreground text-sm font-medium"
+            >
+              Signing out…
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
         <motion.header
           initial={{ opacity: 0, y: -10 }}
