@@ -1,6 +1,35 @@
 // Notification helper for payment reminders
 
 const PERMISSION_KEY = 'paytrack_notif_permission';
+const NOTIF_PREFS_KEY = 'paytrack_notif_prefs';
+
+export interface NotificationPrefs {
+  enabled: boolean;
+  overdue: boolean;
+  dueToday: boolean;
+  upcoming: boolean;
+  paid: boolean;
+}
+
+const DEFAULT_PREFS: NotificationPrefs = {
+  enabled: true,
+  overdue: true,
+  dueToday: true,
+  upcoming: true,
+  paid: true,
+};
+
+export function getNotificationPrefs(): NotificationPrefs {
+  try {
+    const saved = localStorage.getItem(NOTIF_PREFS_KEY);
+    if (saved) return { ...DEFAULT_PREFS, ...JSON.parse(saved) };
+  } catch {}
+  return DEFAULT_PREFS;
+}
+
+export function saveNotificationPrefs(prefs: NotificationPrefs) {
+  localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!('Notification' in window)) return false;
@@ -18,22 +47,26 @@ export function isNotificationEnabled(): boolean {
   return Notification.permission === 'granted';
 }
 
-export function sendNotification(title: string, body: string) {
+export function getNotificationStatus(): 'granted' | 'denied' | 'default' | 'unsupported' {
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission;
+}
+
+export function sendNotification(title: string, body: string, tag?: string) {
   if (!isNotificationEnabled()) return;
   
   try {
-    // Try service worker notification first (works when app is backgrounded)
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification(title, {
+        reg.showNotification(title, {
           body,
           icon: '/icons/icon-192x192.png',
           badge: '/icons/icon-192x192.png',
-          tag: 'paytrack-reminder',
+          tag: tag || 'paytrack-reminder',
+          vibrate: [100, 50, 100],
         } as NotificationOptions);
       });
     } else {
-      // Fallback to basic notification
       new Notification(title, { body, icon: '/icons/icon-192x192.png' });
     }
   } catch {
@@ -50,25 +83,68 @@ export function checkAndNotifyPayments(payments: Array<{
 }>) {
   if (!isNotificationEnabled()) return;
   
+  const prefs = getNotificationPrefs();
+  if (!prefs.enabled) return;
+
   const today = new Date();
-  const notifiedKey = `paytrack_notified_${today.toISOString().slice(0, 10)}`;
+  const todayStr = today.toISOString().slice(0, 10);
+  const notifiedKey = `paytrack_notified_${todayStr}`;
   
   // Only notify once per day
   if (localStorage.getItem(notifiedKey)) return;
-  
-  const due = payments.filter(p => {
-    if (p.is_paid) return false;
+
+  const overdue: string[] = [];
+  const dueToday: string[] = [];
+  const upcoming: string[] = [];
+
+  payments.forEach(p => {
+    if (p.is_paid) return;
     const dueDate = new Date(p.due_date);
     const daysLeft = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysLeft >= 0 && daysLeft <= p.reminder_days;
+
+    if (daysLeft < 0 && prefs.overdue) {
+      overdue.push(p.name);
+    } else if (daysLeft === 0 && prefs.dueToday) {
+      dueToday.push(p.name);
+    } else if (daysLeft > 0 && daysLeft <= p.reminder_days && prefs.upcoming) {
+      upcoming.push(p.name);
+    }
   });
-  
-  if (due.length > 0) {
-    const names = due.map(p => p.name).join(', ');
+
+  if (overdue.length > 0) {
     sendNotification(
-      `${due.length} payment${due.length > 1 ? 's' : ''} due soon`,
-      `${names} — don't forget to pay!`
+      `⚠️ ${overdue.length} overdue payment${overdue.length > 1 ? 's' : ''}`,
+      overdue.join(', '),
+      'paytrack-overdue'
     );
+  }
+
+  if (dueToday.length > 0) {
+    sendNotification(
+      `📅 ${dueToday.length} payment${dueToday.length > 1 ? 's' : ''} due today`,
+      dueToday.join(', '),
+      'paytrack-today'
+    );
+  }
+
+  if (upcoming.length > 0) {
+    sendNotification(
+      `🔔 ${upcoming.length} payment${upcoming.length > 1 ? 's' : ''} coming up`,
+      upcoming.join(', '),
+      'paytrack-upcoming'
+    );
+  }
+
+  if (overdue.length + dueToday.length + upcoming.length > 0) {
     localStorage.setItem(notifiedKey, '1');
   }
+}
+
+/** Send a test notification to verify everything works */
+export function sendTestNotification() {
+  sendNotification(
+    '🎉 Notifications are working!',
+    'You\'ll receive payment reminders based on your preferences.',
+    'paytrack-test'
+  );
 }
