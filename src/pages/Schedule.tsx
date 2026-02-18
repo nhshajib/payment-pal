@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isSameMonth } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import PaymentCard from '@/components/PaymentCard';
@@ -16,8 +16,16 @@ export default function Schedule() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
 
+  const now = new Date();
   const unpaid = payments.filter(p => !p.is_paid);
   const paid = payments.filter(p => p.is_paid);
+
+  const summary = useMemo(() => {
+    const thisMonth = payments.filter(p => isSameMonth(new Date(p.due_date), now));
+    const totalDue = thisMonth.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
+    const totalPaid = thisMonth.filter(p => p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
+    return { totalDue, totalPaid, count: thisMonth.length };
+  }, [payments]);
 
   // Request notification permission and check for due payments
   useEffect(() => {
@@ -72,8 +80,25 @@ export default function Schedule() {
           className="mb-6"
         >
           <h1 className="text-2xl font-bold text-foreground">Your Payments</h1>
-          <p className="text-muted-foreground text-sm">{format(new Date(), 'MMMM yyyy')}</p>
+          <p className="text-muted-foreground text-sm">{format(now, 'MMMM yyyy')}</p>
         </motion.header>
+
+        {/* Summary Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-6 rounded-xl bg-card border border-border p-4 grid grid-cols-2 gap-4"
+        >
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Due this month</p>
+            <p className="text-xl font-bold text-status-overdue mt-1">₹{summary.totalDue.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Paid this month</p>
+            <p className="text-xl font-bold text-status-success mt-1">₹{summary.totalPaid.toLocaleString()}</p>
+          </div>
+        </motion.div>
 
         {unpaid.length === 0 && paid.length === 0 && (
           <motion.div
