@@ -198,6 +198,11 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
               <p className={`text-muted-foreground text-sm mt-0.5 ${payment.is_paid ? 'opacity-50' : ''}`}>
                 {formatCurrency(Number(payment.amount))} · {payment.due_date}
               </p>
+              {payment.notes ? (
+                <p className={`text-muted-foreground/70 text-xs mt-1 truncate ${payment.is_paid ? 'opacity-50' : ''}`}>
+                  {payment.notes}
+                </p>
+              ) : null}
             </div>
           </div>
 

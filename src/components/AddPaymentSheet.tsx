@@ -25,6 +25,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
   const [reminderDays, setReminderDays] = useState('3');
   const [isRecurring, setIsRecurring] = useState(false);
   const [category, setCategory] = useState('other');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (editing) {
@@ -34,6 +35,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
       setReminderDays(String(editing.reminder_days));
       setIsRecurring(editing.is_recurring);
       setCategory(editing.category || 'other');
+      setNotes(editing.notes || '');
     } else {
       setName('');
       setAmount('');
@@ -41,6 +43,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
       setReminderDays('3');
       setIsRecurring(false);
       setCategory('other');
+      setNotes('');
     }
   }, [editing, open]);
 
@@ -54,6 +57,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
       reminder_days: parseInt(reminderDays) || 3,
       is_recurring: isRecurring,
       category,
+      notes: notes.trim(),
     });
     onClose();
   };
@@ -162,6 +166,18 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                       })}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Notes (optional)</label>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Add a memo or extra details…"
+                    rows={2}
+                    className="w-full bg-secondary/50 border-0 rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-shadow resize-none text-card-foreground"
+                  />
                 </div>
 
                 {/* Date & Reminder Row */}
