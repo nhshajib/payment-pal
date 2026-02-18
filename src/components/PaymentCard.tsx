@@ -1,5 +1,6 @@
-import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Check, Pencil, Trash2, RotateCw, Undo2 } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from 'framer-motion';
+import { Check, Pencil, Trash2, RotateCw, Undo2, CheckCircle2 } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -47,15 +48,20 @@ const badgeColors = {
 
 const SWIPE_THRESHOLD = 120;
 const DELETE_THRESHOLD = -120;
+const LONG_PRESS_MS = 500;
 
 export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab }: Props) {
   const { format: formatCurrency } = useCurrency();
   const status = getStatus(payment);
   const x = useMotionValue(0);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
 
   const rightBgOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
   const rightIconScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.5, 1.2]);
-
   const leftBgOpacity = useTransform(x, [DELETE_THRESHOLD, 0], [1, 0]);
   const leftIconScale = useTransform(x, [DELETE_THRESHOLD, 0], [1.2, 0.5]);
 
@@ -63,25 +69,68 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const CategoryIcon = category.icon;
 
   const handleDragEnd = (_: any, info: PanInfo) => {
+    isDragging.current = false;
     if (!payment.is_paid && info.offset.x >= SWIPE_THRESHOLD) {
       onMarkPaid(payment);
     } else if (info.offset.x <= DELETE_THRESHOLD) {
       onDelete(payment.id);
-    } else if (payment.is_paid && isPaidTab && info.offset.x <= -60 && info.offset.x > DELETE_THRESHOLD && onMarkUnpaid) {
-      // Keep mark-unpaid for smaller left swipes in paid tab
     }
   };
 
-  const canDrag = true;
+  const handleDragStart = () => {
+    isDragging.current = true;
+    cancelLongPress();
+  };
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    const posX = e.clientX - (rect?.left || 0);
+    const posY = e.clientY - (rect?.top || 0);
+
+    longPressTimer.current = setTimeout(() => {
+      if (!isDragging.current) {
+        // Vibrate for haptic feedback if available
+        if (navigator.vibrate) navigator.vibrate(30);
+        setMenuPos({ x: posX, y: posY });
+        setShowMenu(true);
+      }
+    }, LONG_PRESS_MS);
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    cancelLongPress();
+  }, [cancelLongPress]);
+
+  const menuItems = [
+    ...(!payment.is_paid ? [
+      { label: 'Mark Paid', icon: CheckCircle2, color: 'text-status-success', action: () => onMarkPaid(payment) },
+      { label: 'Edit', icon: Pencil, color: 'text-muted-foreground', action: () => onEdit(payment) },
+    ] : []),
+    ...(payment.is_paid && onMarkUnpaid ? [
+      { label: 'Mark Unpaid', icon: Undo2, color: 'text-status-warning', action: () => onMarkUnpaid(payment) },
+    ] : []),
+    { label: 'Delete', icon: Trash2, color: 'text-destructive', action: () => onDelete(payment.id) },
+  ];
 
   return (
     <motion.div
+      ref={cardRef}
       layout
       initial={{ opacity: 0, y: 20, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, x: payment.is_paid ? 100 : -100, scale: 0.95 }}
       transition={{ delay: index * 0.04, type: 'spring', stiffness: 350, damping: 28 }}
-      className="relative overflow-hidden rounded-xl"
+      className="relative overflow-visible rounded-xl"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
       {/* Swipe right background (mark paid) */}
       {!payment.is_paid && (
@@ -115,9 +164,10 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
 
       {/* Card content - draggable */}
       <motion.div
-        drag={canDrag ? 'x' : false}
+        drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.3}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         style={{ x }}
         whileTap={{ scale: 0.98 }}
@@ -126,7 +176,6 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Category icon with glow */}
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{
@@ -160,29 +209,62 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
             >
               {getDaysLabel(payment)}
             </motion.span>
-
-            {!isPaidTab && (
-              <motion.button
-                whileTap={{ scale: 0.8 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                onClick={() => onEdit(payment)}
-                className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center active:bg-secondary/80"
-              >
-                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-              </motion.button>
-            )}
-
-            <motion.button
-              whileTap={{ scale: 0.8 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-              onClick={() => onDelete(payment.id)}
-              className="w-8 h-8 rounded-full bg-destructive/15 flex items-center justify-center active:bg-destructive/25"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-destructive" />
-            </motion.button>
           </div>
         </div>
       </motion.div>
+
+      {/* Long-press context menu */}
+      <AnimatePresence>
+        {showMenu && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[80] bg-background/60 backdrop-blur-sm"
+              onClick={() => setShowMenu(false)}
+              onPointerDown={() => setShowMenu(false)}
+            />
+
+            {/* Menu */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: -5 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.85, y: -5 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className="absolute z-[90] min-w-[160px]"
+              style={{
+                left: Math.min(menuPos.x, 200),
+                top: menuPos.y + 8,
+              }}
+            >
+              <div className="bg-card border border-border/60 rounded-xl shadow-2xl shadow-black/20 overflow-hidden py-1">
+                {menuItems.map((item, i) => {
+                  const Icon = item.icon;
+                  return (
+                    <motion.button
+                      key={item.label}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      onClick={() => {
+                        setShowMenu(false);
+                        item.action();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-card-foreground hover:bg-secondary/80 active:bg-secondary transition-colors"
+                    >
+                      <Icon className={`w-4 h-4 ${item.color}`} />
+                      <span>{item.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
