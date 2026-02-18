@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { format } from 'date-fns';
@@ -8,6 +8,7 @@ import PaymentCard from '@/components/PaymentCard';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
+import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
 
 export default function Schedule() {
   const { userId } = useUser();
@@ -17,6 +18,17 @@ export default function Schedule() {
 
   const unpaid = payments.filter(p => !p.is_paid);
   const paid = payments.filter(p => p.is_paid);
+
+  // Request notification permission and check for due payments
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  useEffect(() => {
+    if (payments.length > 0) {
+      checkAndNotifyPayments(payments);
+    }
+  }, [payments]);
 
   const handleSubmit = async (data: Omit<Payment, 'id' | 'user_id' | 'created_at'>) => {
     try {
