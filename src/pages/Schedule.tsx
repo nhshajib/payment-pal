@@ -80,9 +80,23 @@ export default function Schedule() {
   };
 
   const handleDelete = async (id: string) => {
+    const deletedPayment = payments.find(p => p.id === id);
     try {
       await deletePayment(id);
-      toast.success('Payment deleted');
+      toast.success('Payment deleted', {
+        action: deletedPayment ? {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              await restorePayments([deletedPayment]);
+              toast.success('Payment restored');
+            } catch {
+              toast.error('Failed to restore');
+            }
+          },
+        } : undefined,
+        duration: 6000,
+      });
     } catch {
       toast.error('Failed to delete');
     }

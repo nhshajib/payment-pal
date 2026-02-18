@@ -46,6 +46,7 @@ const badgeColors = {
 };
 
 const SWIPE_THRESHOLD = 120;
+const DELETE_THRESHOLD = -120;
 
 export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab }: Props) {
   const { format: formatCurrency } = useCurrency();
@@ -55,8 +56,8 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const rightBgOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
   const rightIconScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.5, 1.2]);
 
-  const leftBgOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
-  const leftIconScale = useTransform(x, [-SWIPE_THRESHOLD, 0], [1.2, 0.5]);
+  const leftBgOpacity = useTransform(x, [DELETE_THRESHOLD, 0], [1, 0]);
+  const leftIconScale = useTransform(x, [DELETE_THRESHOLD, 0], [1.2, 0.5]);
 
   const category = getCategoryById(payment.category || 'other');
   const CategoryIcon = category.icon;
@@ -64,12 +65,14 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const handleDragEnd = (_: any, info: PanInfo) => {
     if (!payment.is_paid && info.offset.x >= SWIPE_THRESHOLD) {
       onMarkPaid(payment);
-    } else if (payment.is_paid && info.offset.x <= -SWIPE_THRESHOLD && onMarkUnpaid) {
-      onMarkUnpaid(payment);
+    } else if (info.offset.x <= DELETE_THRESHOLD) {
+      onDelete(payment.id);
+    } else if (payment.is_paid && isPaidTab && info.offset.x <= -60 && info.offset.x > DELETE_THRESHOLD && onMarkUnpaid) {
+      // Keep mark-unpaid for smaller left swipes in paid tab
     }
   };
 
-  const canDrag = !payment.is_paid || isPaidTab;
+  const canDrag = true;
 
   return (
     <motion.div
@@ -96,21 +99,19 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         </motion.div>
       )}
 
-      {/* Swipe left background (mark unpaid) */}
-      {payment.is_paid && isPaidTab && (
-        <motion.div
-          className="absolute inset-0 rounded-xl flex items-center justify-end pr-5"
-          style={{
-            opacity: leftBgOpacity,
-            background: 'linear-gradient(270deg, hsl(38, 92%, 50%, 0.25), hsl(38, 92%, 50%, 0.1))',
-          }}
-        >
-          <motion.div style={{ scale: leftIconScale }} className="flex items-center gap-2 text-status-warning">
-            <span className="text-sm font-semibold">Unpaid</span>
-            <Undo2 className="w-5 h-5" />
-          </motion.div>
+      {/* Swipe left background (delete) */}
+      <motion.div
+        className="absolute inset-0 rounded-xl flex items-center justify-end pr-5"
+        style={{
+          opacity: leftBgOpacity,
+          background: 'linear-gradient(270deg, hsl(0, 72%, 51%, 0.25), hsl(0, 72%, 51%, 0.1))',
+        }}
+      >
+        <motion.div style={{ scale: leftIconScale }} className="flex items-center gap-2 text-destructive">
+          <span className="text-sm font-semibold">Delete</span>
+          <Trash2 className="w-5 h-5" />
         </motion.div>
-      )}
+      </motion.div>
 
       {/* Card content - draggable */}
       <motion.div
