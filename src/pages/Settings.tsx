@@ -249,6 +249,7 @@ export default function Settings() {
     setActiveModal(null);
     setSigningOut(true);
     setTimeout(() => {
+      sessionStorage.setItem('paytrack_signed_out', '1');
       logout();
     }, 600);
   };

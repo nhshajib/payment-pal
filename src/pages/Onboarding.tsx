@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useUser } from '@/hooks/useUser';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CreditCard, Receipt, Wallet, Repeat, ArrowRight, UserPlus, LogIn, ChevronLeft, Sparkles } from 'lucide-react';
+import { CreditCard, Receipt, Wallet, Repeat, ArrowRight, UserPlus, LogIn, ChevronLeft, Sparkles, Hand } from 'lucide-react';
 
 const floatingIcons = [
   { Icon: CreditCard, x: '10%', y: '15%', delay: 0, rotate: -15, size: 'w-10 h-10' },
@@ -25,6 +25,16 @@ export default function Onboarding() {
   const { register, restore } = useUser();
   const navigate = useNavigate();
   const [screen, setScreen] = useState<Screen>('landing');
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem('paytrack_signed_out')) {
+      sessionStorage.removeItem('paytrack_signed_out');
+      setShowWelcomeBack(true);
+      const timer = setTimeout(() => setShowWelcomeBack(false), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 10);
@@ -156,6 +166,27 @@ export default function Onboarding() {
             >
               Never miss a payment again
             </motion.p>
+
+            {/* Welcome back banner */}
+            <AnimatePresence>
+              {showWelcomeBack && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                  className="w-full mb-4 glass rounded-2xl border border-primary/20 p-4 flex items-center gap-3"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <Hand className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-card-foreground">Welcome back!</p>
+                    <p className="text-xs text-muted-foreground">Sign in to pick up where you left off</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Sign In form directly on landing */}
             <motion.form
