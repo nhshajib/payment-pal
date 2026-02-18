@@ -133,11 +133,13 @@ export default function Schedule() {
   }, [payments]);
 
   const summary = useMemo(() => {
+    const now = new Date();
     const totalDue = payments.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
     const totalPaid = payments.filter(p => p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
     const unpaidCount = payments.filter(p => !p.is_paid).length;
     const paidCount = payments.filter(p => p.is_paid).length;
-    return { totalDue, totalPaid, unpaidCount, paidCount };
+    const overdueCount = payments.filter(p => !p.is_paid && new Date(p.due_date) < now).length;
+    return { totalDue, totalPaid, unpaidCount, paidCount, overdueCount };
   }, [payments]);
 
   // Monthly insight: compare this month total vs last month
@@ -284,11 +286,25 @@ export default function Schedule() {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/20"
+                className="relative w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/20"
               >
                 <span className="text-sm font-bold text-primary">
                   {userName ? userName.charAt(0).toUpperCase() : 'U'}
                 </span>
+                {/* Overdue notification dot */}
+                {summary.overdueCount > 0 && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.3 }}
+                    className="absolute -top-0.5 -right-0.5 flex items-center justify-center"
+                  >
+                    <span className="absolute w-4 h-4 rounded-full bg-status-overdue/30 animate-ping" />
+                    <span className="relative w-4 h-4 rounded-full bg-status-overdue flex items-center justify-center text-[8px] font-bold text-primary-foreground">
+                      {summary.overdueCount > 9 ? '9+' : summary.overdueCount}
+                    </span>
+                  </motion.div>
+                )}
               </motion.div>
               <div>
                 <motion.p
