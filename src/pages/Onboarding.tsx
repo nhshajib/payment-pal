@@ -2,9 +2,17 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useUser } from '@/hooks/useUser'; // force resolve
+import { useUser } from '@/hooks/useUser';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { CreditCard, Receipt, Wallet, Repeat } from 'lucide-react';
+
+const floatingIcons = [
+  { Icon: CreditCard, x: '15%', y: '18%', delay: 0, rotate: -15 },
+  { Icon: Receipt, x: '75%', y: '12%', delay: 0.2, rotate: 12 },
+  { Icon: Wallet, x: '25%', y: '32%', delay: 0.4, rotate: -8 },
+  { Icon: Repeat, x: '70%', y: '28%', delay: 0.6, rotate: 20 },
+];
 
 export default function Onboarding() {
   const [phone, setPhone] = useState('');
@@ -45,18 +53,49 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background relative overflow-hidden">
+      {/* Background gradient mesh */}
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          background: 'radial-gradient(ellipse at 20% 50%, hsl(358, 94%, 47%, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, hsl(280, 70%, 55%, 0.06) 0%, transparent 50%)',
+        }}
+      />
+
+      {/* Floating icons */}
+      {floatingIcons.map(({ Icon, x, y, delay, rotate }, i) => (
+        <motion.div
+          key={i}
+          className="absolute text-muted-foreground/15"
+          style={{ left: x, top: y }}
+          initial={{ opacity: 0, scale: 0, rotate: 0 }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+            rotate,
+            y: [0, -8, 0],
+          }}
+          transition={{
+            delay: delay + 0.5,
+            duration: 0.5,
+            y: { delay: delay + 1, duration: 3, repeat: Infinity, ease: 'easeInOut' },
+          }}
+        >
+          <Icon className="w-8 h-8" />
+        </motion.div>
+      ))}
+
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="text-center mb-10"
+        className="text-center mb-10 relative z-10"
       >
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="text-4xl font-bold text-foreground tracking-tight"
+          className="text-5xl font-extrabold text-foreground tracking-tight"
         >
           Pay<span className="text-primary">Track</span>
         </motion.h1>
@@ -64,7 +103,7 @@ export default function Onboarding() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
-          className="text-muted-foreground mt-2"
+          className="text-muted-foreground mt-2 tracking-wide"
         >
           Never miss a payment again
         </motion.p>
@@ -75,30 +114,39 @@ export default function Onboarding() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.4 }}
         onSubmit={handleSubmit}
-        className="w-full max-w-xs space-y-4"
+        className="w-full max-w-xs space-y-4 relative z-10"
       >
-        <Input
-          type="tel"
-          placeholder="Enter 10-digit phone"
-          value={phone}
-          onChange={e => setPhone(formatPhone(e.target.value))}
-          className="text-center text-lg tracking-widest h-12"
-          maxLength={11}
-        />
+        {/* Glass card around input */}
+        <div className="glass rounded-2xl p-5 border border-border/50 space-y-4">
+          <Input
+            type="tel"
+            placeholder="Enter 10-digit phone"
+            value={phone}
+            onChange={e => setPhone(formatPhone(e.target.value))}
+            className="text-center text-lg tracking-widest h-13 bg-secondary/50 border-0 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
+            style={{ height: '52px' }}
+            maxLength={11}
+          />
 
-        <motion.div whileTap={{ scale: 0.97 }}>
-          <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={loading}>
-            {loading ? 'Please wait...' : mode === 'restore' ? 'Restore Data' : 'Get Started'}
-          </Button>
-        </motion.div>
+          <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
+            <Button
+              type="submit"
+              className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/25"
+              disabled={loading}
+            >
+              {loading ? 'Please wait...' : mode === 'restore' ? 'Restore Data' : 'Get Started'}
+            </Button>
+          </motion.div>
+        </div>
 
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={() => setMode(m => m === 'new' ? 'restore' : 'new')}
-          className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors text-center"
+          className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors text-center py-2"
         >
           {mode === 'new' ? 'Already have an account? Restore data' : 'New here? Create account'}
-        </button>
+        </motion.button>
       </motion.form>
     </div>
   );
