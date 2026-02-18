@@ -387,7 +387,7 @@ export default function Schedule() {
         </AnimatePresence>
 
         {/* FAB - with glow pulse */}
-        {activeTab === 'upcoming' && (
+        {activeTab === 'upcoming' && !sheetOpen && (
           <motion.button
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
