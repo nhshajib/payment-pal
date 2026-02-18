@@ -4,6 +4,7 @@ import { Check, Pencil, Trash2, RotateCw, ChevronRight } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
+import { getCategoryById } from '@/lib/categories';
 
 interface Props {
   payment: Payment;
@@ -53,6 +54,9 @@ export default function PaymentCard({ payment, index, onMarkPaid, onEdit, onDele
   const checkScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.5, 1.2]);
   const [swiped, setSwiped] = useState(false);
 
+  const category = getCategoryById(payment.category || 'other');
+  const CategoryIcon = category.icon;
+
   const handleDragEnd = (_: any, info: PanInfo) => {
     if (info.offset.x >= SWIPE_THRESHOLD && !payment.is_paid) {
       setSwiped(true);
@@ -62,6 +66,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onEdit, onDele
 
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
@@ -88,29 +93,39 @@ export default function PaymentCard({ payment, index, onMarkPaid, onEdit, onDele
         dragElastic={0.4}
         onDragEnd={handleDragEnd}
         style={{ x }}
-        whileTap={{ scale: 0.98 }}
+        whileTap={{ scale: 0.97 }}
         className={`relative bg-card border-l-4 ${statusColors[status]} p-4 cursor-grab active:cursor-grabbing ${
           payment.is_paid ? 'opacity-50' : ''
         }`}
       >
         <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className={`font-semibold text-card-foreground truncate ${payment.is_paid ? 'line-through' : ''}`}>
-                {payment.name}
-              </h3>
-              {payment.is_recurring && (
-                <RotateCw className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Category icon */}
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${category.color}20` }}
+            >
+              <CategoryIcon className="w-4.5 h-4.5" style={{ color: category.color }} />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className={`font-semibold text-card-foreground truncate ${payment.is_paid ? 'line-through' : ''}`}>
+                  {payment.name}
+                </h3>
+                {payment.is_recurring && (
+                  <RotateCw className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                )}
+              </div>
+              <p className="text-muted-foreground text-sm mt-0.5">
+                {formatCurrency(Number(payment.amount))} · {payment.due_date}
+              </p>
+              {!payment.is_paid && (
+                <p className="text-muted-foreground/50 text-xs mt-1 flex items-center gap-1">
+                  <ChevronRight className="w-3 h-3" /> Swipe right to mark paid
+                </p>
               )}
             </div>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              {formatCurrency(Number(payment.amount))} · {payment.due_date}
-            </p>
-            {!payment.is_paid && (
-              <p className="text-muted-foreground/50 text-xs mt-1 flex items-center gap-1">
-                <ChevronRight className="w-3 h-3" /> Swipe right to mark paid
-              </p>
-            )}
           </div>
 
           <div className="flex items-center gap-2 ml-3">
@@ -119,17 +134,19 @@ export default function PaymentCard({ payment, index, onMarkPaid, onEdit, onDele
             </span>
 
             <motion.button
-              whileTap={{ scale: 0.85 }}
+              whileTap={{ scale: 0.8, rotate: -5 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
               onClick={() => onEdit(payment)}
-              className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center active:bg-secondary/80"
             >
               <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
             </motion.button>
 
             <motion.button
-              whileTap={{ scale: 0.85 }}
+              whileTap={{ scale: 0.8, rotate: 5 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
               onClick={() => onDelete(payment.id)}
-              className="w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center active:bg-destructive/30"
             >
               <Trash2 className="w-3.5 h-3.5 text-destructive" />
             </motion.button>

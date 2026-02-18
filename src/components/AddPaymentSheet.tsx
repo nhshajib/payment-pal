@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, Bell, RotateCw, DollarSign } from 'lucide-react';
+import { X, CalendarDays, Bell, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
+import { CATEGORIES, getCategoryById } from '@/lib/categories';
 import { format } from 'date-fns';
 
 interface Props {
@@ -22,6 +23,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
   const [dueDate, setDueDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [reminderDays, setReminderDays] = useState('3');
   const [isRecurring, setIsRecurring] = useState(false);
+  const [category, setCategory] = useState('other');
 
   useEffect(() => {
     if (editing) {
@@ -30,12 +32,14 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
       setDueDate(editing.due_date);
       setReminderDays(String(editing.reminder_days));
       setIsRecurring(editing.is_recurring);
+      setCategory(editing.category || 'other');
     } else {
       setName('');
       setAmount('');
       setDueDate(format(new Date(), 'yyyy-MM-dd'));
       setReminderDays('3');
       setIsRecurring(false);
+      setCategory('other');
     }
   }, [editing, open]);
 
@@ -48,6 +52,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
       is_paid: editing?.is_paid ?? false,
       reminder_days: parseInt(reminderDays) || 3,
       is_recurring: isRecurring,
+      category,
     });
     onClose();
   };
@@ -85,7 +90,8 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                   {editing ? 'Edit Payment' : 'New Payment'}
                 </h2>
                 <motion.button
-                  whileTap={{ scale: 0.85 }}
+                  whileTap={{ scale: 0.85, rotate: -90 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                   onClick={onClose}
                   className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
                 >
@@ -95,7 +101,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-5 max-h-[70vh] overflow-y-auto">
-                {/* Payment Name - Large prominent input */}
+                {/* Payment Name */}
                 <div>
                   <Input
                     value={name}
@@ -106,7 +112,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                   />
                 </div>
 
-                {/* Amount - Hero input */}
+                {/* Amount */}
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground/50">
                     {currency.symbol}
@@ -119,6 +125,39 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                     required
                     className="h-16 text-3xl font-bold bg-secondary/50 border-0 rounded-2xl pl-12 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
+                </div>
+
+                {/* Category picker */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-2 block ml-1">Category</label>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map((cat) => {
+                      const Icon = cat.icon;
+                      const isSelected = category === cat.id;
+                      return (
+                        <motion.button
+                          key={cat.id}
+                          type="button"
+                          whileTap={{ scale: 0.9 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                          onClick={() => setCategory(cat.id)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                            isSelected
+                              ? 'ring-2 ring-offset-1 ring-offset-card'
+                              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                          }`}
+                          style={isSelected ? {
+                            backgroundColor: `${cat.color}20`,
+                            color: cat.color,
+                            ['--tw-ring-color' as any]: cat.color,
+                          } : undefined}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          {cat.label}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Date & Reminder Row */}
@@ -153,7 +192,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                   </div>
                 </div>
 
-                {/* Recurring toggle - native card style */}
+                {/* Recurring toggle */}
                 <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -171,13 +210,15 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
                 </div>
 
                 {/* Submit button */}
-                <Button
-                  type="submit"
-                  className="w-full h-13 rounded-2xl text-base font-semibold shadow-lg shadow-primary/25 mt-2"
-                  style={{ height: '52px' }}
-                >
-                  {editing ? 'Save Changes' : 'Add Payment'}
-                </Button>
+                <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
+                  <Button
+                    type="submit"
+                    className="w-full h-13 rounded-2xl text-base font-semibold shadow-lg shadow-primary/25 mt-2"
+                    style={{ height: '52px' }}
+                  >
+                    {editing ? 'Save Changes' : 'Add Payment'}
+                  </Button>
+                </motion.div>
               </form>
             </div>
           </motion.div>

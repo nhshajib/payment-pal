@@ -17,6 +17,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          category: string
           created_at: string
           due_date: string
           id: string
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          category?: string
           created_at?: string
           due_date: string
           id?: string
@@ -39,6 +41,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          category?: string
           created_at?: string
           due_date?: string
           id?: string

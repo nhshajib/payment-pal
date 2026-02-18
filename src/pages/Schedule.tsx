@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { format, isSameMonth } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
-import { useUser } from '@/hooks/useUser'; // force resolve
+import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
 import PaymentCard from '@/components/PaymentCard';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
+import Confetti from '@/components/Confetti';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
@@ -17,6 +18,7 @@ export default function Schedule() {
   const { payments, addPayment, updatePayment, deletePayment, markPaid } = usePayments(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
+  const [confettiTrigger, setConfettiTrigger] = useState(false);
 
   const now = new Date();
   const unpaid = payments.filter(p => !p.is_paid);
@@ -29,7 +31,6 @@ export default function Schedule() {
     return { totalDue, totalPaid, count: thisMonth.length };
   }, [payments]);
 
-  // Request notification permission and check for due payments
   useEffect(() => {
     requestNotificationPermission();
   }, []);
@@ -67,6 +68,8 @@ export default function Schedule() {
   const handleMarkPaid = async (payment: Payment) => {
     try {
       await markPaid(payment);
+      setConfettiTrigger(true);
+      setTimeout(() => setConfettiTrigger(false), 100);
       toast.success(payment.is_recurring ? 'Paid! Next month created.' : 'Marked as paid');
     } catch {
       toast.error('Failed to update');
@@ -75,6 +78,7 @@ export default function Schedule() {
 
   return (
     <PageTransition>
+      <Confetti trigger={confettiTrigger} />
       <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
         <motion.header
           initial={{ opacity: 0, y: -10 }}
@@ -153,7 +157,8 @@ export default function Schedule() {
         {/* FAB */}
         <motion.button
           whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.85, rotate: 90 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 15 }}
           onClick={() => { setEditing(null); setSheetOpen(true); }}
           className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-40"
         >
