@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, CalendarDays, Bell, RotateCw, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -57,93 +56,130 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
     <AnimatePresence>
       {open && (
         <>
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-background/80 backdrop-blur-md z-50"
             onClick={onClose}
           />
+
+          {/* Sheet */}
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl p-6 pb-24 max-w-md mx-auto border-t border-border max-h-[90vh] overflow-y-auto"
+            transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+            className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-card-foreground">
-                {editing ? 'Edit Payment' : 'Add Payment'}
-              </h2>
-              <button onClick={onClose} className="text-muted-foreground">
-                <X className="w-5 h-5" />
-              </button>
+            <div className="bg-card rounded-t-3xl border-t border-border shadow-2xl overflow-hidden">
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pb-4 pt-2">
+                <h2 className="text-xl font-bold text-card-foreground tracking-tight">
+                  {editing ? 'Edit Payment' : 'New Payment'}
+                </h2>
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </motion.button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-5 max-h-[70vh] overflow-y-auto">
+                {/* Payment Name - Large prominent input */}
+                <div>
+                  <Input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="Payment name"
+                    required
+                    className="h-14 text-lg font-medium bg-secondary/50 border-0 rounded-2xl px-5 placeholder:text-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-primary"
+                  />
+                </div>
+
+                {/* Amount - Hero input */}
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground/50">
+                    {currency.symbol}
+                  </div>
+                  <Input
+                    type="number"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    required
+                    className="h-16 text-3xl font-bold bg-secondary/50 border-0 rounded-2xl pl-12 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+
+                {/* Date & Reminder Row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="relative">
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Due Date</label>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
+                      <Input
+                        type="date"
+                        value={dueDate}
+                        onChange={e => setDueDate(e.target.value)}
+                        required
+                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Remind Before</label>
+                    <div className="relative">
+                      <Bell className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
+                      <Input
+                        type="number"
+                        value={reminderDays}
+                        onChange={e => setReminderDays(e.target.value)}
+                        min="0"
+                        max="30"
+                        className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/50">days</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recurring toggle - native card style */}
+                <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <RotateCw className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-card-foreground">Monthly Recurring</p>
+                      <p className="text-xs text-muted-foreground">Auto-create next month</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isRecurring}
+                    onCheckedChange={setIsRecurring}
+                  />
+                </div>
+
+                {/* Submit button */}
+                <Button
+                  type="submit"
+                  className="w-full h-13 rounded-2xl text-base font-semibold shadow-lg shadow-primary/25 mt-2"
+                  style={{ height: '52px' }}
+                >
+                  {editing ? 'Save Changes' : 'Add Payment'}
+                </Button>
+              </form>
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Payment Name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="e.g. Netflix, Rent"
-                  required
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="amount">Amount ({currency.symbol})</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  placeholder="0"
-                  required
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="dueDate">Due Date</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={dueDate}
-                  onChange={e => setDueDate(e.target.value)}
-                  required
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="reminder">Remind Before (days)</Label>
-                <Input
-                  id="reminder"
-                  type="number"
-                  value={reminderDays}
-                  onChange={e => setReminderDays(e.target.value)}
-                  min="0"
-                  max="30"
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="recurring">Monthly Recurring</Label>
-                <Switch
-                  id="recurring"
-                  checked={isRecurring}
-                  onCheckedChange={setIsRecurring}
-                />
-              </div>
-
-              <Button type="submit" className="w-full mt-4">
-                {editing ? 'Save Changes' : 'Add Payment'}
-              </Button>
-            </form>
           </motion.div>
         </>
       )}
