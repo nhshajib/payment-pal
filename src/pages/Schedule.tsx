@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowUpDown, TrendingUp, TrendingDown, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, TrendingUp, TrendingDown, RefreshCw, Loader2, SlidersHorizontal, ArrowDownAZ, ArrowDownUp, Clock } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
@@ -49,7 +49,6 @@ export default function Schedule() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showLongPressHint, setShowLongPressHint] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('date');
 
   // Pull-to-refresh state
@@ -286,53 +285,46 @@ export default function Schedule() {
             {getGreeting()}{userName ? `, ${userName}` : ''} 👋
           </motion.p>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
-            <div className="flex items-center gap-2">
-              {/* Sort toggle */}
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={cycleSortMode}
-                className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center relative"
-                title={`Sort by ${SORT_LABELS[sortMode]}`}
-              >
-                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary bg-primary/10 px-1 rounded">
-                  {SORT_LABELS[sortMode].charAt(0)}
-                </span>
-              </motion.button>
-              {/* Search */}
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => { setSearchOpen(prev => !prev); if (searchOpen) setSearchQuery(''); }}
-                className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center"
-              >
-                {searchOpen ? <X className="w-4 h-4 text-muted-foreground" /> : <Search className="w-4 h-4 text-muted-foreground" />}
-              </motion.button>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
+              <p className="text-muted-foreground text-xs mt-0.5">{format(new Date(), 'EEEE, MMMM d')}</p>
             </div>
           </div>
-          <p className="text-muted-foreground text-xs mt-0.5">{format(new Date(), 'EEEE, MMMM d')}</p>
-          <AnimatePresence>
-            {searchOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                className="overflow-hidden"
-              >
-                <div className="relative mt-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
-                  <input
-                    autoFocus
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Search by name or notes…"
-                    className="w-full h-10 bg-secondary/60 border-0 rounded-xl pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary transition-shadow"
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
+          {/* Search & Sort Bar */}
+          <div className="mt-3 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 pointer-events-none" />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search payments…"
+                className="w-full h-10 bg-secondary/60 border-0 rounded-xl pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+              />
+              {searchQuery && (
+                <motion.button
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  whileTap={{ scale: 0.8 }}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-muted flex items-center justify-center"
+                >
+                  <X className="w-3 h-3 text-muted-foreground" />
+                </motion.button>
+              )}
+            </div>
+            {/* Sort chip */}
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={cycleSortMode}
+              className="h-10 px-3 rounded-xl bg-secondary/60 flex items-center gap-1.5 flex-shrink-0 transition-colors active:bg-secondary"
+            >
+              {sortMode === 'date' && <Clock className="w-3.5 h-3.5 text-primary" />}
+              {sortMode === 'amount' && <ArrowDownUp className="w-3.5 h-3.5 text-primary" />}
+              {sortMode === 'name' && <ArrowDownAZ className="w-3.5 h-3.5 text-primary" />}
+              <span className="text-xs font-medium text-card-foreground">{SORT_LABELS[sortMode]}</span>
+            </motion.button>
+          </div>
         </motion.header>
 
         {/* Summary Card - Frosted Glass */}
