@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand } from 'lucide-react';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
@@ -38,6 +38,8 @@ export default function Schedule() {
   const [activeTab, setActiveTab] = useState<TabId>('upcoming');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showLongPressHint, setShowLongPressHint] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Show long-press hint once on first visit with payments
   useEffect(() => {
@@ -59,9 +61,17 @@ export default function Schedule() {
   }, [showLongPressHint]);
 
   const filteredPayments = useMemo(() => {
-    if (!activeFilter) return payments;
-    return payments.filter(p => (p.category || 'other') === activeFilter);
-  }, [payments, activeFilter]);
+    let list = payments;
+    if (activeFilter) list = list.filter(p => (p.category || 'other') === activeFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.notes && p.notes.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [payments, activeFilter, searchQuery]);
 
   const unpaid = filteredPayments.filter(p => !p.is_paid);
   const paid = filteredPayments.filter(p => p.is_paid);
@@ -165,8 +175,39 @@ export default function Schedule() {
           >
             {getGreeting()}{userName ? `, ${userName}` : ''} 👋
           </motion.p>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => { setSearchOpen(prev => !prev); if (searchOpen) setSearchQuery(''); }}
+              className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center"
+            >
+              {searchOpen ? <X className="w-4 h-4 text-muted-foreground" /> : <Search className="w-4 h-4 text-muted-foreground" />}
+            </motion.button>
+          </div>
           <p className="text-muted-foreground text-xs mt-0.5">{format(new Date(), 'EEEE, MMMM d')}</p>
+          <AnimatePresence>
+            {searchOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="overflow-hidden"
+              >
+                <div className="relative mt-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
+                  <input
+                    autoFocus
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search by name or notes…"
+                    className="w-full h-10 bg-secondary/60 border-0 rounded-xl pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary transition-shadow"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.header>
 
         {/* Summary Card - Frosted Glass */}
