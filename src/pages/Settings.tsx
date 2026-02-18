@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
   ChevronRight, X, Check, Smartphone, BellRing, AlertTriangle,
-  Clock, CalendarCheck, Send,
+  Clock, CalendarCheck, Send, User,
 } from 'lucide-react';
 import {
   getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs,
@@ -152,10 +152,12 @@ function SettingsCard({
 
 /* ─── Main Settings Page ─── */
 export default function Settings() {
-  const { userId, logout, restore } = useUser();
+  const { userId, userName, updateName, logout, restore } = useUser();
   const { currency, setCurrency } = useCurrency();
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  const [tempName, setTempName] = useState(userName);
 
   const [phone, setPhone] = useState('');
   const [restoreLoading, setRestoreLoading] = useState(false);
@@ -262,6 +264,15 @@ export default function Settings() {
         <div className="space-y-2.5">
           <SettingsCard
             index={0}
+            icon={<User className="w-5 h-5" />}
+            iconBg="hsl(358 94% 47% / 0.15)"
+            iconColor="hsl(358, 94%, 47%)"
+            title="Name"
+            subtitle={userName || 'Set your name'}
+            onClick={() => { setTempName(userName); setActiveModal('name'); }}
+          />
+          <SettingsCard
+            index={1}
             icon={<Coins className="w-5 h-5" />}
             iconBg="hsl(38 92% 50% / 0.15)"
             iconColor="hsl(38, 92%, 50%)"
@@ -270,7 +281,7 @@ export default function Settings() {
             onClick={() => { setTempCurrency(currency); setActiveModal('currency'); }}
           />
           <SettingsCard
-            index={1}
+            index={2}
             icon={<Bell className="w-5 h-5" />}
             iconBg="hsl(200 80% 55% / 0.15)"
             iconColor="hsl(200, 80%, 55%)"
@@ -279,7 +290,7 @@ export default function Settings() {
             onClick={() => { setTempReminder(reminderDays); setActiveModal('reminder'); }}
           />
           <SettingsCard
-            index={2}
+            index={3}
             icon={<Trash2 className="w-5 h-5" />}
             iconBg="hsl(38 92% 50% / 0.15)"
             iconColor="hsl(38, 92%, 50%)"
@@ -288,13 +299,29 @@ export default function Settings() {
             onClick={() => { setTempClearDay(paidClearDay); setActiveModal('clearday'); }}
           />
           <SettingsCard
-            index={3}
+            index={4}
             icon={<BellRing className="w-5 h-5" />}
             iconBg="hsl(280 70% 55% / 0.15)"
             iconColor="hsl(280, 70%, 55%)"
             title="Notifications"
             subtitle={notifPrefs.enabled && notifStatus === 'granted' ? 'Enabled' : notifStatus === 'denied' ? 'Blocked by browser' : 'Disabled'}
-            onClick={() => { setTempNotifPrefs(notifPrefs); setActiveModal('notifications'); }}
+            onClick={async () => {
+              // If not yet asked, trigger browser permission popup first
+              if (notifStatus === 'default') {
+                const granted = await requestNotificationPermission();
+                setNotifStatus(getNotificationStatus());
+                if (granted) {
+                  toast.success('Notifications enabled!');
+                  // Auto-enable prefs
+                  const newPrefs = { ...notifPrefs, enabled: true };
+                  saveNotificationPrefs(newPrefs);
+                  setNotifPrefs(newPrefs);
+                  setTempNotifPrefs(newPrefs);
+                }
+              }
+              setTempNotifPrefs(notifPrefs);
+              setActiveModal('notifications');
+            }}
           />
           <SettingsCard
             index={4}
@@ -306,7 +333,7 @@ export default function Settings() {
             onClick={() => { setPhone(''); setActiveModal('restore'); }}
           />
           <SettingsCard
-            index={5}
+            index={6}
             icon={<LogOut className="w-5 h-5" />}
             iconBg="hsl(0 84% 60% / 0.15)"
             iconColor="hsl(0, 84%, 60%)"
@@ -325,6 +352,37 @@ export default function Settings() {
         >
           PayTrack v1.0 · Your data is synced securely
         </motion.p>
+
+        {/* ─── Name Modal ─── */}
+        <SettingsModal
+          open={activeModal === 'name'}
+          onClose={close}
+          title="Your Name"
+          onSave={async () => {
+            await updateName(tempName.trim());
+            toast.success('Name updated');
+            close();
+          }}
+          saveDisabled={!tempName.trim()}
+        >
+          <div className="space-y-5">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 mb-4">
+                <User className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                This name will be used in your greeting.
+              </p>
+            </div>
+            <Input
+              value={tempName}
+              onChange={e => setTempName(e.target.value)}
+              placeholder="Enter your name"
+              maxLength={50}
+              className="h-12 bg-secondary/50 border-0 rounded-xl text-center text-lg font-medium"
+            />
+          </div>
+        </SettingsModal>
 
         {/* ─── Currency Modal ─── */}
         <SettingsModal open={activeModal === 'currency'} onClose={close} title="Currency" onSave={handleSaveCurrency}>
@@ -440,9 +498,25 @@ export default function Settings() {
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10 mb-4">
                   <BellRing className="w-8 h-8 text-destructive" />
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Notifications are blocked by your browser. Please enable them in your browser or device settings.
+                <p className="text-sm text-muted-foreground mb-3">
+                  Notifications are blocked. Please enable them in your browser settings, then tap below.
                 </p>
+                <Button
+                  variant="secondary"
+                  className="rounded-xl"
+                  onClick={() => {
+                    // Re-check status (user may have changed browser settings)
+                    setNotifStatus(getNotificationStatus());
+                    if (getNotificationStatus() === 'granted') {
+                      toast.success('Notifications are now enabled!');
+                    } else {
+                      toast.error('Still blocked — check browser settings');
+                    }
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh Permission Status
+                </Button>
               </div>
             ) : notifStatus === 'default' ? (
               <div className="text-center py-4">
@@ -450,19 +524,26 @@ export default function Settings() {
                   <BellRing className="w-8 h-8 text-primary" />
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Enable notifications to get payment reminders.
+                  Allow notifications to receive payment reminders.
                 </p>
                 <Button
                   onClick={async () => {
                     const granted = await requestNotificationPermission();
                     setNotifStatus(getNotificationStatus());
-                    if (granted) toast.success('Notifications enabled!');
-                    else toast.error('Permission denied');
+                    if (granted) {
+                      toast.success('Notifications enabled!');
+                      const newPrefs = { ...tempNotifPrefs, enabled: true };
+                      setTempNotifPrefs(newPrefs);
+                      saveNotificationPrefs(newPrefs);
+                      setNotifPrefs(newPrefs);
+                    } else {
+                      toast.error('Permission denied');
+                    }
                   }}
                   className="rounded-xl"
                 >
                   <Bell className="w-4 h-4 mr-2" />
-                  Enable Notifications
+                  Allow Notifications
                 </Button>
               </div>
             ) : (
@@ -510,7 +591,7 @@ export default function Settings() {
                   ))}
                 </div>
 
-                {/* Test button */}
+                {/* Test button (dev) */}
                 <motion.div whileTap={{ scale: 0.97 }}>
                   <Button
                     variant="secondary"
@@ -521,7 +602,7 @@ export default function Settings() {
                     }}
                   >
                     <Send className="w-4 h-4 mr-2" />
-                    Send Test Notification
+                    🧪 Test Notification
                   </Button>
                 </motion.div>
               </>

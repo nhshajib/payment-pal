@@ -28,7 +28,7 @@ function getGreeting() {
 }
 
 export default function Schedule() {
-  const { userId } = useUser();
+  const { userId, userName } = useUser();
   const { format: formatCurrency } = useCurrency();
   const { payments, addPayment, updatePayment, deletePayment, markPaid } = usePayments(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -128,7 +128,7 @@ export default function Schedule() {
             transition={{ delay: 0.1 }}
             className="text-muted-foreground text-sm"
           >
-            {getGreeting()} 👋
+            {getGreeting()}{userName ? `, ${userName}` : ''} 👋
           </motion.p>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Your Payments</h1>
           <p className="text-muted-foreground text-xs mt-0.5">{format(new Date(), 'EEEE, MMMM d')}</p>

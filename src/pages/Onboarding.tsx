@@ -15,6 +15,7 @@ const floatingIcons = [
 ];
 
 export default function Onboarding() {
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const { register, restore } = useUser();
@@ -34,6 +35,10 @@ export default function Onboarding() {
       toast.error('Enter a valid 10-digit phone number');
       return;
     }
+    if (mode === 'new' && !name.trim()) {
+      toast.error('Please enter your name');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -41,7 +46,7 @@ export default function Onboarding() {
         await restore(digits);
         toast.success('Data restored successfully!');
       } else {
-        await register(digits);
+        await register(digits, name.trim());
         toast.success('Welcome to PayTrack!');
       }
       navigate('/schedule');
@@ -116,14 +121,25 @@ export default function Onboarding() {
         onSubmit={handleSubmit}
         className="w-full max-w-xs space-y-4 relative z-10"
       >
-        {/* Glass card around input */}
-        <div className="glass rounded-2xl p-5 border border-border/50 space-y-4">
+        {/* Glass card around inputs */}
+        <div className="glass rounded-2xl p-5 border border-border/50 space-y-3">
+          {mode === 'new' && (
+            <Input
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="text-center text-lg h-12 bg-secondary/50 border-0 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
+              maxLength={50}
+            />
+          )}
+
           <Input
             type="tel"
             placeholder="Enter 10-digit phone"
             value={phone}
             onChange={e => setPhone(formatPhone(e.target.value))}
-            className="text-center text-lg tracking-widest h-13 bg-secondary/50 border-0 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
+            className="text-center text-lg tracking-widest bg-secondary/50 border-0 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
             style={{ height: '52px' }}
             maxLength={11}
           />
