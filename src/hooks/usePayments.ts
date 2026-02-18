@@ -12,6 +12,7 @@ export interface Payment {
   reminder_days: number;
   is_recurring: boolean;
   category: string;
+  notes: string;
   created_at: string;
 }
 
@@ -87,6 +88,7 @@ export function usePayments(userId: string | null) {
         reminder_days: payment.reminder_days,
         is_recurring: true,
         category: payment.category || 'other',
+        notes: payment.notes || '',
       });
     }
   }, [updatePayment, addPayment, userId]);

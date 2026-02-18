@@ -24,6 +24,7 @@ export type Database = {
           is_paid: boolean
           is_recurring: boolean
           name: string
+          notes: string
           reminder_days: number
           user_id: string
         }
@@ -36,6 +37,7 @@ export type Database = {
           is_paid?: boolean
           is_recurring?: boolean
           name: string
+          notes?: string
           reminder_days?: number
           user_id: string
         }
@@ -48,6 +50,7 @@ export type Database = {
           is_paid?: boolean
           is_recurring?: boolean
           name?: string
+          notes?: string
           reminder_days?: number
           user_id?: string
         }
