@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Check, Pencil, Trash2, RotateCw, ChevronRight } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface Props {
   payment: Payment;
@@ -45,6 +46,7 @@ const badgeColors = {
 const SWIPE_THRESHOLD = 120;
 
 export default function PaymentCard({ payment, index, onMarkPaid, onEdit, onDelete }: Props) {
+  const { format: formatCurrency } = useCurrency();
   const status = getStatus(payment);
   const x = useMotionValue(0);
   const backgroundOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
@@ -102,7 +104,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onEdit, onDele
               )}
             </div>
             <p className="text-muted-foreground text-sm mt-0.5">
-              ₹{Number(payment.amount).toLocaleString()} · {payment.due_date}
+              {formatCurrency(Number(payment.amount))} · {payment.due_date}
             </p>
             {!payment.is_paid && (
               <p className="text-muted-foreground/50 text-xs mt-1 flex items-center gap-1">

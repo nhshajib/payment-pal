@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { Payment } from '@/hooks/usePayments';
+import { useCurrency } from '@/hooks/useCurrency';
 import { format } from 'date-fns';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Props) {
+  const { currency } = useCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -92,7 +94,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
               </div>
 
               <div>
-                <Label htmlFor="amount">Amount (₹)</Label>
+                <Label htmlFor="amount">Amount ({currency.symbol})</Label>
                 <Input
                   id="amount"
                   type="number"

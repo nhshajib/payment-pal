@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { format, isSameMonth } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser'; // force resolve
+import { useCurrency } from '@/hooks/useCurrency';
 import PaymentCard from '@/components/PaymentCard';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import PageTransition from '@/components/PageTransition';
@@ -12,6 +13,7 @@ import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/not
 
 export default function Schedule() {
   const { userId } = useUser();
+  const { format: formatCurrency } = useCurrency();
   const { payments, addPayment, updatePayment, deletePayment, markPaid } = usePayments(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
@@ -92,11 +94,11 @@ export default function Schedule() {
         >
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Due this month</p>
-            <p className="text-xl font-bold text-status-overdue mt-1">₹{summary.totalDue.toLocaleString()}</p>
+            <p className="text-xl font-bold text-status-overdue mt-1">{formatCurrency(summary.totalDue)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Paid this month</p>
-            <p className="text-xl font-bold text-status-success mt-1">₹{summary.totalPaid.toLocaleString()}</p>
+            <p className="text-xl font-bold text-status-success mt-1">{formatCurrency(summary.totalPaid)}</p>
           </div>
         </motion.div>
 

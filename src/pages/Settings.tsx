@@ -5,15 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useUser } from '@/hooks/useUser'; // force resolve
+import { useCurrency, CURRENCIES } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
+import { Search } from 'lucide-react';
 
 export default function Settings() {
   const { userId, logout, restore } = useUser();
+  const { currency, setCurrency } = useCurrency();
   const [phone, setPhone] = useState('');
   const [reminderDays, setReminderDays] = useState(3);
   const [loading, setLoading] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 10);
@@ -88,6 +92,52 @@ export default function Settings() {
                 {loading ? 'Restoring...' : 'Restore Data'}
               </Button>
             </form>
+          </section>
+
+          {/* Currency selector */}
+          <section className="bg-card rounded-lg p-4 border border-border">
+            <h2 className="font-semibold text-card-foreground mb-3">Currency</h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              Current: <span className="text-foreground font-medium">{currency.symbol} — {currency.name} ({currency.code})</span>
+            </p>
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search currencies..."
+                value={currencySearch}
+                onChange={e => setCurrencySearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-1 rounded-lg">
+              {CURRENCIES
+                .filter(c =>
+                  !currencySearch ||
+                  c.name.toLowerCase().includes(currencySearch.toLowerCase()) ||
+                  c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+                  c.symbol.includes(currencySearch)
+                )
+                .map(c => (
+                  <button
+                    key={c.code}
+                    onClick={() => {
+                      setCurrency(c);
+                      toast.success(`Currency set to ${c.symbol} ${c.code}`);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between transition-colors ${
+                      currency.code === c.code
+                        ? 'bg-primary/20 text-primary'
+                        : 'hover:bg-secondary text-card-foreground'
+                    }`}
+                  >
+                    <span>
+                      <span className="font-medium mr-2">{c.symbol}</span>
+                      {c.name}
+                    </span>
+                    <span className="text-muted-foreground text-xs">{c.code}</span>
+                  </button>
+                ))}
+            </div>
           </section>
 
           {/* Default reminder */}
