@@ -349,14 +349,26 @@ export default function Schedule() {
               )}
             </div>
             <motion.button
+              layout
               whileTap={{ scale: 0.92 }}
               onClick={cycleSortMode}
-              className="h-10 px-3 rounded-xl bg-secondary/60 flex items-center gap-1.5 flex-shrink-0 transition-colors active:bg-secondary"
+              className="h-10 px-3 rounded-xl bg-secondary/60 flex items-center gap-1.5 flex-shrink-0 transition-colors active:bg-secondary overflow-hidden"
             >
-              {sortMode === 'date' && <Clock className="w-3.5 h-3.5 text-primary" />}
-              {sortMode === 'amount' && <ArrowDownUp className="w-3.5 h-3.5 text-primary" />}
-              {sortMode === 'name' && <ArrowDownAZ className="w-3.5 h-3.5 text-primary" />}
-              <span className="text-xs font-medium text-card-foreground">{SORT_LABELS[sortMode]}</span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={sortMode}
+                  initial={{ y: 12, opacity: 0, filter: 'blur(4px)' }}
+                  animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+                  exit={{ y: -12, opacity: 0, filter: 'blur(4px)' }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  className="flex items-center gap-1.5"
+                >
+                  {sortMode === 'date' && <Clock className="w-3.5 h-3.5 text-primary" />}
+                  {sortMode === 'amount' && <ArrowDownUp className="w-3.5 h-3.5 text-primary" />}
+                  {sortMode === 'name' && <ArrowDownAZ className="w-3.5 h-3.5 text-primary" />}
+                  <span className="text-xs font-medium text-card-foreground">{SORT_LABELS[sortMode]}</span>
+                </motion.span>
+              </AnimatePresence>
             </motion.button>
           </div>
         </motion.header>
