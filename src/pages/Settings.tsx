@@ -14,8 +14,9 @@ import { toast } from 'sonner';
 import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
   ChevronRight, X, Check, Smartphone, BellRing, AlertTriangle,
-  Clock, CalendarCheck, Send, User,
+  Clock, CalendarCheck, Send, User, Sun, Moon,
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 import {
   getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs,
   requestNotificationPermission, getNotificationStatus, sendTestNotification,
@@ -154,6 +155,7 @@ function SettingsCard({
 export default function Settings() {
   const { userId, userName, updateName, logout, restore } = useUser();
   const { currency, setCurrency } = useCurrency();
+  const { theme, toggleTheme } = useTheme();
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
@@ -262,8 +264,54 @@ export default function Settings() {
         </motion.header>
 
         <div className="space-y-2.5">
+          {/* Theme Toggle */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0, type: 'spring', stiffness: 350, damping: 28 }}
+            className="w-full bg-card rounded-xl border border-border/50 p-4 flex items-center gap-4"
+          >
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+              style={{ backgroundColor: 'hsl(45 93% 55% / 0.15)' }}
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={theme}
+                  initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
+                  animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                  exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                  {theme === 'dark' ? (
+                    <Moon className="w-5 h-5" style={{ color: 'hsl(45, 93%, 55%)' }} />
+                  ) : (
+                    <Sun className="w-5 h-5" style={{ color: 'hsl(45, 93%, 55%)' }} />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-card-foreground">Appearance</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{theme === 'dark' ? 'Dark mode' : 'Light mode'}</p>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={toggleTheme}
+              className={`relative w-12 h-7 rounded-full transition-colors duration-300 ${
+                theme === 'light' ? 'bg-primary' : 'bg-secondary'
+              }`}
+            >
+              <motion.div
+                className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md"
+                animate={{ left: theme === 'light' ? 22 : 2 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </motion.button>
+          </motion.div>
+
           <SettingsCard
-            index={0}
+            index={1}
             icon={<User className="w-5 h-5" />}
             iconBg="hsl(358 94% 47% / 0.15)"
             iconColor="hsl(358, 94%, 47%)"
