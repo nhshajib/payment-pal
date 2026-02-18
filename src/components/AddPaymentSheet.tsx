@@ -82,17 +82,11 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 400 }}
-            drag="y"
-            dragConstraints={{ top: 0 }}
-            dragElastic={0.2}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 100 || info.velocity.y > 500) onClose();
-            }}
             className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto"
           >
             <div className="bg-card rounded-t-3xl border-t border-border/50 shadow-2xl overflow-hidden">
-              {/* Drag handle */}
-              <div className="flex justify-center pt-3 pb-1">
+              {/* Drag handle (visual only) */}
+              <div className="flex justify-center pt-3 pb-1" onClick={onClose}>
                 <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
               </div>
 
@@ -115,7 +109,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing }: Pr
               <div className="h-px bg-border/50 mx-6" />
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="px-6 pb-32 pt-5 space-y-5 max-h-[75vh] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="px-6 pb-32 pt-5 space-y-5 max-h-[65vh] overflow-y-auto overscroll-contain touch-pan-y">
                 {/* Payment Name */}
                 <div>
                   <Input
