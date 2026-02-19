@@ -1,6 +1,6 @@
 import { CalendarDays, Settings, BarChart3 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { haptic } from '@/lib/haptics';
 
 const tabs = [
@@ -31,6 +31,19 @@ export default function BottomNav() {
                   }}
                   className="relative flex flex-col items-center gap-0.5 px-5 py-1.5"
                 >
+                  {/* Top border glow on active */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="navTopGlow"
+                      className="absolute top-0 left-[20%] right-[20%] h-[2px] rounded-b-full"
+                      style={{
+                        background: 'hsl(161 84% 39%)',
+                        boxShadow: '0 0 8px hsl(161 84% 39% / 0.7), 0 0 16px hsl(161 84% 39% / 0.3)',
+                      }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                  {/* Background pill on active */}
                   {isActive && (
                     <motion.div
                       layoutId="navPill"
@@ -39,24 +52,32 @@ export default function BottomNav() {
                     />
                   )}
                   <motion.div
-                    animate={{ scale: isActive ? 1.1 : 1, y: isActive ? -1 : 0 }}
+                    animate={{ scale: isActive ? 1.12 : 1, y: isActive ? -1 : 0 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                     className="relative"
                   >
                     <tab.icon
-                      className={`w-[20px] h-[20px] transition-colors duration-200 ${
-                        isActive ? 'text-primary' : 'text-muted-foreground/60'
+                      className={`w-[22px] h-[22px] transition-colors duration-200 ${
+                        isActive ? 'text-primary' : 'text-muted-foreground/50'
                       }`}
-                      strokeWidth={isActive ? 2.5 : 1.8}
+                      strokeWidth={isActive ? 2.5 : 1.6}
                     />
                   </motion.div>
-                  <span
-                    className={`text-[10px] relative transition-colors duration-200 ${
-                      isActive ? 'text-primary font-bold' : 'text-muted-foreground/50 font-medium'
-                    }`}
-                  >
-                    {tab.label}
-                  </span>
+                  {/* Label only for active tab */}
+                  <AnimatePresence mode="wait">
+                    {isActive && (
+                      <motion.span
+                        key="label"
+                        initial={{ opacity: 0, y: 3 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 3 }}
+                        transition={{ duration: 0.15 }}
+                        className="text-[10px] relative text-primary font-bold"
+                      >
+                        {tab.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </motion.button>
               );
             })}

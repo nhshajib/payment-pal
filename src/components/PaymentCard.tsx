@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, useSpring, PanInfo, AnimatePresence } from 'framer-motion';
 import { Check, Pencil, Trash2, RotateCw, Undo2, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
-import { differenceInDays, parseISO, format, isToday, isTomorrow, isYesterday, addDays, isSameWeek } from 'date-fns';
+import { differenceInDays, parseISO, format, isToday, isTomorrow, isYesterday } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getCategoryById } from '@/lib/categories';
@@ -17,14 +17,6 @@ interface Props {
   isPaidTab?: boolean;
 }
 
-function getStatus(payment: Payment) {
-  if (payment.is_paid) return 'paid';
-  const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
-  if (daysLeft < 0) return 'overdue';
-  if (daysLeft <= payment.reminder_days) return 'warning';
-  return 'upcoming';
-}
-
 /** Human-friendly relative date label */
 function getRelativeDate(dateStr: string): string {
   const date = parseISO(dateStr);
@@ -36,37 +28,63 @@ function getRelativeDate(dateStr: string): string {
   return format(date, 'MMM d'); // "Feb 20"
 }
 
-function getDaysLabel(payment: Payment) {
-  if (payment.is_paid) return 'Paid';
-  const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
-  if (daysLeft < 0) return `${Math.abs(daysLeft)}d overdue`;
-  if (daysLeft === 0) return 'Due today';
-  return `${daysLeft}d left`;
-}
-
-const statusColors = {
-  paid: 'border-muted',
-  overdue: 'border-status-overdue',
-  warning: 'border-status-warning',
-  upcoming: 'border-status-success',
-};
-
-const badgeColors = {
-  paid: 'bg-muted text-muted-foreground',
-  overdue: 'bg-status-overdue/20 text-status-overdue',
-  warning: 'bg-status-warning/20 text-status-warning',
-  upcoming: 'bg-status-success/20 text-status-success',
-};
-
 const SWIPE_THRESHOLD = 100;
 const EDIT_THRESHOLD = -60;
 const DELETE_THRESHOLD = -140;
 const LONG_PRESS_MS = 500;
 const HINT_KEY = 'paytrack_swipe_hint_seen';
 
+/** Circular countdown ring badge showing days remaining */
+function DaysRing({ payment }: { payment: Payment }) {
+  const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
+  const MAX_DAYS = 30;
+  const progress = payment.is_paid ? 1 : Math.max(0, Math.min(1, daysLeft / MAX_DAYS));
+  const radius = 14;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - progress);
+
+  let ringColor: string;
+  if (payment.is_paid) {
+    ringColor = '#9ca3af';
+  } else if (daysLeft < 0 || daysLeft < 7) {
+    ringColor = '#ef4444';
+  } else if (daysLeft < 14) {
+    ringColor = '#f59e0b';
+  } else {
+    ringColor = '#10b981';
+  }
+
+  const label = payment.is_paid
+    ? '✓'
+    : daysLeft < 0
+    ? `${Math.abs(daysLeft)}d`
+    : daysLeft === 0
+    ? 'Now'
+    : `${daysLeft}d`;
+
+  return (
+    <div className="relative flex items-center justify-center w-8 h-8">
+      <svg width="32" height="32" viewBox="0 0 32 32" className="absolute" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="16" cy="16" r={radius} fill="none" stroke="hsl(0 0% 100% / 0.08)" strokeWidth="2.5" />
+        <circle
+          cx="16" cy="16" r={radius}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth="2.5"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="text-[9px] font-bold relative z-10 leading-none" style={{ color: ringColor }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab }: Props) {
   const { format: formatCurrency } = useCurrency();
-  const status = getStatus(payment);
   const rawX = useMotionValue(0);
   const x = useSpring(rawX, { stiffness: 500, damping: 35 });
   const [showMenu, setShowMenu] = useState(false);
@@ -248,9 +266,9 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         style={{ x: rawX, scale: cardScale, boxShadow: cardShadow }}
-        whileTap={{ scale: 0.975 }}
+        whileTap={{ scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-        className={`relative bg-card border-l-[3px] ${statusColors[status]} p-4 cursor-grab active:cursor-grabbing rounded-2xl`}
+        className="relative glass-card p-4 cursor-grab active:cursor-grabbing"
       >
         {/* Swipe hint arrows (first-time only) */}
         <AnimatePresence>
@@ -279,51 +297,48 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
           )}
         </AnimatePresence>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Category icon with glow */}
-            <motion.div
-              whileTap={{ scale: 0.9 }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{
-                backgroundColor: `${category.color}15`,
-                boxShadow: `0 0 16px ${category.color}20, 0 0 4px ${category.color}10`,
-              }}
-            >
-              <CategoryIcon className="w-[18px] h-[18px]" style={{ color: category.color }} />
-            </motion.div>
+        <div className="flex items-center gap-3">
+          {/* Gradient pill category icon */}
+          <motion.div
+            whileTap={{ scale: 0.9 }}
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: `linear-gradient(135deg, ${category.color}22 0%, ${category.color}0d 100%)`,
+              boxShadow: `0 0 18px ${category.color}1a, inset 0 1px 0 ${category.color}26`,
+              border: `1px solid ${category.color}22`,
+            }}
+          >
+            <CategoryIcon className="w-[18px] h-[18px]" style={{ color: category.color }} />
+          </motion.div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className={`font-semibold text-card-foreground truncate ${payment.is_paid ? 'line-through opacity-50' : ''}`}>
-                  {payment.name}
-                </h3>
-                {payment.is_recurring && (
-                  <RotateCw className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                )}
-              </div>
-              <p className={`text-muted-foreground text-sm mt-0.5 ${payment.is_paid ? 'opacity-50' : ''}`}>
-                {formatCurrency(Number(payment.amount))} · {getRelativeDate(payment.due_date)}
-              </p>
-              {payment.notes ? (
-                <p className={`text-muted-foreground/70 text-xs mt-1 truncate ${payment.is_paid ? 'opacity-50' : ''}`}>
-                  {payment.notes}
-                </p>
-              ) : null}
+          {/* Center: Name + date + notes */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h3 className={`font-semibold text-[15px] text-card-foreground truncate ${payment.is_paid ? 'line-through opacity-40' : ''}`}>
+                {payment.name}
+              </h3>
+              {payment.is_recurring && (
+                <RotateCw className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+              )}
             </div>
+            <p className={`text-muted-foreground text-[12px] mt-0.5 ${payment.is_paid ? 'opacity-40' : ''}`}>
+              {getRelativeDate(payment.due_date)}
+            </p>
+            {payment.notes ? (
+              <p className={`text-muted-foreground/60 text-[11px] mt-0.5 truncate ${payment.is_paid ? 'opacity-40' : ''}`}>
+                {payment.notes}
+              </p>
+            ) : null}
           </div>
 
-          <div className="flex items-center gap-2 ml-3">
-            <motion.span
-              className={`text-xs px-2.5 py-1 rounded-full font-medium ${badgeColors[status]}`}
-              animate={status === 'overdue' ? {
-                scale: [1, 1.06, 1],
-                boxShadow: ['0 0 0 0 hsl(0 84% 60% / 0)', '0 0 8px 2px hsl(0 84% 60% / 0.25)', '0 0 0 0 hsl(0 84% 60% / 0)'],
-              } : {}}
-              transition={status === 'overdue' ? { duration: 2.5, repeat: Infinity, ease: 'easeInOut' } : {}}
-            >
-              {getDaysLabel(payment)}
-            </motion.span>
+          {/* Right: Amount (bold 20px) + Days ring */}
+          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+            <span className={`text-[20px] font-bold tracking-tight leading-none ${
+              payment.is_paid ? 'text-muted-foreground line-through opacity-50' : 'text-card-foreground'
+            }`}>
+              {formatCurrency(Number(payment.amount))}
+            </span>
+            <DaysRing payment={payment} />
           </div>
         </div>
       </motion.div>
