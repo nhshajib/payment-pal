@@ -124,8 +124,8 @@ function SettingsModal({
                       disabled={saveDisabled}
                       className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold"
                       style={{
-                        background: '#10b981',
-                        boxShadow: '0 4px 14px rgba(16,185,129,0.35)',
+                        background: '#e50914',
+                        boxShadow: '0 4px 14px rgba(229,9,20,0.35)',
                         color: '#fff',
                         opacity: saveDisabled ? 0.5 : 1,
                       }}
@@ -578,14 +578,14 @@ export default function Settings() {
         <IOSSection label="PREFERENCES" index={1}>
           <IOSRow
             icon={<Coins className="w-[14px] h-[14px]" />}
-            iconColor="#10b981"
+            iconColor="#e50914"
             title="Currency"
             value={`${currency.symbol} — ${currency.code}`}
             onClick={() => { setTempCurrency(currency); setActiveModal('currency'); }}
           />
           <IOSRow
             icon={<Bell className="w-[14px] h-[14px]" />}
-            iconColor="#10b981"
+            iconColor="#e50914"
             title="Default Reminder"
             value={`${reminderDays}d before`}
             onClick={() => { setTempReminder(reminderDays); setActiveModal('reminder'); }}
@@ -706,9 +706,9 @@ export default function Settings() {
           <div className="text-center space-y-4">
             <div
               className="inline-flex items-center justify-center w-20 h-20 rounded-3xl"
-              style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}
+              style={{ background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.2)' }}
             >
-              <Coins className="w-8 h-8" style={{ color: '#10b981' }} />
+              <Coins className="w-8 h-8" style={{ color: '#e50914' }} />
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
@@ -755,9 +755,9 @@ export default function Settings() {
                 <div className="text-center space-y-4 p-6">
                   <div
                     className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-2"
-                    style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}
+                    style={{ background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.2)' }}
                   >
-                    <Share className="w-7 h-7" style={{ color: '#10b981' }} />
+                    <Share className="w-7 h-7" style={{ color: '#e50914' }} />
                   </div>
                   <h3 className="text-lg font-bold text-card-foreground">Install PayTrack</h3>
                   <div className="space-y-3 text-left">
@@ -769,7 +769,7 @@ export default function Settings() {
                       <div key={i} className="flex items-start gap-3 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
                         <span
                           className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
-                          style={{ background: '#10b981', color: '#fff' }}
+                          style={{ background: '#e50914', color: '#fff' }}
                         >
                           {i + 1}
                         </span>
@@ -781,7 +781,7 @@ export default function Settings() {
                     whileTap={{ scale: 0.97 }}
                     onClick={() => setShowIOSInstructions(false)}
                     className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold text-white mt-2"
-                    style={{ background: '#10b981', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
+                    style={{ background: '#e50914', boxShadow: '0 4px 14px rgba(229,9,20,0.35)' }}
                   >
                     Got it
                   </motion.button>
@@ -857,11 +857,11 @@ export default function Settings() {
                     onClick={() => setTempCurrency(c)}
                     className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center justify-between transition-all ${
                       tempCurrency.code === c.code
-                        ? 'ring-1 ring-[#10b981]/30'
+                        ? 'ring-1 ring-[#e50914]/30'
                         : 'text-card-foreground'
                     }`}
                     style={tempCurrency.code === c.code
-                      ? { background: 'rgba(16,185,129,0.12)', color: '#10b981' }
+                      ? { background: 'rgba(229,9,20,0.12)', color: '#e50914' }
                       : { background: 'rgba(255,255,255,0.04)' }
                     }
                   >
@@ -882,9 +882,9 @@ export default function Settings() {
             <div className="text-center">
               <div
                 className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4"
-                style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}
+                style={{ background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.2)' }}
               >
-                <Bell className="w-8 h-8" style={{ color: '#10b981' }} />
+                <Bell className="w-8 h-8" style={{ color: '#e50914' }} />
               </div>
               <p className="text-3xl font-bold text-foreground">{tempReminder}</p>
               <p className="text-muted-foreground text-sm mt-1">days before due date</p>
