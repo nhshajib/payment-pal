@@ -37,8 +37,8 @@ export default function BottomNav() {
                       layoutId="navTopGlow"
                       className="absolute top-0 left-[20%] right-[20%] h-[2px] rounded-b-full"
                       style={{
-                        background: 'hsl(161 84% 39%)',
-                        boxShadow: '0 0 8px hsl(161 84% 39% / 0.7), 0 0 16px hsl(161 84% 39% / 0.3)',
+                        background: 'hsl(358 94% 47%)',
+                        boxShadow: '0 0 8px hsl(358 94% 47% / 0.7), 0 0 16px hsl(358 94% 47% / 0.3)',
                       }}
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
