@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, RefreshCw, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, Check } from 'lucide-react';
+import { format, isToday, isThisWeek, isBefore, startOfDay } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -36,6 +36,23 @@ function getGreeting() {
   return 'Good evening';
 }
 
+// Date section grouping
+function getDateSection(dateStr: string): 'overdue' | 'today' | 'this_week' | 'later' {
+  const d = new Date(dateStr);
+  const now = startOfDay(new Date());
+  if (isBefore(d, now)) return 'overdue';
+  if (isToday(d)) return 'today';
+  if (isThisWeek(d, { weekStartsOn: 1 })) return 'this_week';
+  return 'later';
+}
+
+const SECTION_LABELS: Record<string, string> = {
+  overdue: 'Overdue',
+  today: 'Today',
+  this_week: 'This Week',
+  later: 'Later',
+};
+
 export default function Schedule() {
   const { userId, userName } = useUser();
   const { format: formatCurrency } = useCurrency();
@@ -52,38 +69,54 @@ export default function Schedule() {
 
   // Pull-to-refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshComplete, setRefreshComplete] = useState(false);
   const pullY = useMotionValue(0);
-  const pullOpacity = useTransform(pullY, [0, 60], [0, 1]);
-  const pullScale = useTransform(pullY, [0, 60], [0.5, 1]);
-  const pullRotate = useTransform(pullY, [0, 80], [0, 360]);
+  const pullProgress = useTransform(pullY, [0, 80], [0, 1]);
+  const pullOpacity = useTransform(pullY, [0, 30, 80], [0, 0.6, 1]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isPulling = useRef(false);
   const startY = useRef(0);
+  const hasTriggeredHaptic = useRef(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (scrollRef.current && scrollRef.current.scrollTop <= 0) {
       startY.current = e.touches[0].clientY;
       isPulling.current = true;
+      hasTriggeredHaptic.current = false;
     }
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isPulling.current) return;
-    const delta = Math.max(0, (e.touches[0].clientY - startY.current) * 0.4);
+    const rawDelta = e.touches[0].clientY - startY.current;
+    if (rawDelta < 0) { pullY.set(0); return; }
+    // Rubber-band damping
+    const delta = rawDelta * (1 - Math.min(rawDelta / 400, 0.6));
     pullY.set(delta);
+    // Haptic at threshold
+    if (delta >= 80 && !hasTriggeredHaptic.current) {
+      haptic(15);
+      hasTriggeredHaptic.current = true;
+    }
   }, [pullY]);
 
   const handleTouchEnd = useCallback(async () => {
     if (!isPulling.current) return;
     isPulling.current = false;
-    if (pullY.get() >= 60) {
+    if (pullY.get() >= 80) {
       setIsRefreshing(true);
-      haptic(20);
+      animate(pullY, 60, { type: 'spring', stiffness: 300, damping: 30 });
       await refetch();
       setIsRefreshing(false);
-      toast.success('Refreshed');
+      setRefreshComplete(true);
+      haptic(10);
+      setTimeout(() => {
+        setRefreshComplete(false);
+        animate(pullY, 0, { type: 'spring', stiffness: 400, damping: 35 });
+      }, 600);
+    } else {
+      animate(pullY, 0, { type: 'spring', stiffness: 500, damping: 35 });
     }
-    pullY.set(0);
   }, [pullY, refetch]);
 
   // Show long-press hint once on first visit with payments
@@ -115,7 +148,6 @@ export default function Schedule() {
         (p.notes && p.notes.toLowerCase().includes(q))
       );
     }
-    // Sort
     const sorted = [...list];
     if (sortMode === 'amount') sorted.sort((a, b) => b.amount - a.amount);
     else if (sortMode === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
@@ -138,6 +170,18 @@ export default function Schedule() {
     const overdueCount = payments.filter(p => !p.is_paid && new Date(p.due_date) < now).length;
     return { unpaidCount, paidCount, overdueCount };
   }, [payments]);
+
+  // Group upcoming by date sections
+  const groupedUpcoming = useMemo(() => {
+    if (sortMode !== 'date') return null;
+    const groups: Record<string, Payment[]> = {};
+    unpaid.forEach(p => {
+      const section = getDateSection(p.due_date);
+      if (!groups[section]) groups[section] = [];
+      groups[section].push(p);
+    });
+    return groups;
+  }, [unpaid, sortMode]);
 
   useEffect(() => { requestNotificationPermission(); }, []);
   useEffect(() => {
@@ -211,9 +255,113 @@ export default function Schedule() {
   };
 
   const currentList = activeTab === 'upcoming' ? unpaid : paid;
-
-  // Initial loading (no cached data either)
   const showSkeleton = loading && payments.length === 0;
+
+  // Pull-to-refresh SVG progress arc
+  const PullIndicator = () => {
+    const radius = 10;
+    const circumference = 2 * Math.PI * radius;
+    return (
+      <motion.div
+        style={{ opacity: pullOpacity }}
+        className="flex justify-center py-3"
+      >
+        <div className="relative w-8 h-8 flex items-center justify-center">
+          {refreshComplete ? (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+            >
+              <Check className="w-5 h-5 text-status-success" />
+            </motion.div>
+          ) : isRefreshing ? (
+            <motion.svg
+              width="28" height="28" viewBox="0 0 28 28"
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+            >
+              <circle cx="14" cy="14" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" />
+              <circle cx="14" cy="14" r={radius} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5"
+                strokeDasharray={circumference} strokeDashoffset={circumference * 0.7}
+                strokeLinecap="round" />
+            </motion.svg>
+          ) : (
+            <motion.svg width="28" height="28" viewBox="0 0 28 28">
+              <circle cx="14" cy="14" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="2" />
+              <motion.circle cx="14" cy="14" r={radius} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5"
+                strokeDasharray={circumference} strokeLinecap="round"
+                style={{ strokeDashoffset: useTransform(pullProgress, v => circumference * (1 - v)) }}
+                transform="rotate(-90 14 14)"
+              />
+            </motion.svg>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  // Render payment list with optional date sections
+  const renderPaymentList = () => {
+    if (activeTab === 'upcoming' && groupedUpcoming && sortMode === 'date') {
+      const sectionOrder = ['overdue', 'today', 'this_week', 'later'];
+      let globalIdx = 0;
+      return sectionOrder.map(section => {
+        const items = groupedUpcoming[section];
+        if (!items || items.length === 0) return null;
+        const sectionEl = (
+          <div key={section}>
+            <div className="flex items-center gap-2 mb-2 mt-1">
+              <span className={`text-[11px] font-semibold uppercase tracking-wider ${
+                section === 'overdue' ? 'text-status-overdue' : 'text-muted-foreground'
+              }`}>
+                {SECTION_LABELS[section]}
+              </span>
+              <div className="flex-1 h-px bg-border/40" />
+              <span className="text-[11px] text-muted-foreground">{items.length}</span>
+            </div>
+            <div className="space-y-3">
+              {items.map(p => {
+                const idx = globalIdx++;
+                return (
+                  <PaymentCard
+                    key={p.id}
+                    payment={p}
+                    index={idx}
+                    onMarkPaid={handleMarkPaid}
+                    onMarkUnpaid={handleMarkUnpaid}
+                    onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
+                    onDelete={handleDelete}
+                    isPaidTab={false}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+        return sectionEl;
+      });
+    }
+
+    return (
+      <div className="space-y-3">
+        <AnimatePresence mode="popLayout">
+          {currentList.map((p, i) => (
+            <PaymentCard
+              key={p.id}
+              payment={p}
+              index={i}
+              onMarkPaid={handleMarkPaid}
+              onMarkUnpaid={handleMarkUnpaid}
+              onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
+              onDelete={handleDelete}
+              isPaidTab={activeTab === 'paid'}
+            />
+          ))}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   return (
     <PageTransition>
@@ -226,18 +374,7 @@ export default function Schedule() {
         onTouchEnd={handleTouchEnd}
       >
         {/* Pull-to-refresh indicator */}
-        <motion.div
-          style={{ opacity: pullOpacity, scale: pullScale }}
-          className="flex justify-center mb-2"
-        >
-          <motion.div style={{ rotate: isRefreshing ? undefined : pullRotate }}>
-            {isRefreshing ? (
-              <Loader2 className="w-5 h-5 text-primary animate-spin" />
-            ) : (
-              <RefreshCw className="w-5 h-5 text-muted-foreground" />
-            )}
-          </motion.div>
-        </motion.div>
+        <PullIndicator />
 
         {/* Header */}
         <motion.header
@@ -245,10 +382,8 @@ export default function Schedule() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-5"
         >
-          {/* Top row: avatar + date */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              {/* User initial avatar */}
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -258,7 +393,6 @@ export default function Schedule() {
                 <span className="text-sm font-bold text-primary">
                   {userName ? userName.charAt(0).toUpperCase() : 'U'}
                 </span>
-                {/* Overdue notification dot */}
                 {summary.overdueCount > 0 && (
                   <motion.div
                     initial={{ scale: 0 }}
@@ -293,7 +427,6 @@ export default function Schedule() {
               </div>
             </div>
 
-            {/* Pending badge */}
             {summary.unpaidCount > 0 && (
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
@@ -316,7 +449,7 @@ export default function Schedule() {
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search payments…"
+                placeholder="Search payments..."
                 className="w-full h-10 bg-secondary/60 border-0 rounded-xl pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
               />
               {searchQuery && (
@@ -356,8 +489,8 @@ export default function Schedule() {
           </div>
         </motion.header>
 
-        {/* Tab Switcher */}
-        <div className="relative mb-4 bg-secondary/80 rounded-xl p-1 flex">
+        {/* Tab Switcher - polished */}
+        <div className="relative mb-4 bg-secondary/80 rounded-xl p-1 flex shadow-inner">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -374,15 +507,23 @@ export default function Schedule() {
                 {isActive && (
                   <motion.div
                     layoutId="scheduleTab"
-                    className="absolute inset-0 bg-card rounded-lg shadow-sm"
+                    className="absolute inset-0 bg-card rounded-lg shadow-md border border-border/30"
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
                 <span className="relative flex items-center gap-1.5">
-                  <Icon className="w-4 h-4" />
+                  <div className="relative">
+                    <Icon className="w-4 h-4" />
+                    {isActive && (
+                      <motion.div
+                        layoutId="tabDot"
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                      />
+                    )}
+                  </div>
                   {tab.label}
                   {count > 0 && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                    <span className={`text-[10px] min-w-[18px] text-center px-1 py-0.5 rounded-full font-semibold ${
                       isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
                     }`}>
                       {count}
@@ -448,26 +589,29 @@ export default function Schedule() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center py-16"
               >
-                <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-secondary mb-4"
-                >
-                  <Sparkles className="w-7 h-7 text-muted-foreground" />
-                </motion.div>
-                <p className="text-muted-foreground font-medium">
-                  {activeTab === 'upcoming' ? 'No upcoming payments' : 'No paid payments yet'}
+                <div className="relative inline-flex items-center justify-center w-20 h-20 mb-5">
+                  <div className="absolute inset-0 rounded-2xl bg-secondary" />
+                  <div className="absolute inset-1 rounded-xl bg-card border border-border/30" />
+                  <motion.div
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    <Sparkles className="w-7 h-7 text-muted-foreground relative z-10" />
+                  </motion.div>
+                </div>
+                <p className="text-card-foreground font-semibold text-base">
+                  {activeTab === 'upcoming' ? 'All clear' : 'Nothing here yet'}
                 </p>
-                <p className="text-muted-foreground/60 text-sm mt-1">
+                <p className="text-muted-foreground text-sm mt-1.5 max-w-[240px] mx-auto">
                   {activeTab === 'upcoming'
-                    ? 'Add your first payment to get started'
-                    : 'Swipe right on a payment to mark it paid'}
+                    ? 'Add your first payment to start tracking'
+                    : 'Payments you complete will appear here'}
                 </p>
                 {activeTab === 'upcoming' && (
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={() => { setEditing(null); setSheetOpen(true); }}
-                    className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/25"
+                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/25"
                   >
                     <Plus className="w-4 h-4" />
                     Add Payment
@@ -513,28 +657,13 @@ export default function Schedule() {
                   )}
                 </AnimatePresence>
 
-                <div className="space-y-2.5">
-                  <AnimatePresence mode="popLayout">
-                    {currentList.map((p, i) => (
-                      <PaymentCard
-                        key={p.id}
-                        payment={p}
-                        index={i}
-                        onMarkPaid={handleMarkPaid}
-                        onMarkUnpaid={handleMarkUnpaid}
-                        onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
-                        onDelete={handleDelete}
-                        isPaidTab={activeTab === 'paid'}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </div>
+                {renderPaymentList()}
               </>
             )}
           </motion.div>
         </AnimatePresence>
 
-        {/* FAB - with glow pulse */}
+        {/* FAB */}
         {activeTab === 'upcoming' && !sheetOpen && (
           <motion.button
             initial={{ scale: 0 }}

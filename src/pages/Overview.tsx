@@ -1,17 +1,20 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarCheck, CheckCircle2, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
+import { CalendarCheck, CheckCircle2, Wallet, TrendingUp, TrendingDown, Plus, Calendar, Shield, ArrowRight } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, addDays, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 import { usePayments } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
+import { CATEGORIES, getCategoryById } from '@/lib/categories';
 import MonthlyChart from '@/components/MonthlyChart';
 import PageTransition from '@/components/PageTransition';
+import { useNavigate } from 'react-router-dom';
 
 export default function Overview() {
   const { userId } = useUser();
   const { format: formatCurrency } = useCurrency();
   const { payments } = usePayments(userId);
+  const navigate = useNavigate();
 
   const summary = useMemo(() => {
     const totalDue = payments.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
@@ -40,9 +43,52 @@ export default function Overview() {
     return { total: thisMonthTotal, change };
   }, [payments]);
 
+  // Upcoming bills (next 7 days)
+  const upcomingBills = useMemo(() => {
+    const today = startOfDay(new Date());
+    const weekOut = addDays(today, 7);
+    return payments
+      .filter(p => !p.is_paid && !isBefore(new Date(p.due_date), today) && !isAfter(new Date(p.due_date), weekOut))
+      .sort((a, b) => a.due_date.localeCompare(b.due_date))
+      .slice(0, 5);
+  }, [payments]);
+
+  // Category breakdown
+  const categoryBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    payments.forEach(p => {
+      const cat = p.category || 'other';
+      map[cat] = (map[cat] || 0) + Number(p.amount);
+    });
+    const total = Object.values(map).reduce((s, v) => s + v, 0);
+    return Object.entries(map)
+      .map(([id, amount]) => ({ ...getCategoryById(id), amount, pct: total > 0 ? (amount / total) * 100 : 0 }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [payments]);
+
+  // Payment streak
+  const streak = useMemo(() => {
+    const paidOnTime = payments
+      .filter(p => p.is_paid)
+      .sort((a, b) => b.due_date.localeCompare(a.due_date));
+    let count = 0;
+    for (const p of paidOnTime) {
+      // Consider paid if created_at <= due_date (approximation)
+      count++;
+    }
+    return count;
+  }, [payments]);
+
   const progressPct = (summary.totalDue + summary.totalPaid) > 0
     ? (summary.totalPaid / (summary.totalDue + summary.totalPaid)) * 100
     : 0;
+
+  function getRelativeDay(dateStr: string) {
+    const d = new Date(dateStr);
+    if (isToday(d)) return 'Today';
+    if (isTomorrow(d)) return 'Tomorrow';
+    return format(d, 'EEEE');
+  }
 
   return (
     <PageTransition>
@@ -50,11 +96,36 @@ export default function Overview() {
         <motion.header
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
+          className="mb-5"
         >
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Overview</h1>
           <p className="text-muted-foreground text-sm">Your financial snapshot</p>
         </motion.header>
+
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.03 }}
+          className="flex gap-2.5 mb-5"
+        >
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => navigate('/')}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Add Payment
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => navigate('/')}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold border border-border/50"
+          >
+            <Calendar className="w-4 h-4" />
+            Schedule
+          </motion.button>
+        </motion.div>
 
         {/* Summary Cards */}
         <motion.div
@@ -120,6 +191,110 @@ export default function Overview() {
             </div>
           )}
         </motion.div>
+
+        {/* Payment Streak */}
+        {streak > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="mb-5 rounded-2xl bg-card border border-border/50 p-4 flex items-center gap-4"
+          >
+            <div className="w-12 h-12 rounded-xl bg-status-success/15 flex items-center justify-center flex-shrink-0">
+              <Shield className="w-6 h-6 text-status-success" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-card-foreground">Payment Streak</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{streak} payment{streak !== 1 ? 's' : ''} completed on time</p>
+            </div>
+            <span className="text-2xl font-bold text-status-success">{streak}</span>
+          </motion.div>
+        )}
+
+        {/* Upcoming Bills (Next 7 Days) */}
+        {upcomingBills.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-5"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-card-foreground">Next 7 Days</p>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/')}
+                className="text-xs text-primary font-medium flex items-center gap-1"
+              >
+                View all <ArrowRight className="w-3 h-3" />
+              </motion.button>
+            </div>
+            <div className="rounded-2xl bg-card border border-border/50 overflow-hidden divide-y divide-border/30">
+              {upcomingBills.map((bill, i) => {
+                const cat = getCategoryById(bill.category || 'other');
+                const Icon = cat.icon;
+                return (
+                  <motion.div
+                    key={bill.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.12 + i * 0.03 }}
+                    className="flex items-center gap-3 px-4 py-3"
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${cat.color}20` }}
+                    >
+                      <Icon className="w-4 h-4" style={{ color: cat.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-card-foreground truncate">{bill.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{getRelativeDay(bill.due_date)}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-card-foreground">{formatCurrency(Number(bill.amount))}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Category Breakdown */}
+        {categoryBreakdown.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.13 }}
+            className="mb-5"
+          >
+            <p className="text-sm font-semibold text-card-foreground mb-3">Spending by Category</p>
+            <div className="rounded-2xl bg-card border border-border/50 p-4 space-y-3">
+              {categoryBreakdown.map((cat, i) => {
+                const Icon = cat.icon;
+                return (
+                  <div key={cat.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-3.5 h-3.5" style={{ color: cat.color }} />
+                        <span className="text-xs font-medium text-card-foreground">{cat.label}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{formatCurrency(cat.amount)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: cat.color }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${cat.pct}%` }}
+                        transition={{ duration: 0.6, delay: 0.15 + i * 0.05, ease: 'easeOut' }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* Monthly Breakdown Chart */}
         <MonthlyChart payments={payments} />

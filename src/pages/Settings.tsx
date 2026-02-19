@@ -511,7 +511,7 @@ export default function Settings() {
           onClick={() => setActiveModal('about')}
           className="text-xs text-muted-foreground text-center mt-8 w-full py-2"
         >
-          PayTrack v2.0 · Your data is synced securely
+          PayTrack v2.1 · Your data is synced securely
         </motion.button>
 
         {/* ─── About Modal ─── */}
@@ -522,16 +522,17 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.0</p>
+              <p className="text-sm text-muted-foreground">Version 2.1</p>
             </div>
             <div className="text-left space-y-2">
-              <p className="text-sm font-semibold text-card-foreground">What's new</p>
+              <p className="text-sm font-semibold text-card-foreground">What's new in 2.1</p>
               <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
-                <li>New Overview tab with financial snapshot</li>
-                <li>Redesigned bottom navigation</li>
-                <li>Premium payment card design</li>
-                <li>Smarter, engaging notification messages</li>
-                <li>Fixed install popup button overlap</li>
+                <li>Smoother native pull-to-refresh</li>
+                <li>Upcoming bills at-a-glance on Overview</li>
+                <li>Category spending breakdown</li>
+                <li>On-time payment streak tracker</li>
+                <li>Date-grouped payment sections</li>
+                <li>Install popup fix</li>
               </ul>
             </div>
           </div>
@@ -549,11 +550,11 @@ export default function Settings() {
                 onClick={() => setShowIOSInstructions(false)}
               />
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 40 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[110] max-w-sm mx-auto bg-card rounded-2xl border border-border/50 shadow-2xl p-6 pb-8 mb-20"
+                className="fixed inset-x-4 bottom-28 z-[110] max-w-sm mx-auto bg-card rounded-2xl border border-border/50 shadow-2xl p-6"
               >
                 <div className="text-center space-y-4">
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-2">
