@@ -171,6 +171,10 @@ export default function Schedule() {
     return { unpaidCount, paidCount, overdueCount };
   }, [payments]);
 
+  const totalUpcoming = useMemo(() => {
+    return unpaid.reduce((sum, p) => sum + Number(p.amount), 0);
+  }, [unpaid]);
+
   // Group upcoming by date sections
   const groupedUpcoming = useMemo(() => {
     if (sortMode !== 'date') return null;
@@ -301,6 +305,41 @@ export default function Schedule() {
     );
   };
 
+  // Circular progress arc for paid vs remaining bills
+  const CircularProgress = ({ paid, total }: { paid: number; total: number }) => {
+    const radius = 22;
+    const circumference = 2 * Math.PI * radius;
+    const progress = total > 0 ? paid / total : 0;
+    const strokeDashoffset = circumference * (1 - progress);
+    return (
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25, delay: 0.15 }}
+        className="relative flex items-center justify-center w-[60px] h-[60px] flex-shrink-0"
+      >
+        <svg width="60" height="60" viewBox="0 0 60 60" className="absolute" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx="30" cy="30" r={radius} fill="none" stroke="hsl(0 0% 100% / 0.10)" strokeWidth="3" />
+          <motion.circle
+            cx="30" cy="30" r={radius}
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="3"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset }}
+            transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="relative z-10 text-center leading-none">
+          <span className="text-[15px] font-bold text-foreground">{paid}</span>
+          <span className="text-[10px] text-muted-foreground block mt-0.5">/{total} paid</span>
+        </div>
+      </motion.div>
+    );
+  };
+
   // Render payment list with optional date sections
   const renderPaymentList = () => {
     if (activeTab === 'upcoming' && groupedUpcoming && sortMode === 'date') {
@@ -382,65 +421,87 @@ export default function Schedule() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-5"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="relative w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/20"
-              >
-                <span className="text-sm font-bold text-primary">
-                  {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                </span>
-                {summary.overdueCount > 0 && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.3 }}
-                    className="absolute -top-0.5 -right-0.5 flex items-center justify-center"
+          {/* Glassmorphism header panel */}
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-[20px] p-4 mb-4"
+            style={{
+              background: 'hsl(240 3% 11% / 0.75)',
+              backdropFilter: 'blur(24px) saturate(1.5)',
+              WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
+              border: '1px solid hsl(0 0% 100% / 0.08)',
+            }}
+          >
+            {/* Row 1: Avatar + greeting + circular progress */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  className="relative w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/25"
+                >
+                  <span className="text-sm font-bold text-primary">
+                    {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                  </span>
+                  {summary.overdueCount > 0 && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.3 }}
+                      className="absolute -top-0.5 -right-0.5 flex items-center justify-center"
+                    >
+                      <span className="absolute w-4 h-4 rounded-full bg-status-overdue/30 animate-ping" />
+                      <span className="relative w-4 h-4 rounded-full bg-status-overdue flex items-center justify-center text-[8px] font-bold text-primary-foreground">
+                        {summary.overdueCount > 9 ? '9+' : summary.overdueCount}
+                      </span>
+                    </motion.div>
+                  )}
+                </motion.div>
+                <div>
+                  <motion.p
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="text-[13px] text-muted-foreground leading-tight"
                   >
-                    <span className="absolute w-4 h-4 rounded-full bg-status-overdue/30 animate-ping" />
-                    <span className="relative w-4 h-4 rounded-full bg-status-overdue flex items-center justify-center text-[8px] font-bold text-primary-foreground">
-                      {summary.overdueCount > 9 ? '9+' : summary.overdueCount}
-                    </span>
-                  </motion.div>
-                )}
-              </motion.div>
-              <div>
-                <motion.p
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.05 }}
-                  className="text-[13px] text-muted-foreground leading-tight"
-                >
-                  {getGreeting()}{userName ? `, ${userName}` : ''}
-                </motion.p>
-                <motion.p
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-[11px] text-muted-foreground/60 leading-tight mt-0.5"
-                >
-                  {format(new Date(), 'EEEE, MMMM d')}
-                </motion.p>
+                    {getGreeting()}{userName ? `, ${userName}` : ''}
+                  </motion.p>
+                  <motion.p
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-[11px] text-muted-foreground/60 leading-tight mt-0.5"
+                  >
+                    {format(new Date(), 'EEEE, MMMM d')}
+                  </motion.p>
+                </div>
               </div>
+              {/* Circular progress arc */}
+              <CircularProgress
+                paid={summary.paidCount}
+                total={summary.paidCount + summary.unpaidCount}
+              />
             </div>
 
-            {summary.unpaidCount > 0 && (
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.15, type: 'spring', stiffness: 400, damping: 25 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-status-overdue/10 border border-status-overdue/15"
+            {/* Row 2: Total upcoming amount */}
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mb-1">
+                Total Upcoming
+              </p>
+              <motion.p
+                key={totalUpcoming}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="text-[34px] font-bold tracking-tight text-foreground leading-none"
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-status-overdue animate-pulse" />
-                <span className="text-[11px] font-semibold text-status-overdue">
-                  {summary.unpaidCount} pending
-                </span>
-              </motion.div>
-            )}
-          </div>
+                {formatCurrency(totalUpcoming)}
+              </motion.p>
+            </div>
+          </motion.div>
 
           {/* Search & Sort */}
           <div className="flex items-center gap-2">
@@ -507,7 +568,8 @@ export default function Schedule() {
                 {isActive && (
                   <motion.div
                     layoutId="scheduleTab"
-                    className="absolute inset-0 bg-card rounded-lg shadow-md border border-border/30"
+                    className="absolute inset-0 bg-card rounded-lg border border-border/30"
+                    style={{ boxShadow: '0 4px 16px hsl(0 0% 0% / 0.25), 0 1px 0 hsl(0 0% 100% / 0.04) inset' }}
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
@@ -543,8 +605,8 @@ export default function Schedule() {
               onClick={() => setActiveFilter(null)}
               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                 !activeFilter
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-muted-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
+                  : 'bg-transparent border border-border text-muted-foreground hover:border-primary/40'
               }`}
             >
               All
@@ -560,7 +622,7 @@ export default function Schedule() {
                   className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                     isActive
                       ? 'text-card-foreground'
-                      : 'bg-secondary text-muted-foreground'
+                      : 'bg-transparent border border-border text-muted-foreground hover:border-primary/40'
                   }`}
                   style={isActive ? { backgroundColor: `${cat.color}20`, color: cat.color, boxShadow: `0 0 12px ${cat.color}15` } : undefined}
                 >
@@ -673,7 +735,7 @@ export default function Schedule() {
             whileTap={{ scale: 0.85, rotate: 90 }}
             transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             onClick={() => { setEditing(null); setSheetOpen(true); haptic(20); }}
-            className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-[60] glow-pulse"
+            className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center z-[60] glow-pulse"
           >
             <Plus className="w-6 h-6" />
           </motion.button>
