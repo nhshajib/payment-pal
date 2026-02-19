@@ -1,117 +1,88 @@
 
 
-# PayTrack Enhancement Plan -- Minimal Yet Premium
+## v2.1 Polish and Feature Upgrade
 
-After reviewing the entire codebase, here are focused improvements that add real value while keeping the app minimal. No feature bloat -- just smart additions that modern payment tracker users expect.
+This plan covers four areas: fixing the Install App popup, upgrading pull-to-refresh, adding new Overview features, and polishing the Schedule page -- all culminating in a version bump.
 
 ---
 
-## 1. Sort and Filter Payments
+### 1. Fix "Install App" iOS Instructions Popup
 
-**Problem:** Payments are only sorted by due date. Users can't quickly find what matters most.
+**Problem:** The "Got it" button gets hidden behind the bottom navigation.
 
-**Solution:** Add a small sort toggle (by amount, by name, by due date) next to the search button. Keeps the UI clean -- just an icon button that cycles through sort modes with a subtle label change.
+**Fix:** Change the popup positioning from `top-1/2 -translate-y-1/2` with `mb-20` to a proper bottom-sheet style modal that sits safely above the nav bar. Use `bottom-24` anchoring instead of vertical centering so the button never overlaps.
+
+**File:** `src/pages/Settings.tsx` (lines 551-586)
+
+---
+
+### 2. Smooth Native Pull-to-Refresh
+
+**Problem:** The current implementation uses raw touch events and a basic spinner -- feels janky.
+
+**Fix in** `src/pages/Schedule.tsx`:
+- Replace the raw `touchStart/Move/End` with a smoother `framer-motion` `drag="y"` approach on a wrapper, constrained to downward only
+- Add a lottie-style animated indicator: an expanding circle that morphs into a checkmark on release
+- Use `useSpring` for the pull distance so the indicator has elastic, rubber-band physics
+- Show a subtle progress arc (SVG circle) that fills as the user pulls, with haptic feedback at the trigger threshold
+- On release above threshold: animate the indicator into a success state, then collapse smoothly
+- On release below threshold: spring back with no jank
+
+---
+
+### 3. Overview Page -- New Features
+
+**Current state:** Summary cards (Due/Paid), progress bar, monthly insight, and a collapsible monthly chart.
+
+**New additions in** `src/pages/Overview.tsx`:
+
+- **Upcoming Bills (Next 7 Days):** A compact list showing the next few bills due within 7 days, with relative date labels ("Tomorrow", "Wednesday") and amounts. Tapping navigates to the Schedule tab. Gives users an at-a-glance urgency view.
+
+- **Category Spending Breakdown:** A horizontal bar or donut showing spending by category (Rent, Utilities, Subscriptions, etc.) using the existing `CATEGORIES` data. Each bar uses the category color. Only shows categories that have payments.
+
+- **Streak / Consistency Indicator:** "On-time payment streak" -- counts consecutive payments marked paid before or on their due date. Displayed as a small card with a flame/shield icon and the streak count. Gamifies the experience and drives engagement.
+
+- **Quick Actions Row:** Two compact action buttons at the top -- "Add Payment" and "View Schedule" -- for fast navigation without switching tabs.
+
+---
+
+### 4. Schedule Page Design Polish
 
 **File:** `src/pages/Schedule.tsx`
 
----
+- **Tab switcher refinement:** Add a subtle inner shadow to the tab container and increase the active tab's shadow for more depth. Add a tiny colored dot indicator instead of just background color change.
 
-## 2. Quick-Add Shortcuts (Repeat Last Payment)
+- **Payment card spacing:** Increase gap from `space-y-2.5` to `space-y-3` for more breathing room.
 
-**Problem:** Users often pay the same bills every month. Adding the same payment repeatedly is tedious.
+- **Section headers:** Add date-grouped section headers (e.g., "Today", "This Week", "Later") above payment cards in the upcoming tab to create visual hierarchy, similar to how iOS groups notifications.
 
-**Solution:** When the "+" FAB is tapped, show a small "quick add" section at the top of the Add Payment sheet showing the last 3 unique payment names with their amounts. Tap one to pre-fill the form instantly.
+- **Empty state upgrade:** Replace the generic empty state with a more engaging illustration-style layout using layered shapes and a more actionable CTA.
 
-**Files:** `src/components/AddPaymentSheet.tsx`, `src/hooks/usePayments.ts`
-
----
-
-## 3. Monthly Budget / Spending Insight
-
-**Problem:** The summary card shows due vs paid but doesn't give users a sense of their monthly total or trend compared to last month.
-
-**Solution:** Add a single-line insight below the summary card: "This month: [amount] -- [X% more/less] than last month" with a small up/down arrow indicator. No extra screen, no complexity -- just one smart line of text.
-
-**File:** `src/pages/Schedule.tsx`
+- **Pull indicator polish:** As described in section 2.
 
 ---
 
-## 4. Swipe-to-Edit (Swipe Left Improvement)
-
-**Problem:** Currently swipe left only deletes. Editing requires long-press which is not discoverable.
-
-**Solution:** Change swipe left to reveal two actions side by side: Edit (pencil icon) and Delete (trash icon). This is how modern apps like Apple Mail handle it -- much more intuitive than long-press.
-
-**File:** `src/components/PaymentCard.tsx`
-
----
-
-## 5. Haptic Feedback on Interactions
-
-**Problem:** Touch interactions feel flat without physical feedback.
-
-**Solution:** Add subtle vibration feedback (using `navigator.vibrate`) on key actions: marking paid, swiping past threshold, tab switching, and button presses. Only 10-30ms pulses -- barely noticeable but makes it feel native.
-
-**Files:** `src/components/PaymentCard.tsx`, `src/pages/Schedule.tsx`, `src/components/BottomNav.tsx`
-
----
-
-## 6. Pull-to-Refresh on Schedule
-
-**Problem:** No way to manually refresh data. Users coming from native apps expect pull-to-refresh.
-
-**Solution:** Add a pull-down gesture at the top of the payment list that triggers a data refetch with a smooth animated spinner. Uses existing `refetch` from `usePayments`.
-
-**File:** `src/pages/Schedule.tsx`
-
----
-
-## 7. Payment Due Date Relative Labels
-
-**Problem:** Due dates show as raw dates (2025-02-20). Not glanceable.
-
-**Solution:** Replace raw dates with human-friendly labels: "Tomorrow", "Next Monday", "Feb 20" (for dates further out). Keep the exact date visible on the card but make the primary label relative.
-
-**File:** `src/components/PaymentCard.tsx`
-
----
-
-## 8. Empty State Improvement with Quick Action
-
-**Problem:** Empty states say "Tap + to add" but the + button is far away at the bottom right.
-
-**Solution:** Add an inline "Add your first payment" button directly in the empty state area. One tap opens the sheet -- no need to hunt for the FAB.
-
-**File:** `src/pages/Schedule.tsx`
-
----
-
-## 9. Skeleton Loading States
-
-**Problem:** When data is loading, the screen shows nothing -- then content pops in. Not premium.
-
-**Solution:** Add skeleton shimmer placeholders (3 card-shaped loading blocks) that show during initial data load. Smooth transition to real content.
-
-**Files:** `src/pages/Schedule.tsx`, `src/components/PaymentCardSkeleton.tsx` (new)
-
----
-
-## 10. App Version and About Section
-
-**Problem:** No version info or about section. Users don't know what version they're using.
-
-**Solution:** Add a subtle "PayTrack v1.0" label at the bottom of Settings page. Tapping it shows a minimal about modal with app version and a "Made with care" tagline.
+### 5. Version Bump and Changelog
 
 **File:** `src/pages/Settings.tsx`
 
+- Update version from `2.0` to `2.1`
+- Update "What's New" list:
+  - Smoother native pull-to-refresh
+  - Upcoming bills at-a-glance on Overview
+  - Category spending breakdown
+  - On-time payment streak tracker
+  - Date-grouped payment sections
+  - Install popup fix
+
 ---
 
-## Technical Notes
+### Technical Summary
 
-- All features use existing dependencies (framer-motion, date-fns, lucide-react)
-- No new packages required
-- No database schema changes needed
-- Pull-to-refresh uses the existing `refetch` function from `usePayments`
-- Haptic feedback gracefully degrades on unsupported browsers
-- Skeleton loading uses existing shimmer CSS utility already defined in `index.css`
+| File | Changes |
+|---|---|
+| `src/pages/Settings.tsx` | Fix iOS install popup positioning; bump version to 2.1; update changelog |
+| `src/pages/Schedule.tsx` | Rebuild pull-to-refresh with spring physics; add date-grouped sections; tab polish; spacing |
+| `src/pages/Overview.tsx` | Add upcoming bills section, category breakdown, payment streak card, quick actions |
+| `src/components/PaymentCard.tsx` | No changes needed |
 
