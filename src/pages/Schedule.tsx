@@ -305,37 +305,41 @@ export default function Schedule() {
     );
   };
 
-  // Circular progress arc for paid vs remaining bills
-  const CircularProgress = ({ paid, total }: { paid: number; total: number }) => {
-    const radius = 22;
-    const circumference = 2 * Math.PI * radius;
-    const progress = total > 0 ? paid / total : 0;
-    const strokeDashoffset = circumference * (1 - progress);
+  // Segmented progress dots for paid vs remaining
+  const SegmentedProgress = ({ paid, total }: { paid: number; total: number }) => {
+    const maxDots = 8;
+    const showDots = total <= maxDots;
     return (
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25, delay: 0.15 }}
-        className="relative flex items-center justify-center w-[60px] h-[60px] flex-shrink-0"
+        className="flex flex-col items-end gap-1.5 flex-shrink-0"
       >
-        <svg width="60" height="60" viewBox="0 0 60 60" className="absolute" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="30" cy="30" r={radius} fill="none" stroke="hsl(0 0% 100% / 0.10)" strokeWidth="3" />
-          <motion.circle
-            cx="30" cy="30" r={radius}
-            fill="none"
-            stroke="#10b981"
-            strokeWidth="3"
-            strokeDasharray={circumference}
-            initial={{ strokeDashoffset: circumference }}
-            animate={{ strokeDashoffset }}
-            transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="relative z-10 text-center leading-none">
-          <span className="text-[15px] font-bold text-foreground">{paid}</span>
-          <span className="text-[10px] text-muted-foreground block mt-0.5">/{total} paid</span>
-        </div>
+        {showDots ? (
+          <div className="flex items-center gap-1">
+            {Array.from({ length: total }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2 + i * 0.04, type: 'spring', stiffness: 500, damping: 25 }}
+                className={`w-[7px] h-[7px] rounded-full ${
+                  i < paid ? 'bg-status-success' : 'bg-white/10'
+                }`}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <span className="text-[13px] font-bold text-status-success">{paid}</span>
+            <span className="text-[11px] text-muted-foreground/60">/</span>
+            <span className="text-[13px] font-semibold text-muted-foreground">{total}</span>
+          </div>
+        )}
+        <span className="text-[10px] text-muted-foreground/60 font-medium">
+          {paid === total ? 'All paid' : `${paid} paid`}
+        </span>
       </motion.div>
     );
   };
@@ -479,12 +483,15 @@ export default function Schedule() {
                   </motion.p>
                 </div>
               </div>
-              {/* Circular progress arc */}
-              <CircularProgress
+              {/* Segmented progress dots */}
+              <SegmentedProgress
                 paid={summary.paidCount}
                 total={summary.paidCount + summary.unpaidCount}
               />
             </div>
+
+            {/* Divider */}
+            <div className="h-px bg-white/[0.06] my-1" />
 
             {/* Row 2: Total upcoming amount */}
             <div>
@@ -496,7 +503,7 @@ export default function Schedule() {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                className="text-[34px] font-bold tracking-tight text-foreground leading-none"
+                className="text-[28px] font-bold tracking-tight text-foreground leading-none"
               >
                 {formatCurrency(totalUpcoming)}
               </motion.p>
@@ -550,8 +557,14 @@ export default function Schedule() {
           </div>
         </motion.header>
 
-        {/* Tab Switcher - polished */}
-        <div className="relative mb-4 bg-secondary/80 rounded-xl p-1 flex shadow-inner">
+        {/* Tab Switcher - iOS segmented control */}
+        <div
+          className="relative mb-4 rounded-[10px] p-[3px] flex"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)',
+          }}
+        >
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -561,32 +574,27 @@ export default function Schedule() {
                 key={tab.id}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => { setActiveTab(tab.id); haptic(15); }}
-                className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors z-10 ${
-                  isActive ? 'text-foreground' : 'text-muted-foreground'
+                className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[8px] text-[13px] font-semibold transition-colors z-10 ${
+                  isActive ? 'text-foreground' : 'text-muted-foreground/70'
                 }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="scheduleTab"
-                    className="absolute inset-0 bg-card rounded-lg border border-border/30"
-                    style={{ boxShadow: '0 4px 16px hsl(0 0% 0% / 0.25), 0 1px 0 hsl(0 0% 100% / 0.04) inset' }}
+                    className="absolute inset-0 rounded-[8px]"
+                    style={{
+                      background: 'hsl(var(--card))',
+                      boxShadow: '0 2px 8px hsl(0 0% 0% / 0.3), 0 0.5px 0 hsl(0 0% 100% / 0.05) inset',
+                    }}
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
                 <span className="relative flex items-center gap-1.5">
-                  <div className="relative">
-                    <Icon className="w-4 h-4" />
-                    {isActive && (
-                      <motion.div
-                        layoutId="tabDot"
-                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
-                      />
-                    )}
-                  </div>
+                  <Icon className="w-3.5 h-3.5" />
                   {tab.label}
                   {count > 0 && (
-                    <span className={`text-[10px] min-w-[18px] text-center px-1 py-0.5 rounded-full font-semibold ${
-                      isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+                    <span className={`text-[10px] min-w-[16px] text-center px-1 py-px rounded-full font-semibold ${
+                      isActive ? 'bg-primary/15 text-primary' : 'bg-white/[0.06] text-muted-foreground/60'
                     }`}>
                       {count}
                     </span>

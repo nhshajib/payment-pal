@@ -265,7 +265,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         dragElastic={0.25}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        style={{ x: rawX, scale: cardScale, boxShadow: cardShadow }}
+        style={{ x: rawX, scale: cardScale, boxShadow: cardShadow, borderLeft: `3px solid ${category.color}30` }}
         whileTap={{ scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
         className="relative glass-card p-4 cursor-grab active:cursor-grabbing"
@@ -331,9 +331,9 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
             ) : null}
           </div>
 
-          {/* Right: Amount (bold 20px) + Days ring */}
-          <div className="flex flex-col items-end gap-2 flex-shrink-0">
-            <span className={`text-[20px] font-bold tracking-tight leading-none ${
+          {/* Right: Amount + Days ring */}
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <span className={`text-[17px] font-bold tracking-tight leading-none ${
               payment.is_paid ? 'text-muted-foreground line-through opacity-50' : 'text-card-foreground'
             }`}>
               {formatCurrency(Number(payment.amount))}
