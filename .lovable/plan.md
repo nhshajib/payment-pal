@@ -1,79 +1,93 @@
 
 
-## v2.1 Polish and Feature Upgrade
+## v2.2 -- Design Polish and New Features
 
-This plan covers four areas: fixing the Install App popup, upgrading pull-to-refresh, adding new Overview features, and polishing the Schedule page -- all culminating in a version bump.
-
----
-
-### 1. Fix "Install App" iOS Instructions Popup
-
-**Problem:** The "Got it" button gets hidden behind the bottom navigation.
-
-**Fix:** Change the popup positioning from `top-1/2 -translate-y-1/2` with `mb-20` to a proper bottom-sheet style modal that sits safely above the nav bar. Use `bottom-24` anchoring instead of vertical centering so the button never overlaps.
-
-**File:** `src/pages/Settings.tsx` (lines 551-586)
+A comprehensive polish pass bringing the app closer to a shipping-quality native iOS app. Focused on refining existing UI elements and adding smart, minimal features.
 
 ---
 
-### 2. Smooth Native Pull-to-Refresh
-
-**Problem:** The current implementation uses raw touch events and a basic spinner -- feels janky.
-
-**Fix in** `src/pages/Schedule.tsx`:
-- Replace the raw `touchStart/Move/End` with a smoother `framer-motion` `drag="y"` approach on a wrapper, constrained to downward only
-- Add a lottie-style animated indicator: an expanding circle that morphs into a checkmark on release
-- Use `useSpring` for the pull distance so the indicator has elastic, rubber-band physics
-- Show a subtle progress arc (SVG circle) that fills as the user pulls, with haptic feedback at the trigger threshold
-- On release above threshold: animate the indicator into a success state, then collapse smoothly
-- On release below threshold: spring back with no jank
-
----
-
-### 3. Overview Page -- New Features
-
-**Current state:** Summary cards (Due/Paid), progress bar, monthly insight, and a collapsible monthly chart.
-
-**New additions in** `src/pages/Overview.tsx`:
-
-- **Upcoming Bills (Next 7 Days):** A compact list showing the next few bills due within 7 days, with relative date labels ("Tomorrow", "Wednesday") and amounts. Tapping navigates to the Schedule tab. Gives users an at-a-glance urgency view.
-
-- **Category Spending Breakdown:** A horizontal bar or donut showing spending by category (Rent, Utilities, Subscriptions, etc.) using the existing `CATEGORIES` data. Each bar uses the category color. Only shows categories that have payments.
-
-- **Streak / Consistency Indicator:** "On-time payment streak" -- counts consecutive payments marked paid before or on their due date. Displayed as a small card with a flame/shield icon and the streak count. Gamifies the experience and drives engagement.
-
-- **Quick Actions Row:** Two compact action buttons at the top -- "Add Payment" and "View Schedule" -- for fast navigation without switching tabs.
-
----
-
-### 4. Schedule Page Design Polish
+### 1. Schedule Page -- Header Banner Polish
 
 **File:** `src/pages/Schedule.tsx`
 
-- **Tab switcher refinement:** Add a subtle inner shadow to the tab container and increase the active tab's shadow for more depth. Add a tiny colored dot indicator instead of just background color change.
+The "0/4 Paid" circular progress and "Total Upcoming" amount in the header banner need refinement:
 
-- **Payment card spacing:** Increase gap from `space-y-2.5` to `space-y-3` for more breathing room.
-
-- **Section headers:** Add date-grouped section headers (e.g., "Today", "This Week", "Later") above payment cards in the upcoming tab to create visual hierarchy, similar to how iOS groups notifications.
-
-- **Empty state upgrade:** Replace the generic empty state with a more engaging illustration-style layout using layered shapes and a more actionable CTA.
-
-- **Pull indicator polish:** As described in section 2.
+- Replace the circular SVG ring with a cleaner **segmented progress indicator** -- small filled/empty dots representing each payment (max ~8 dots, then show count). This feels more iOS-native than a chart-style ring.
+- Tighten the "Total Upcoming" section: reduce font size from 34px to 28px, add a subtle animated counter effect when values change.
+- Add a thin horizontal divider between the greeting row and the total row for visual structure.
 
 ---
 
-### 5. Version Bump and Changelog
+### 2. Tab Switcher Redesign
+
+**File:** `src/pages/Schedule.tsx`
+
+The current Upcoming/Paid tab switcher uses a gray pill with shadow. Upgrade to a proper iOS segmented control:
+
+- Use a tighter, more compact container with `rounded-[10px]` and a true inset shadow.
+- The active segment gets a white/card-colored pill with `layoutId` transition -- keep the spring animation but remove the colored dot indicator (too busy).
+- Reduce padding and font size slightly for a more refined feel.
+- Add count badges inline with more refined styling -- smaller, less prominent when inactive.
+
+---
+
+### 3. Bottom Navigation Upgrade
+
+**File:** `src/components/BottomNav.tsx`
+
+Current floating nav looks decent but can be more polished:
+
+- Replace the top red glow line with a subtler filled dot indicator below the icon (like iOS tab bars).
+- Remove the `AnimatePresence` label that only shows on active -- instead, always show labels at a smaller size (`text-[9px]`), with active label bold and colored. This is more consistent with native iOS tab bars.
+- Slightly reduce the nav height from 60px to 56px.
+- Refine the glass background: use a more solid background with a thin top border instead of heavy blur.
+
+---
+
+### 4. Payment Card Polish
+
+**File:** `src/components/PaymentCard.tsx`
+
+- Reduce the amount font size from 20px to 17px -- it currently dominates the card too much.
+- Move the `DaysRing` from below the amount to inline with the date text for a more compact layout.
+- Add a subtle left border accent using the category color for quick visual scanning.
+
+---
+
+### 5. Overview Page -- New Features
+
+**File:** `src/pages/Overview.tsx`
+
+Add two new lightweight features:
+
+- **Highest Expense Highlight:** A small card above the category breakdown showing the single largest payment this month with its name, amount, and category. Quick insight without clutter.
+- **Monthly Average:** Below the "This month" insight, add a line showing the rolling 3-month average spend. Simple but useful for context.
+
+Also fix the "Quick Actions" buttons -- "Add Payment" navigates to `/` which is Index/login. Should navigate to `/schedule`.
+
+---
+
+### 6. Settings Page Polish
 
 **File:** `src/pages/Settings.tsx`
 
-- Update version from `2.0` to `2.1`
-- Update "What's New" list:
-  - Smoother native pull-to-refresh
-  - Upcoming bills at-a-glance on Overview
-  - Category spending breakdown
-  - On-time payment streak tracker
-  - Date-grouped payment sections
-  - Install popup fix
+- Add a **"Feedback"** row in a new "SUPPORT" section with a mail icon -- opens a mailto link. Minimal addition that feels professional.
+- Add a **"Rate App"** row (cosmetic, shows a toast for now) -- common in native apps.
+- Refine the About modal: add a small app icon at the top (styled div, not an image), and format the changelog with version badges.
+
+---
+
+### 7. Version Bump
+
+**File:** `src/pages/Settings.tsx`
+
+- Bump to **v2.2**
+- Update changelog:
+  - Refined tab switcher and navigation bar
+  - Polished payment card layout
+  - Highest expense insight on Overview
+  - Monthly average spending tracker
+  - Support and feedback options in Settings
 
 ---
 
@@ -81,8 +95,9 @@ This plan covers four areas: fixing the Install App popup, upgrading pull-to-ref
 
 | File | Changes |
 |---|---|
-| `src/pages/Settings.tsx` | Fix iOS install popup positioning; bump version to 2.1; update changelog |
-| `src/pages/Schedule.tsx` | Rebuild pull-to-refresh with spring physics; add date-grouped sections; tab polish; spacing |
-| `src/pages/Overview.tsx` | Add upcoming bills section, category breakdown, payment streak card, quick actions |
-| `src/components/PaymentCard.tsx` | No changes needed |
+| `src/pages/Schedule.tsx` | Header banner refinement, tab switcher redesign, segmented progress dots |
+| `src/components/BottomNav.tsx` | Always-visible labels, dot indicator, reduced height, refined glass |
+| `src/components/PaymentCard.tsx` | Compact amount, inline days ring, category accent border |
+| `src/pages/Overview.tsx` | Highest expense card, monthly average, fix navigation links |
+| `src/pages/Settings.tsx` | Support section, rate app, about modal polish, v2.2 bump |
 
