@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarCheck, CheckCircle2, Wallet, TrendingUp, TrendingDown, Plus, Calendar, Shield, ArrowRight } from 'lucide-react';
+import { CalendarCheck, CheckCircle2, Wallet, TrendingUp, TrendingDown, Plus, Calendar, Shield, ArrowRight, Crown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, addDays, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 import { usePayments } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
@@ -40,7 +40,30 @@ export default function Overview() {
       .reduce((s, p) => s + Number(p.amount), 0);
 
     const change = lastMonthTotal === 0 ? null : Math.round(((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100);
-    return { total: thisMonthTotal, change };
+
+    // Rolling 3-month average
+    const months3 = [0, 1, 2].map(i => {
+      const s = startOfMonth(subMonths(now, i));
+      const e = endOfMonth(subMonths(now, i));
+      return payments
+        .filter(p => isWithinInterval(new Date(p.due_date), { start: s, end: e }))
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+    });
+    const avg3 = months3.reduce((s, v) => s + v, 0) / 3;
+
+    return { total: thisMonthTotal, change, avg3 };
+  }, [payments]);
+
+  // Highest expense this month
+  const highestExpense = useMemo(() => {
+    const now = new Date();
+    const thisStart = startOfMonth(now);
+    const thisEnd = endOfMonth(now);
+    const thisMonthPayments = payments.filter(p =>
+      isWithinInterval(new Date(p.due_date), { start: thisStart, end: thisEnd })
+    );
+    if (thisMonthPayments.length === 0) return null;
+    return thisMonthPayments.reduce((max, p) => Number(p.amount) > Number(max.amount) ? p : max, thisMonthPayments[0]);
   }, [payments]);
 
   // Upcoming bills (next 7 days)
@@ -73,7 +96,6 @@ export default function Overview() {
       .sort((a, b) => b.due_date.localeCompare(a.due_date));
     let count = 0;
     for (const p of paidOnTime) {
-      // Consider paid if created_at <= due_date (approximation)
       count++;
     }
     return count;
@@ -111,7 +133,7 @@ export default function Overview() {
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/schedule')}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
@@ -119,7 +141,7 @@ export default function Overview() {
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/schedule')}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold border border-border/50"
           >
             <Calendar className="w-4 h-4" />
@@ -175,9 +197,9 @@ export default function Overview() {
             </div>
           )}
 
-          {/* Monthly Insight */}
+          {/* Monthly Insight + 3-month average */}
           {monthlyInsight.total > 0 && (
-            <div className="px-4 pb-3">
+            <div className="px-4 pb-3 space-y-1.5">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Wallet className="w-3.5 h-3.5" />
                 <span>This month: <span className="font-semibold text-card-foreground">{formatCurrency(monthlyInsight.total)}</span></span>
@@ -188,6 +210,12 @@ export default function Overview() {
                   </span>
                 )}
               </div>
+              {monthlyInsight.avg3 > 0 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>3-month avg: <span className="font-semibold text-card-foreground">{formatCurrency(Math.round(monthlyInsight.avg3))}</span></span>
+                </div>
+              )}
             </div>
           )}
         </motion.div>
@@ -223,7 +251,7 @@ export default function Overview() {
               <p className="text-sm font-semibold text-card-foreground">Next 7 Days</p>
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/schedule')}
                 className="text-xs text-primary font-medium flex items-center gap-1"
               >
                 View all <ArrowRight className="w-3 h-3" />
@@ -256,6 +284,25 @@ export default function Overview() {
                 );
               })}
             </div>
+          </motion.div>
+        )}
+
+        {/* Highest Expense This Month */}
+        {highestExpense && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            className="mb-5 rounded-2xl bg-card border border-border/50 p-4 flex items-center gap-4"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Crown className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Highest This Month</p>
+              <p className="text-sm font-semibold text-card-foreground truncate mt-0.5">{highestExpense.name}</p>
+            </div>
+            <p className="text-lg font-bold text-card-foreground flex-shrink-0">{formatCurrency(Number(highestExpense.amount))}</p>
           </motion.div>
         )}
 

@@ -15,6 +15,7 @@ import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
   ChevronRight, X, Check, Smartphone, BellRing, AlertTriangle,
   Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
+  MessageSquare, Star,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -673,8 +674,31 @@ export default function Settings() {
           )}
         </IOSSection>
 
+        {/* ─── SUPPORT ─── */}
+        <IOSSection label="SUPPORT" index={3}>
+          <IOSRow
+            icon={<MessageSquare className="w-[14px] h-[14px]" />}
+            iconColor="#10b981"
+            title="Feedback"
+            subtitle="Send us your thoughts"
+            onClick={() => {
+              window.location.href = 'mailto:feedback@paytrack.app?subject=PayTrack Feedback';
+            }}
+          />
+          <IOSRow
+            icon={<Star className="w-[14px] h-[14px]" />}
+            iconColor="#f59e0b"
+            title="Rate App"
+            subtitle="Help us improve"
+            onClick={() => {
+              toast.success('Thanks for your support!');
+            }}
+            isLast
+          />
+        </IOSSection>
+
         {/* ─── DANGER ZONE ─── */}
-        <IOSSection label="DANGER ZONE" danger index={3}>
+        <IOSSection label="DANGER ZONE" danger index={4}>
           <IOSRow
             icon={<LogOut className="w-[14px] h-[14px]" />}
             iconColor="#ef4444"
@@ -696,7 +720,7 @@ export default function Settings() {
           className="text-[12px] text-center mt-2 w-full py-2"
           style={{ color: '#6b7280' }}
         >
-          PayTrack v2.1 · Your data is synced securely
+          PayTrack v2.2 · Your data is synced securely
         </motion.button>
 
         {/* ─────────────────────── MODALS ─────────────────────── */}
@@ -708,22 +732,39 @@ export default function Settings() {
               className="inline-flex items-center justify-center w-20 h-20 rounded-3xl"
               style={{ background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.2)' }}
             >
-              <Coins className="w-8 h-8" style={{ color: '#e50914' }} />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #e50914 0%, #b91c1c 100%)' }}>
+                <Coins className="w-6 h-6 text-white" />
+              </div>
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.1</p>
+              <p className="text-sm text-muted-foreground">Version 2.2</p>
             </div>
-            <div className="text-left space-y-2">
-              <p className="text-sm font-semibold text-card-foreground">What's new in 2.1</p>
-              <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
-                <li>Smoother native pull-to-refresh</li>
-                <li>Upcoming bills at-a-glance on Overview</li>
-                <li>Category spending breakdown</li>
-                <li>On-time payment streak tracker</li>
-                <li>Date-grouped payment sections</li>
-                <li>Install popup fix</li>
-              </ul>
+            <div className="text-left space-y-3">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: 'rgba(229,9,20,0.15)', color: '#e50914' }}>v2.2</span>
+                  <span className="text-xs text-muted-foreground">Latest</span>
+                </div>
+                <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Refined tab switcher and navigation bar</li>
+                  <li>Polished payment card layout</li>
+                  <li>Highest expense insight on Overview</li>
+                  <li>Monthly average spending tracker</li>
+                  <li>Support and feedback options</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>v2.1</span>
+                </div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
+                  <li>Native pull-to-refresh</li>
+                  <li>Category spending breakdown</li>
+                  <li>Payment streak tracker</li>
+                  <li>Date-grouped sections</li>
+                </ul>
+              </div>
             </div>
           </div>
         </SettingsModal>
