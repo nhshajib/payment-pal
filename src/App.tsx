@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { UserProvider, useUser } from "@/hooks/useUser";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { PremiumProvider } from "@/hooks/usePremium";
 import Onboarding from "./pages/Onboarding";
 import Schedule from "./pages/Schedule";
 import Overview from "./pages/Overview";
@@ -126,17 +127,19 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <TooltipProvider>
-        <CurrencyProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <UserProvider>
-              <AppRoutes />
-            </UserProvider>
-          </BrowserRouter>
-        </CurrencyProvider>
-      </TooltipProvider>
+      <PremiumProvider>
+        <TooltipProvider>
+          <CurrencyProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <UserProvider>
+                <AppRoutes />
+              </UserProvider>
+            </BrowserRouter>
+          </CurrencyProvider>
+        </TooltipProvider>
+      </PremiumProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
