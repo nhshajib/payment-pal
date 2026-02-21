@@ -1,93 +1,101 @@
 
 
-## v2.2 -- Design Polish and New Features
-
-A comprehensive polish pass bringing the app closer to a shipping-quality native iOS app. Focused on refining existing UI elements and adding smart, minimal features.
+## v2.3 -- Premium Upgrade, Light Mode Fix, and Native Polish
 
 ---
 
-### 1. Schedule Page -- Header Banner Polish
+### 1. Bottom Navigation Redesign
 
-**File:** `src/pages/Schedule.tsx`
+**Problem:** Current design feels flat and misaligned with native iOS tab bars.
 
-The "0/4 Paid" circular progress and "Total Upcoming" amount in the header banner need refinement:
-
-- Replace the circular SVG ring with a cleaner **segmented progress indicator** -- small filled/empty dots representing each payment (max ~8 dots, then show count). This feels more iOS-native than a chart-style ring.
-- Tighten the "Total Upcoming" section: reduce font size from 34px to 28px, add a subtle animated counter effect when values change.
-- Add a thin horizontal divider between the greeting row and the total row for visual structure.
-
----
-
-### 2. Tab Switcher Redesign
-
-**File:** `src/pages/Schedule.tsx`
-
-The current Upcoming/Paid tab switcher uses a gray pill with shadow. Upgrade to a proper iOS segmented control:
-
-- Use a tighter, more compact container with `rounded-[10px]` and a true inset shadow.
-- The active segment gets a white/card-colored pill with `layoutId` transition -- keep the spring animation but remove the colored dot indicator (too busy).
-- Reduce padding and font size slightly for a more refined feel.
-- Add count badges inline with more refined styling -- smaller, less prominent when inactive.
+**Changes in `src/components/BottomNav.tsx`:**
+- Remove the floating pill container -- switch to a full-width bottom bar anchored flush to the bottom edge (like iOS native tab bar)
+- Use a solid background with a single thin top border (`border-t`) instead of `rounded-2xl` with margins
+- Increase icon size slightly to `22px`, keep always-visible labels at `10px`
+- Replace the small `4px` dot indicator with an active pill highlight behind the icon+label group using `layoutId` for smooth transitions
+- Make background theme-aware: dark uses `hsl(240 3% 11% / 0.95)`, light uses `hsl(0 0% 100% / 0.95)` with backdrop blur
 
 ---
 
-### 3. Bottom Navigation Upgrade
+### 2. Light Mode Fixes
 
-**File:** `src/components/BottomNav.tsx`
+**Problem:** Many elements use hardcoded dark-mode colors (`rgba(255,255,255,...)`, `#fff`, `hsl(240 3% 11%/...)`) that become invisible or ugly in light mode.
 
-Current floating nav looks decent but can be more polished:
+**Changes across multiple files:**
 
-- Replace the top red glow line with a subtler filled dot indicator below the icon (like iOS tab bars).
-- Remove the `AnimatePresence` label that only shows on active -- instead, always show labels at a smaller size (`text-[9px]`), with active label bold and colored. This is more consistent with native iOS tab bars.
-- Slightly reduce the nav height from 60px to 56px.
-- Refine the glass background: use a more solid background with a thin top border instead of heavy blur.
-
----
-
-### 4. Payment Card Polish
-
-**File:** `src/components/PaymentCard.tsx`
-
-- Reduce the amount font size from 20px to 17px -- it currently dominates the card too much.
-- Move the `DaysRing` from below the amount to inline with the date text for a more compact layout.
-- Add a subtle left border accent using the category color for quick visual scanning.
+- **`src/index.css`**: Add light-mode overrides for `.glass-card` (already done), and add a `.glass-header` utility class for the Schedule header panel that adapts per theme
+- **`src/pages/Schedule.tsx`**: Replace all hardcoded `background: 'hsl(240 3% 11% / 0.75)'` and `rgba(255,255,255,...)` inline styles with CSS custom properties or Tailwind classes that switch per theme. The header panel, tab switcher, and search bar all need theme-aware backgrounds
+- **`src/pages/Settings.tsx`**: The `IOSSection`, `IOSRow`, `SettingsModal`, and various modals all use hardcoded `rgba(255,255,255,0.06)` backgrounds and `color: '#fff'` text. Replace with Tailwind semantic classes (`bg-card`, `text-card-foreground`, `bg-secondary`, `border-border`) so they adapt to both themes. The `SettingsModal` background, section card backgrounds, divider colors, and text colors all need updating
+- **`src/components/PaymentCard.tsx`**: The `DaysRing` track color uses `hsl(0 0% 100% / 0.08)` -- make it `hsl(var(--muted))`. Context menu backdrop and card styles should use theme-aware values
+- **`src/components/BottomNav.tsx`**: Background needs to be theme-aware (covered in section 1)
 
 ---
 
-### 5. Overview Page -- New Features
+### 3. Payment Card -- Edit Action More Visible
 
-**File:** `src/pages/Overview.tsx`
+**Problem:** The left-swipe edit action is subtle and hard to discover.
 
-Add two new lightweight features:
-
-- **Highest Expense Highlight:** A small card above the category breakdown showing the single largest payment this month with its name, amount, and category. Quick insight without clutter.
-- **Monthly Average:** Below the "This month" insight, add a line showing the rolling 3-month average spend. Simple but useful for context.
-
-Also fix the "Quick Actions" buttons -- "Add Payment" navigates to `/` which is Index/login. Should navigate to `/schedule`.
-
----
-
-### 6. Settings Page Polish
-
-**File:** `src/pages/Settings.tsx`
-
-- Add a **"Feedback"** row in a new "SUPPORT" section with a mail icon -- opens a mailto link. Minimal addition that feels professional.
-- Add a **"Rate App"** row (cosmetic, shows a toast for now) -- common in native apps.
-- Refine the About modal: add a small app icon at the top (styled div, not an image), and format the changelog with version badges.
+**Changes in `src/components/PaymentCard.tsx`:**
+- Increase the edit zone threshold from `-60` to `-50` so it triggers sooner
+- Make the edit icon and label larger (`w-5 h-5`, `text-sm` instead of `w-4 h-4`, `text-xs`)
+- Change the edit icon color from `text-primary` (red, which blends with delete) to a distinct blue (`text-blue-400`)
+- Add a small rounded pill background behind the edit label for better contrast against the swipe gradient
+- In the context menu, make the "Edit" option more prominent with a blue icon instead of muted gray
 
 ---
 
-### 7. Version Bump
+### 4. Premium Subscription System
 
-**File:** `src/pages/Settings.tsx`
+**New file: `src/hooks/usePremium.ts`**
+- Create a React context + hook to manage premium status
+- Store premium status in `localStorage` with key `paytrack_premium`
+- Export `isPremium`, `setPremium(true)` functions
+- This keeps it simple (no backend IAP needed for $0.99 one-time)
 
-- Bump to **v2.2**
-- Update changelog:
-  - Refined tab switcher and navigation bar
-  - Polished payment card layout
-  - Highest expense insight on Overview
-  - Monthly average spending tracker
-  - Support and feedback options in Settings
+**Premium-gated features (reserved for paying users):**
+- **Custom app themes/accent colors** -- ability to change the red accent to any color (blue, purple, green, etc.)
+- **Export payments as CSV** -- download payment history
+- **Unlimited payment categories** -- free users limited to 5 custom categories (current default categories remain free)
+
+**Changes in `src/pages/Settings.tsx`:**
+- Add a new "PREMIUM" section above "ACCOUNT" with a prominent card
+- Free users see: a visually appealing upgrade card with a crown icon, "$0.99 one-time" pricing, and a "Upgrade" button
+- Premium users see: a subtle "Premium Active" badge
+- Tapping "Upgrade" opens a premium comparison modal showing:
+  - **Free tier**: Basic payment tracking, notifications, categories, pull-to-refresh
+  - **Premium tier** ($0.99 one-time): Custom accent colors, CSV export, priority support badge
+- The upgrade button triggers `setPremium(true)` (actual Stripe integration can be added later -- for now it's a mock purchase flow with a confirmation dialog)
+- Add a "Premium" crown badge next to "PayTrack v2.3" in the footer when premium is active
+
+---
+
+### 5. Overall Design Polish
+
+**`src/pages/Schedule.tsx`:**
+- Reduce the header panel border-radius from `20px` to `16px` for a tighter, more native feel
+- Make the search bar background theme-aware
+- Add a subtle separator between the header and tab switcher
+
+**`src/pages/Overview.tsx`:**
+- Make all card backgrounds theme-aware (use `bg-card` instead of hardcoded colors)
+- Add subtle hover states on interactive cards
+
+**`src/components/PaymentCard.tsx`:**
+- Slightly increase the card padding from `p-4` to `px-4 py-3.5` for a more refined feel
+- Make the category icon container slightly smaller (`w-10 h-10`) for better proportions
+
+---
+
+### 6. Version Bump
+
+**File: `src/pages/Settings.tsx`**
+- Bump to v2.3
+- Changelog:
+  - Premium subscription with custom themes and CSV export
+  - Redesigned bottom navigation bar
+  - Complete light mode support
+  - More visible payment edit actions
+  - Overall design refinements
 
 ---
 
@@ -95,9 +103,12 @@ Also fix the "Quick Actions" buttons -- "Add Payment" navigates to `/` which is 
 
 | File | Changes |
 |---|---|
-| `src/pages/Schedule.tsx` | Header banner refinement, tab switcher redesign, segmented progress dots |
-| `src/components/BottomNav.tsx` | Always-visible labels, dot indicator, reduced height, refined glass |
-| `src/components/PaymentCard.tsx` | Compact amount, inline days ring, category accent border |
-| `src/pages/Overview.tsx` | Highest expense card, monthly average, fix navigation links |
-| `src/pages/Settings.tsx` | Support section, rate app, about modal polish, v2.2 bump |
+| `src/hooks/usePremium.ts` | New -- premium status context and hook |
+| `src/components/BottomNav.tsx` | Full-width native tab bar, theme-aware, active pill indicator |
+| `src/index.css` | Light mode fixes for glass elements, new utility classes |
+| `src/pages/Schedule.tsx` | Theme-aware header/tabs/search, design tightening |
+| `src/pages/Settings.tsx` | Premium section with upgrade card and comparison modal, light mode fixes for all sections/modals, v2.3 bump |
+| `src/pages/Overview.tsx` | Theme-aware card backgrounds |
+| `src/components/PaymentCard.tsx` | More visible edit action, theme-aware ring/menu, refined spacing |
+| `src/main.tsx` | Wrap app with PremiumProvider |
 
