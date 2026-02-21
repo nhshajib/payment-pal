@@ -17,24 +17,22 @@ interface Props {
   isPaidTab?: boolean;
 }
 
-/** Human-friendly relative date label */
 function getRelativeDate(dateStr: string): string {
   const date = parseISO(dateStr);
   if (isToday(date)) return 'Today';
   if (isTomorrow(date)) return 'Tomorrow';
   if (isYesterday(date)) return 'Yesterday';
   const days = differenceInDays(date, new Date());
-  if (days > 0 && days <= 6) return format(date, 'EEEE'); // "Monday", "Tuesday"
-  return format(date, 'MMM d'); // "Feb 20"
+  if (days > 0 && days <= 6) return format(date, 'EEEE');
+  return format(date, 'MMM d');
 }
 
 const SWIPE_THRESHOLD = 100;
-const EDIT_THRESHOLD = -60;
+const EDIT_THRESHOLD = -50;
 const DELETE_THRESHOLD = -140;
 const LONG_PRESS_MS = 500;
 const HINT_KEY = 'paytrack_swipe_hint_seen';
 
-/** Circular countdown ring badge showing days remaining */
 function DaysRing({ payment }: { payment: Payment }) {
   const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
   const MAX_DAYS = 30;
@@ -65,7 +63,7 @@ function DaysRing({ payment }: { payment: Payment }) {
   return (
     <div className="relative flex items-center justify-center w-8 h-8">
       <svg width="32" height="32" viewBox="0 0 32 32" className="absolute" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="16" cy="16" r={radius} fill="none" stroke="hsl(0 0% 100% / 0.08)" strokeWidth="2.5" />
+        <circle cx="16" cy="16" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" />
         <circle
           cx="16" cy="16" r={radius}
           fill="none"
@@ -107,11 +105,9 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
     }
   }, [index]);
 
-  // Swipe background transforms
   const rightIconScale = useTransform(rawX, [0, SWIPE_THRESHOLD * 0.6, SWIPE_THRESHOLD], [0.4, 0.9, 1.15]);
   const rightBgOpacity = useTransform(rawX, [0, 40, SWIPE_THRESHOLD], [0, 0.4, 1]);
 
-  // Left swipe: two zones - edit and delete
   const leftBgOpacity = useTransform(rawX, [DELETE_THRESHOLD, EDIT_THRESHOLD, -20, 0], [1, 0.8, 0.3, 0]);
   const editIconScale = useTransform(rawX, [EDIT_THRESHOLD, -30, 0], [1.1, 0.6, 0.3]);
   const deleteIconScale = useTransform(rawX, [DELETE_THRESHOLD, EDIT_THRESHOLD, 0], [1.15, 0.7, 0.3]);
@@ -126,7 +122,6 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const category = getCategoryById(payment.category || 'other');
   const CategoryIcon = category.icon;
 
-  // Haptic on crossing thresholds
   useEffect(() => {
     const unsubscribe = rawX.on('change', (v) => {
       if (v >= SWIPE_THRESHOLD && !hapticFiredRight) {
@@ -198,7 +193,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const menuItems = [
     ...(!payment.is_paid ? [
       { label: 'Mark Paid', icon: CheckCircle2, color: 'text-status-success', action: () => onMarkPaid(payment) },
-      { label: 'Edit', icon: Pencil, color: 'text-muted-foreground', action: () => onEdit(payment) },
+      { label: 'Edit', icon: Pencil, color: 'text-blue-400', action: () => onEdit(payment) },
     ] : []),
     ...(payment.is_paid && onMarkUnpaid ? [
       { label: 'Mark Unpaid', icon: Undo2, color: 'text-status-warning', action: () => onMarkUnpaid(payment) },
@@ -242,19 +237,21 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
 
       {/* Swipe left background (edit + delete) */}
       <motion.div
-        className="absolute inset-0 rounded-2xl flex items-center justify-end pr-4 gap-4"
+        className="absolute inset-0 rounded-2xl flex items-center justify-end pr-4 gap-5"
         style={{
           opacity: leftBgOpacity,
-          background: 'linear-gradient(260deg, hsl(0 72% 51% / 0.15) 0%, hsl(200 80% 55% / 0.1) 60%, transparent 100%)',
+          background: 'linear-gradient(260deg, hsl(0 72% 51% / 0.15) 0%, hsl(210 80% 55% / 0.12) 60%, transparent 100%)',
         }}
       >
-        <motion.div style={{ scale: editIconScale }} className="flex items-center gap-1.5 text-primary">
-          <Pencil className="w-4 h-4" strokeWidth={2.5} />
-          <span className="text-xs font-bold">Edit</span>
+        <motion.div style={{ scale: editIconScale }} className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/15">
+            <Pencil className="w-5 h-5 text-blue-400" strokeWidth={2.5} />
+            <span className="text-sm font-bold text-blue-400">Edit</span>
+          </div>
         </motion.div>
         <motion.div style={{ scale: deleteIconScale }} className="flex items-center gap-1.5 text-destructive">
-          <Trash2 className="w-4 h-4" strokeWidth={2.5} />
-          <span className="text-xs font-bold">Delete</span>
+          <Trash2 className="w-5 h-5" strokeWidth={2.5} />
+          <span className="text-sm font-bold">Delete</span>
         </motion.div>
       </motion.div>
 
@@ -268,7 +265,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         style={{ x: rawX, scale: cardScale, boxShadow: cardShadow, borderLeft: `3px solid ${category.color}30` }}
         whileTap={{ scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-        className="relative glass-card p-4 cursor-grab active:cursor-grabbing"
+        className="relative glass-card px-4 py-3.5 cursor-grab active:cursor-grabbing"
       >
         {/* Swipe hint arrows (first-time only) */}
         <AnimatePresence>
@@ -301,7 +298,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
           {/* Gradient pill category icon */}
           <motion.div
             whileTap={{ scale: 0.9 }}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{
               background: `linear-gradient(135deg, ${category.color}22 0%, ${category.color}0d 100%)`,
               boxShadow: `0 0 18px ${category.color}1a, inset 0 1px 0 ${category.color}26`,

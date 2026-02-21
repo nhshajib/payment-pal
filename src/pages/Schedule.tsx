@@ -36,7 +36,6 @@ function getGreeting() {
   return 'Good evening';
 }
 
-// Date section grouping
 function getDateSection(dateStr: string): 'overdue' | 'today' | 'this_week' | 'later' {
   const d = new Date(dateStr);
   const now = startOfDay(new Date());
@@ -90,10 +89,8 @@ export default function Schedule() {
     if (!isPulling.current) return;
     const rawDelta = e.touches[0].clientY - startY.current;
     if (rawDelta < 0) { pullY.set(0); return; }
-    // Rubber-band damping
     const delta = rawDelta * (1 - Math.min(rawDelta / 400, 0.6));
     pullY.set(delta);
-    // Haptic at threshold
     if (delta >= 80 && !hasTriggeredHaptic.current) {
       haptic(15);
       hasTriggeredHaptic.current = true;
@@ -119,7 +116,6 @@ export default function Schedule() {
     }
   }, [pullY, refetch]);
 
-  // Show long-press hint once on first visit with payments
   useEffect(() => {
     const hintSeen = localStorage.getItem('paytrack_longpress_hint');
     if (!hintSeen && payments.length > 0) {
@@ -175,7 +171,6 @@ export default function Schedule() {
     return unpaid.reduce((sum, p) => sum + Number(p.amount), 0);
   }, [unpaid]);
 
-  // Group upcoming by date sections
   const groupedUpcoming = useMemo(() => {
     if (sortMode !== 'date') return null;
     const groups: Record<string, Payment[]> = {};
@@ -261,7 +256,6 @@ export default function Schedule() {
   const currentList = activeTab === 'upcoming' ? unpaid : paid;
   const showSkeleton = loading && payments.length === 0;
 
-  // Pull-to-refresh SVG progress arc
   const PullIndicator = () => {
     const radius = 10;
     const circumference = 2 * Math.PI * radius;
@@ -305,7 +299,6 @@ export default function Schedule() {
     );
   };
 
-  // Segmented progress dots for paid vs remaining
   const SegmentedProgress = ({ paid, total }: { paid: number; total: number }) => {
     const maxDots = 8;
     const showDots = total <= maxDots;
@@ -325,7 +318,7 @@ export default function Schedule() {
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2 + i * 0.04, type: 'spring', stiffness: 500, damping: 25 }}
                 className={`w-[7px] h-[7px] rounded-full ${
-                  i < paid ? 'bg-status-success' : 'bg-white/10'
+                  i < paid ? 'bg-status-success' : 'bg-muted'
                 }`}
               />
             ))}
@@ -344,7 +337,6 @@ export default function Schedule() {
     );
   };
 
-  // Render payment list with optional date sections
   const renderPaymentList = () => {
     if (activeTab === 'upcoming' && groupedUpcoming && sortMode === 'date') {
       const sectionOrder = ['overdue', 'today', 'this_week', 'later'];
@@ -411,12 +403,11 @@ export default function Schedule() {
       <Confetti trigger={confettiTrigger} />
       <div
         ref={scrollRef}
-        className="min-h-screen pb-28 px-4 pt-6 max-w-md mx-auto"
+        className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Pull-to-refresh indicator */}
         <PullIndicator />
 
         {/* Header */}
@@ -430,15 +421,9 @@ export default function Schedule() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
-            className="rounded-[20px] p-4 mb-4"
-            style={{
-              background: 'hsl(240 3% 11% / 0.75)',
-              backdropFilter: 'blur(24px) saturate(1.5)',
-              WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
-              border: '1px solid hsl(0 0% 100% / 0.08)',
-            }}
+            className="glass-header rounded-[16px] p-4 mb-4"
           >
-            {/* Row 1: Avatar + greeting + circular progress */}
+            {/* Row 1: Avatar + greeting + segmented progress */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <motion.div
@@ -483,7 +468,6 @@ export default function Schedule() {
                   </motion.p>
                 </div>
               </div>
-              {/* Segmented progress dots */}
               <SegmentedProgress
                 paid={summary.paidCount}
                 total={summary.paidCount + summary.unpaidCount}
@@ -491,7 +475,7 @@ export default function Schedule() {
             </div>
 
             {/* Divider */}
-            <div className="h-px bg-white/[0.06] my-1" />
+            <div className="h-px bg-border/30 my-1" />
 
             {/* Row 2: Total upcoming amount */}
             <div>
@@ -558,13 +542,7 @@ export default function Schedule() {
         </motion.header>
 
         {/* Tab Switcher - iOS segmented control */}
-        <div
-          className="relative mb-4 rounded-[10px] p-[3px] flex"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)',
-          }}
-        >
+        <div className="relative mb-4 rounded-[10px] p-[3px] flex bg-secondary/60" style={{ boxShadow: 'inset 0 1px 2px hsl(var(--border) / 0.5)' }}>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -581,11 +559,7 @@ export default function Schedule() {
                 {isActive && (
                   <motion.div
                     layoutId="scheduleTab"
-                    className="absolute inset-0 rounded-[8px]"
-                    style={{
-                      background: 'hsl(var(--card))',
-                      boxShadow: '0 2px 8px hsl(0 0% 0% / 0.3), 0 0.5px 0 hsl(0 0% 100% / 0.05) inset',
-                    }}
+                    className="absolute inset-0 rounded-[8px] bg-card shadow-sm"
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
@@ -594,7 +568,7 @@ export default function Schedule() {
                   {tab.label}
                   {count > 0 && (
                     <span className={`text-[10px] min-w-[16px] text-center px-1 py-px rounded-full font-semibold ${
-                      isActive ? 'bg-primary/15 text-primary' : 'bg-white/[0.06] text-muted-foreground/60'
+                      isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground/60'
                     }`}>
                       {count}
                     </span>
@@ -690,7 +664,6 @@ export default function Schedule() {
               </motion.div>
             ) : (
               <>
-                {/* Clear all button for paid tab */}
                 {activeTab === 'paid' && (
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -708,7 +681,6 @@ export default function Schedule() {
                   </motion.div>
                 )}
 
-                {/* Long-press hint tooltip */}
                 <AnimatePresence>
                   {showLongPressHint && activeTab === 'upcoming' && (
                     <motion.div
@@ -743,7 +715,7 @@ export default function Schedule() {
             whileTap={{ scale: 0.85, rotate: 90 }}
             transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             onClick={() => { setEditing(null); setSheetOpen(true); haptic(20); }}
-            className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center z-[60] glow-pulse"
+            className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center z-[60] glow-pulse"
           >
             <Plus className="w-6 h-6" />
           </motion.button>
