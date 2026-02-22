@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency, CURRENCIES } from '@/hooks/useCurrency';
-import { usePremium } from '@/hooks/usePremium';
+import { usePremium, ACCENT_COLORS } from '@/hooks/usePremium';
+import { usePayments } from '@/hooks/usePayments';
 import { supabase } from '@/integrations/supabase/client';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
@@ -16,7 +17,7 @@ import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
   ChevronRight, X, Check, Smartphone, BellRing, AlertTriangle,
   Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
-  MessageSquare, Star, Crown, Sparkles, Palette, FileDown, Layers,
+  MessageSquare, Star, Crown, Sparkles, Palette, FileDown, Layers, TrendingUp,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -327,7 +328,8 @@ export default function Settings() {
   const { userId, userName, updateName, logout, restore } = useUser();
   const { currency, setCurrency } = useCurrency();
   const { mode, theme, setMode } = useTheme();
-  const { isPremium, setPremium } = usePremium();
+  const { isPremium, setPremium, accentColor, setAccentColor } = usePremium();
+  const { payments } = usePayments(userId);
   const { canInstall, isIOS, hasNativePrompt, promptInstall } = usePWAInstall();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
@@ -349,6 +351,7 @@ export default function Settings() {
   const [tempCurrency, setTempCurrency] = useState(currency);
 
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(getNotificationPrefs());
+  const [paypalLoading, setPaypalLoading] = useState(false);
   const [tempNotifPrefs, setTempNotifPrefs] = useState<NotificationPrefs>(notifPrefs);
   const [notifStatus, setNotifStatus] = useState(getNotificationStatus());
 
@@ -429,6 +432,86 @@ export default function Settings() {
   };
 
   const ordinal = (n: number) => n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+
+  // CSV Export
+  const handleExportCSV = useCallback(() => {
+    if (!isPremium) {
+      setActiveModal('premium');
+      return;
+    }
+    const headers = ['Name', 'Amount', 'Due Date', 'Category', 'Status', 'Recurring', 'Notes'];
+    const rows = payments.map(p => [
+      `"${p.name}"`,
+      p.amount,
+      p.due_date,
+      p.category,
+      p.is_paid ? 'Paid' : 'Unpaid',
+      p.is_recurring ? 'Yes' : 'No',
+      `"${(p.notes || '').replace(/"/g, '""')}"`,
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `paytrack-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Payments exported!');
+  }, [isPremium, payments]);
+
+  // PayPal purchase
+  const handlePayPalPurchase = useCallback(async () => {
+    setPaypalLoading(true);
+    try {
+      // Step 1: Create order
+      const { data: createData, error: createError } = await supabase.functions.invoke('paypal-payment', {
+        body: { action: 'create-order' },
+      });
+      if (createError || !createData?.id) throw new Error(createError?.message || 'Failed to create order');
+
+      const orderId = createData.id;
+
+      // Step 2: Open PayPal approval in popup
+      const approvalUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${orderId}`;
+      const popup = window.open(approvalUrl, 'paypal', 'width=500,height=700,left=200,top=100');
+
+      // Step 3: Poll for completion
+      const pollInterval = setInterval(async () => {
+        try {
+          if (popup?.closed) {
+            clearInterval(pollInterval);
+            // Try to capture after popup closes
+            const { data: captureData, error: captureError } = await supabase.functions.invoke('paypal-payment', {
+              body: { action: 'capture-order', order_id: orderId, user_id: userId },
+            });
+            if (captureError) throw new Error(captureError.message);
+            if (captureData?.success) {
+              setPremium(true);
+              setActiveModal(null);
+              toast.success('Welcome to Premium! 🎉');
+            } else {
+              toast.error('Payment was not completed. Please try again.');
+            }
+            setPaypalLoading(false);
+          }
+        } catch {
+          clearInterval(pollInterval);
+          setPaypalLoading(false);
+          toast.error('Payment verification failed');
+        }
+      }, 1000);
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (paypalLoading) setPaypalLoading(false);
+      }, 300000);
+    } catch (err: any) {
+      toast.error(err?.message || 'Payment failed');
+      setPaypalLoading(false);
+    }
+  }, [userId, setPremium, paypalLoading]);
 
   const notifSubtitle = notifStatus === 'denied'
     ? 'Blocked by browser'
@@ -595,10 +678,33 @@ export default function Settings() {
             onClick={() => { setTempClearDay(paidClearDay); setActiveModal('clearday'); }}
           />
           <IOSAppearanceRow mode={mode} theme={theme} setMode={setMode} />
+          <IOSRow
+            icon={<Palette className="w-[14px] h-[14px]" />}
+            iconColor="#8b5cf6"
+            title="Accent Color"
+            value={isPremium ? ACCENT_COLORS.find(c => c.id === accentColor)?.label || 'Red' : 'Premium'}
+            onClick={() => {
+              if (!isPremium) { setActiveModal('premium'); return; }
+              setActiveModal('accent');
+            }}
+            isLast
+          />
+        </IOSSection>
+
+        {/* ─── DATA ─── */}
+        <IOSSection label="DATA" index={2}>
+          <IOSRow
+            icon={<FileDown className="w-[14px] h-[14px]" />}
+            iconColor="#10b981"
+            title="Export Payments"
+            subtitle={isPremium ? 'Download as CSV' : 'Premium feature'}
+            onClick={handleExportCSV}
+            isLast
+          />
         </IOSSection>
 
         {/* ─── NOTIFICATIONS & DATA ─── */}
-        <IOSSection label="NOTIFICATIONS & DATA" index={2}>
+        <IOSSection label="NOTIFICATIONS" index={3}>
           <div>
             <div className="flex items-center gap-3 px-4" style={{ minHeight: '54px' }}>
               <div
@@ -669,7 +775,7 @@ export default function Settings() {
         </IOSSection>
 
         {/* ─── SUPPORT ─── */}
-        <IOSSection label="SUPPORT" index={3}>
+        <IOSSection label="SUPPORT" index={4}>
           <IOSRow
             icon={<MessageSquare className="w-[14px] h-[14px]" />}
             iconColor="#10b981"
@@ -692,7 +798,7 @@ export default function Settings() {
         </IOSSection>
 
         {/* ─── DANGER ZONE ─── */}
-        <IOSSection label="DANGER ZONE" danger index={4}>
+        <IOSSection label="DANGER ZONE" danger index={5}>
           <IOSRow
             icon={<LogOut className="w-[14px] h-[14px]" />}
             iconColor="#ef4444"
@@ -714,7 +820,7 @@ export default function Settings() {
           className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground"
         >
           <span className="flex items-center justify-center gap-1.5">
-            PayTrack v2.3 · Your data is synced securely
+            PayTrack v2.4 · Your data is synced securely
             {isPremium && <Crown className="w-3 h-3 text-status-success inline" />}
           </span>
         </motion.button>
@@ -758,9 +864,9 @@ export default function Settings() {
               <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">Premium</p>
               <div className="space-y-2.5">
                 {[
-                  { icon: Palette, text: 'Custom accent colors & themes' },
+                  { icon: Palette, text: 'Custom accent colors (6 themes)' },
                   { icon: FileDown, text: 'Export payments as CSV' },
-                  { icon: Layers, text: 'Unlimited custom categories' },
+                  { icon: TrendingUp, text: 'Advanced 6-month analytics' },
                   { icon: Crown, text: 'Priority support badge' },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-center gap-2.5">
@@ -774,68 +880,57 @@ export default function Settings() {
             <motion.div whileTap={{ scale: 0.97 }}>
               <Button
                 className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                onClick={() => {
-                  setActiveModal('premium-confirm');
-                }}
+                onClick={handlePayPalPurchase}
+                disabled={paypalLoading}
               >
-                <Crown className="w-5 h-5 mr-2" />
-                Upgrade for $0.99
+                {paypalLoading ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Crown className="w-5 h-5 mr-2" />
+                    Pay $0.99 with PayPal
+                  </>
+                )}
               </Button>
             </motion.div>
+            <p className="text-[11px] text-center text-muted-foreground">
+              Secure payment via PayPal · One-time charge
+            </p>
           </div>
         </SettingsModal>
 
-        {/* Premium Confirm */}
-        <AnimatePresence>
-          {activeModal === 'premium-confirm' && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black z-[70]"
-                onClick={close}
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.88, y: 40 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.88, y: 40 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                className="fixed inset-x-4 top-[25%] z-[70] max-w-sm mx-auto"
-              >
-                <div className="bg-card rounded-2xl border border-border/50 shadow-2xl p-6 text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-                    <Crown className="w-8 h-8 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-bold text-card-foreground mb-1">Confirm Purchase</h3>
-                  <p className="text-sm text-muted-foreground mb-5">
-                    Unlock all premium features for a one-time payment of $0.99.
-                  </p>
-                  <div className="flex gap-3">
-                    <motion.button
-                      whileTap={{ scale: 0.96 }}
-                      onClick={close}
-                      className="flex-1 h-11 rounded-xl bg-secondary text-card-foreground font-medium text-sm"
-                    >
-                      Cancel
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => {
-                        setPremium(true);
-                        close();
-                        toast.success('Welcome to Premium! 🎉');
-                      }}
-                      className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-lg shadow-primary/25"
-                    >
-                      Purchase
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {/* Accent Color Modal */}
+        <SettingsModal open={activeModal === 'accent'} onClose={close} title="Accent Color">
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">Choose your app's accent color</p>
+            <div className="grid grid-cols-3 gap-3">
+              {ACCENT_COLORS.map(color => (
+                <motion.button
+                  key={color.id}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setAccentColor(color.id)}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
+                    accentColor === color.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border/50 bg-secondary/30'
+                  }`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full shadow-sm"
+                    style={{ background: `hsl(${color.hsl})` }}
+                  />
+                  <span className="text-xs font-medium text-card-foreground">{color.label}</span>
+                  {accentColor === color.id && (
+                    <Check className="w-3 h-3 text-primary" />
+                  )}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </SettingsModal>
 
         {/* About */}
         <SettingsModal open={activeModal === 'about'} onClose={close} title="About PayTrack">
@@ -847,20 +942,29 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.3</p>
+              <p className="text-sm text-muted-foreground">Version 2.4</p>
             </div>
             <div className="text-left space-y-3">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.3</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.4</span>
                   <span className="text-xs text-muted-foreground">Latest</span>
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
-                  <li>Premium subscription with custom themes & CSV export</li>
+                  <li>Real premium features: CSV export, accent colors, analytics</li>
+                  <li>PayPal payment integration</li>
+                  <li>Advanced 6-month spending trend chart</li>
+                  <li>Premium status synced across devices</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.3</span>
+                </div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
+                  <li>Premium subscription with custom themes</li>
                   <li>Redesigned bottom navigation bar</li>
                   <li>Complete light mode support</li>
-                  <li>More visible payment edit actions</li>
-                  <li>Overall design refinements</li>
                 </ul>
               </div>
               <div>

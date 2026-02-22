@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarCheck, CheckCircle2, Wallet, TrendingUp, TrendingDown, Plus, Calendar, Shield, ArrowRight, Crown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, addDays, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -7,6 +7,7 @@ import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CATEGORIES, getCategoryById } from '@/lib/categories';
 import MonthlyChart from '@/components/MonthlyChart';
+import AdvancedChart from '@/components/AdvancedChart';
 import PageTransition from '@/components/PageTransition';
 import { useNavigate } from 'react-router-dom';
 
@@ -342,6 +343,9 @@ export default function Overview() {
             </div>
           </motion.div>
         )}
+
+        {/* Advanced 6-Month Trend (Premium) */}
+        <AdvancedChart payments={payments} onUpgrade={() => navigate('/settings')} />
 
         {/* Monthly Breakdown Chart */}
         <MonthlyChart payments={payments} />
