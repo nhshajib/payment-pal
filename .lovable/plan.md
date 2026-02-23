@@ -1,116 +1,153 @@
 
 
-## v2.4 -- Real Premium Features + PayPal Payment Integration
+## v2.5 -- Premium Feature Expansion (5 New Locked Features)
 
-This plan implements actual premium-gated features, updates the premium comparison modal to reflect them, and sets up real PayPal payment processing with server-side verification.
-
----
-
-### 1. Real Premium Features to Implement
-
-**Feature A: CSV Export (Premium only)**
-- Add an "Export Data" row in Settings under a new "DATA" section
-- When tapped by a premium user, generates a CSV file of all payments (name, amount, due date, category, status, notes) and triggers a browser download
-- When tapped by a free user, shows the premium upgrade modal instead
-
-**Feature B: Custom Accent Color (Premium only)**
-- Add an "Accent Color" row in Settings under PREFERENCES
-- Premium users can pick from 6 preset accent colors: Red (default), Blue, Purple, Green, Orange, Teal
-- Selecting a color updates the CSS `--primary` variable at runtime and persists the choice in `localStorage`
-- Free users see the option but tapping it opens the premium upgrade modal
-
-**Feature C: Advanced Analytics (Premium only) -- on Overview page**
-- Show a "Monthly Trend" line/area chart using recharts (already installed) showing the last 6 months of spending
-- Free users see the chart blurred with a "Unlock with Premium" overlay
-- This replaces the existing basic `MonthlyChart` collapsible with a richer, always-visible chart for premium users
+This plan adds 5 new genuinely useful premium features, all visible to free users but locked behind premium purchase. Each feature shows its UI but requires premium to interact, pushing users toward the upgrade.
 
 ---
 
-### 2. PayPal Payment Integration
+### New Premium Feature 1: Calendar View (Schedule Page)
 
-**Architecture:**
-- Create a Supabase Edge Function `paypal-payment` that handles two actions:
-  1. `create-order` -- creates a PayPal order for $0.99 via PayPal Orders API
-  2. `capture-order` -- captures (verifies) the payment after user approval
-- Store the PayPal email as a Supabase secret (not in code)
-- The frontend uses the PayPal JavaScript SDK to render the PayPal button inside the premium modal
-- On successful capture, the edge function returns success, and the frontend calls `setPremium(true)`
+**What it does:** A visual month calendar showing colored dots on dates where payments are due. Tap a date to see that day's payments. Overdue dates show red dots, upcoming show primary color, paid show green.
 
-**Edge Function: `supabase/functions/paypal-payment/index.ts`**
-- Uses PayPal REST API (sandbox for now, easy to switch to live)
-- `create-order`: calls PayPal `/v2/checkout/orders` to create a $0.99 order
-- `capture-order`: calls PayPal `/v2/checkout/orders/{id}/capture` to verify payment
-- Requires secrets: `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` (PayPal Business app credentials)
-- The PayPal recipient email is configured in the PayPal Business account, not in code
+**Implementation in `src/pages/Schedule.tsx`:**
+- Add a third tab option in the tab switcher: "Upcoming | Paid | Calendar"
+- Calendar tab renders a custom month grid (not a full date-picker -- a simple 7-column grid)
+- Each day cell shows small colored dots for payments on that date
+- Tapping a date expands a list of payments for that day below the calendar
+- Free users see the calendar rendered but tapping any date shows a premium lock overlay with "Unlock Calendar View" button
+- The calendar tab itself shows a small Crown/Lock icon for free users
 
-**Frontend Changes in `src/pages/Settings.tsx`:**
-- Replace the mock "Purchase" confirmation dialog with a real PayPal checkout flow
-- Load PayPal JS SDK dynamically when the premium modal opens
-- Show PayPal buttons (Pay with PayPal, Pay with Card) inside the premium comparison modal
-- On approval, call the edge function to capture, then activate premium
-- Show loading states and error handling
+**New component: `src/components/PaymentCalendar.tsx`**
+- Accepts payments array and isPremium boolean
+- Renders current month grid with navigation arrows (prev/next month)
+- Dots: red = overdue, primary = upcoming unpaid, green = paid
+- Selected date highlights with primary color ring
+- Below calendar: list of payments for selected date (or "No payments" empty state)
 
 ---
 
-### 3. Updated Premium Comparison Modal
+### New Premium Feature 2: Monthly Budget Goal (Overview Page)
 
-Update the premium modal to show the real features:
+**What it does:** Users set a monthly spending limit. A prominent progress ring/bar shows how much of the budget is used. Color shifts from green to yellow to red as they approach/exceed the limit.
+
+**Implementation:**
+- **Database:** Add `monthly_budget` column (numeric, nullable, default null) to `users` table
+- **`src/pages/Overview.tsx`:** New "Budget" card between summary cards and upcoming bills
+  - Shows a circular progress ring with amount spent vs budget
+  - Below ring: "X remaining" or "X over budget" text
+  - If no budget set: shows "Set Budget" button
+  - Free users see the card with a blurred overlay and lock icon
+- **`src/pages/Settings.tsx`:** Add "Monthly Budget" row under PREFERENCES section
+  - Premium users can set/edit their budget amount
+  - Free users tapping it opens premium modal
+- **`src/hooks/usePremium.ts`:** No changes needed -- uses isPremium check
+
+---
+
+### New Premium Feature 3: Spending Predictions (Overview Page)
+
+**What it does:** Shows a "Next Month Forecast" card that estimates next month's spending based on recurring payments plus historical average of non-recurring spending.
+
+**Implementation in `src/pages/Overview.tsx`:**
+- New card below the monthly insight section
+- Calculates: sum of all recurring payment amounts + average non-recurring spending from last 3 months
+- Shows: "Estimated next month: $X" with a small breakdown tooltip
+- Recurring total shown separately from variable spending
+- Free users see the card blurred with lock overlay and "Unlock Predictions" CTA
+- Uses only existing payment data -- no new database columns needed
+
+---
+
+### New Premium Feature 4: Recurring Cost Summary (Overview Page)
+
+**What it does:** A dedicated card showing the total monthly recurring cost and an annual projection. Helps users understand their fixed monthly obligations at a glance.
+
+**Implementation in `src/pages/Overview.tsx`:**
+- New card showing:
+  - "Monthly Recurring: $X" (sum of all recurring, unpaid payments)
+  - "Annual Projection: $X" (monthly * 12)
+  - Small list of top 3 recurring payments by amount
+- Free users see the card with blurred content and lock overlay
+- No database changes needed -- computed from existing `is_recurring` field
+
+---
+
+### New Premium Feature 5: Advanced Filters (Schedule Page)
+
+**What it does:** Adds powerful filtering beyond basic search -- date range picker, amount range slider, and multi-category filter chips. Basic text search remains free.
+
+**Implementation in `src/pages/Schedule.tsx`:**
+- Below the existing search bar, add a "Filters" button with a small badge showing active filter count
+- Tapping "Filters" opens a filter sheet/panel with:
+  - Date range: "From" and "To" date pickers
+  - Amount range: min/max input fields
+  - Category: tappable chips for multi-select (shows all categories, selected ones highlighted)
+- Free users tapping "Filters" button see premium lock modal
+- The filter button itself shows a Crown icon for free users as a visual cue
+- Premium users get the full filter sheet, active filters show as dismissible chips below the search bar
+
+---
+
+### Updated Premium Comparison Modal
+
+Update the premium modal in Settings to show all 8 features (3 existing + 5 new):
 
 **Free tier:**
 - Payment tracking and reminders
 - Push notifications
-- Basic monthly overview
+- Basic search
 - Pull-to-refresh and data sync
 
 **Premium tier ($0.99 one-time):**
-- Export payments as CSV
+- Calendar view with date navigation
+- Monthly budget goals and tracking
+- Spending predictions and forecasts
+- Recurring cost analysis (monthly + annual)
+- Advanced search filters (date, amount, category)
 - Custom accent colors (6 themes)
-- Advanced 6-month spending analytics
-- Priority support badge
+- Export payments as CSV
+- Advanced 6-month analytics
 
 ---
 
-### 4. Premium Status Persistence
+### Premium Lock Component
 
-- Keep `localStorage` for instant UI access
-- Additionally store `is_premium` in the `users` table (new column) so premium status persists across devices
-- The edge function's `capture-order` action updates the user's `is_premium` flag in the database
-- On app load, `usePremium` checks both localStorage and the database
+**New file: `src/components/PremiumLock.tsx`**
+- Reusable overlay component used across all locked features
+- Props: `title`, `subtitle`, `onUpgrade`, `compact` (boolean for inline vs overlay)
+- Renders: blurred backdrop + centered lock icon + text + "Unlock" button
+- Consistent iOS-native styling across all premium gates
+- Used in: Calendar view, Budget card, Predictions card, Recurring card, Advanced filters
 
 ---
 
-### 5. Files and Changes Summary
+### Database Migration
 
-| File | Changes |
-|---|---|
-| `supabase/functions/paypal-payment/index.ts` | New -- PayPal order creation and capture |
-| `supabase/config.toml` | Add paypal-payment function config with verify_jwt = false |
-| `src/hooks/usePremium.ts` | Enhance to sync with Supabase `users.is_premium` column, add accent color management |
-| `src/pages/Settings.tsx` | Real PayPal checkout in premium modal, CSV export row, accent color picker row, update comparison list |
-| `src/pages/Overview.tsx` | Advanced 6-month trend chart (premium) with blur overlay for free users |
-| `src/index.css` | CSS custom property overrides for accent color themes |
-
-### 6. Secrets Needed
-
-Before implementation, two secrets must be added:
-- `PAYPAL_CLIENT_ID` -- from PayPal Developer Dashboard (Business app)
-- `PAYPAL_CLIENT_SECRET` -- from PayPal Developer Dashboard (Business app)
-
-The user's PayPal email (nsajib.9@gmail.com) is configured in their PayPal Business account settings as the receiving account -- it is not stored in code.
-
-### 7. Database Migration
-
-Add `is_premium` column to the `users` table:
 ```sql
-ALTER TABLE users ADD COLUMN is_premium boolean NOT NULL DEFAULT false;
+ALTER TABLE public.users ADD COLUMN monthly_budget numeric DEFAULT null;
 ```
 
 ---
 
-### Important Notes
+### Files Summary
 
-- PayPal requires a Business account and a REST API app created at developer.paypal.com
-- The client ID is public (used in the frontend SDK script tag), the client secret is private (used only in the edge function)
-- The edge function validates payment server-side before granting premium, preventing client-side manipulation
-- The implementation starts with PayPal Sandbox; switching to production only requires changing the API base URL and using live credentials
+| File | Changes |
+|---|---|
+| `src/components/PremiumLock.tsx` | New -- reusable premium lock overlay component |
+| `src/components/PaymentCalendar.tsx` | New -- calendar month grid view with payment dots |
+| `src/pages/Schedule.tsx` | Add Calendar tab (3rd tab), advanced filters button with premium gate |
+| `src/pages/Overview.tsx` | Budget goal card, spending predictions card, recurring cost summary card -- all premium-locked |
+| `src/pages/Settings.tsx` | Monthly Budget row, updated premium comparison modal with all 8 features, v2.5 bump |
+| Migration | Add `monthly_budget` column to `users` table |
+
+---
+
+### Design Principles
+
+- Every premium feature is VISIBLE but LOCKED -- users see the value before paying
+- Lock overlays use consistent glassmorphism blur with the reusable `PremiumLock` component
+- All new cards follow existing iOS-native card styling (rounded-2xl, bg-card, border-border/50)
+- Animations use existing spring physics patterns (stiffness: 300, damping: 28)
+- Theme-aware throughout -- all new components use semantic Tailwind tokens
 
