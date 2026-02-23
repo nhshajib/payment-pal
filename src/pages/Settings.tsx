@@ -18,6 +18,7 @@ import {
   ChevronRight, X, Check, Smartphone, BellRing, AlertTriangle,
   Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
   MessageSquare, Star, Crown, Sparkles, Palette, FileDown, Layers, TrendingUp,
+  Target,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -354,16 +355,22 @@ export default function Settings() {
   const [paypalLoading, setPaypalLoading] = useState(false);
   const [tempNotifPrefs, setTempNotifPrefs] = useState<NotificationPrefs>(notifPrefs);
   const [notifStatus, setNotifStatus] = useState(getNotificationStatus());
+  const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
+  const [tempBudget, setTempBudget] = useState('');
 
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const { data } = await supabase.from('users').select('default_reminder_days, paid_clear_day').eq('id', userId).single();
+      const { data } = await supabase.from('users').select('default_reminder_days, paid_clear_day, monthly_budget').eq('id', userId).single();
       if (data) {
         setReminderDays(data.default_reminder_days);
         setTempReminder(data.default_reminder_days);
-        setPaidClearDay(data.paid_clear_day ?? 1);
-        setTempClearDay(data.paid_clear_day ?? 1);
+        setPaidClearDay((data as any).paid_clear_day ?? 1);
+        setTempClearDay((data as any).paid_clear_day ?? 1);
+        if ((data as any).monthly_budget != null) {
+          setMonthlyBudget(Number((data as any).monthly_budget));
+          setTempBudget(String((data as any).monthly_budget));
+        }
       }
     })();
   }, [userId]);
@@ -679,6 +686,17 @@ export default function Settings() {
           />
           <IOSAppearanceRow mode={mode} theme={theme} setMode={setMode} />
           <IOSRow
+            icon={<Target className="w-[14px] h-[14px]" />}
+            iconColor="#10b981"
+            title="Monthly Budget"
+            value={isPremium ? (monthlyBudget ? `${monthlyBudget}` : 'Not set') : 'Premium'}
+            onClick={() => {
+              if (!isPremium) { setActiveModal('premium'); return; }
+              setTempBudget(monthlyBudget ? String(monthlyBudget) : '');
+              setActiveModal('budget');
+            }}
+          />
+          <IOSRow
             icon={<Palette className="w-[14px] h-[14px]" />}
             iconColor="#8b5cf6"
             title="Accent Color"
@@ -820,7 +838,7 @@ export default function Settings() {
           className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground"
         >
           <span className="flex items-center justify-center gap-1.5">
-            PayTrack v2.4 · Your data is synced securely
+            PayTrack v2.5 · Your data is synced securely
             {isPremium && <Crown className="w-3 h-3 text-status-success inline" />}
           </span>
         </motion.button>
@@ -845,7 +863,7 @@ export default function Settings() {
                 {[
                   { icon: CalendarCheck, text: 'Payment tracking & reminders' },
                   { icon: Bell, text: 'Push notifications' },
-                  { icon: Layers, text: 'Up to 5 custom categories' },
+                  { icon: Search, text: 'Basic search' },
                   { icon: RefreshCw, text: 'Pull-to-refresh & data sync' },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-center gap-2.5">
@@ -864,10 +882,14 @@ export default function Settings() {
               <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">Premium</p>
               <div className="space-y-2.5">
                 {[
+                  { icon: CalendarDays, text: 'Calendar view with date navigation' },
+                  { icon: Coins, text: 'Monthly budget goals & tracking' },
+                  { icon: Sparkles, text: 'Spending predictions & forecasts' },
+                  { icon: Layers, text: 'Recurring cost analysis (monthly + annual)' },
+                  { icon: Search, text: 'Advanced search filters' },
                   { icon: Palette, text: 'Custom accent colors (6 themes)' },
                   { icon: FileDown, text: 'Export payments as CSV' },
                   { icon: TrendingUp, text: 'Advanced 6-month analytics' },
-                  { icon: Crown, text: 'Priority support badge' },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4 text-primary" />
@@ -899,6 +921,49 @@ export default function Settings() {
             <p className="text-[11px] text-center text-muted-foreground">
               Secure payment via PayPal · One-time charge
             </p>
+          </div>
+        </SettingsModal>
+
+        {/* Budget Modal */}
+        <SettingsModal
+          open={activeModal === 'budget'}
+          onClose={close}
+          title="Monthly Budget"
+          onSave={async () => {
+            const val = tempBudget.trim() ? Number(tempBudget) : null;
+            setMonthlyBudget(val);
+            if (userId) {
+              await supabase.from('users').update({ monthly_budget: val } as any).eq('id', userId);
+            }
+            toast.success(val ? `Budget set to ${val}` : 'Budget cleared');
+            close();
+          }}
+          saveDisabled={tempBudget.trim() !== '' && isNaN(Number(tempBudget))}
+        >
+          <div className="space-y-5">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-status-success/10 border border-status-success/20 mb-4">
+                <Target className="w-8 h-8 text-status-success" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Set a monthly spending limit to track your budget on the Overview page.
+              </p>
+            </div>
+            <Input
+              type="number"
+              value={tempBudget}
+              onChange={e => setTempBudget(e.target.value)}
+              placeholder="Enter budget amount"
+              className="h-12 rounded-xl text-center text-lg font-medium focus-visible:ring-1 bg-secondary border-border/50"
+            />
+            {monthlyBudget && (
+              <button
+                onClick={() => { setTempBudget(''); }}
+                className="text-xs text-destructive font-medium w-full text-center"
+              >
+                Clear budget
+              </button>
+            )}
           </div>
         </SettingsModal>
 
@@ -942,15 +1007,27 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.4</p>
+              <p className="text-sm text-muted-foreground">Version 2.5</p>
             </div>
             <div className="text-left space-y-3">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.4</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.5</span>
                   <span className="text-xs text-muted-foreground">Latest</span>
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Calendar view with payment dots</li>
+                  <li>Monthly budget goals & tracking</li>
+                  <li>Spending predictions & forecasts</li>
+                  <li>Recurring cost analysis</li>
+                  <li>Advanced search filters</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.4</span>
+                </div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
                   <li>Real premium features: CSV export, accent colors, analytics</li>
                   <li>PayPal payment integration</li>
                   <li>Advanced 6-month spending trend chart</li>

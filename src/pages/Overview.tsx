@@ -1,21 +1,38 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarCheck, CheckCircle2, Wallet, TrendingUp, TrendingDown, Plus, Calendar, Shield, ArrowRight, Crown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, addDays, isToday, isTomorrow, isBefore, isAfter, startOfDay } from 'date-fns';
 import { usePayments } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
+import { usePremium } from '@/hooks/usePremium';
 import { CATEGORIES, getCategoryById } from '@/lib/categories';
 import MonthlyChart from '@/components/MonthlyChart';
 import AdvancedChart from '@/components/AdvancedChart';
+import BudgetCard from '@/components/BudgetCard';
+import SpendingPredictionCard from '@/components/SpendingPredictionCard';
+import RecurringCostCard from '@/components/RecurringCostCard';
 import PageTransition from '@/components/PageTransition';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Overview() {
   const { userId } = useUser();
   const { format: formatCurrency } = useCurrency();
   const { payments } = usePayments(userId);
+  const { isPremium } = usePremium();
   const navigate = useNavigate();
+  const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data } = await supabase.from('users').select('monthly_budget').eq('id', userId).single();
+      if (data && (data as any).monthly_budget != null) {
+        setMonthlyBudget(Number((data as any).monthly_budget));
+      }
+    })();
+  }, [userId]);
 
   const summary = useMemo(() => {
     const totalDue = payments.filter(p => !p.is_paid).reduce((s, p) => s + Number(p.amount), 0);
@@ -220,6 +237,29 @@ export default function Overview() {
             </div>
           )}
         </motion.div>
+
+        {/* Budget Card (Premium) */}
+        <BudgetCard
+          payments={payments}
+          isPremium={isPremium}
+          budget={monthlyBudget}
+          onUpgrade={() => navigate('/settings')}
+          onSetBudget={() => navigate('/settings')}
+        />
+
+        {/* Spending Prediction (Premium) */}
+        <SpendingPredictionCard
+          payments={payments}
+          isPremium={isPremium}
+          onUpgrade={() => navigate('/settings')}
+        />
+
+        {/* Recurring Cost Summary (Premium) */}
+        <RecurringCostCard
+          payments={payments}
+          isPremium={isPremium}
+          onUpgrade={() => navigate('/settings')}
+        />
 
         {/* Payment Streak */}
         {streak > 0 && (

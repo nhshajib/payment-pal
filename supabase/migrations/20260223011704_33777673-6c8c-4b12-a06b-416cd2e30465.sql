@@ -1,0 +1,1 @@
+ALTER TABLE public.users ADD COLUMN monthly_budget numeric DEFAULT null;
