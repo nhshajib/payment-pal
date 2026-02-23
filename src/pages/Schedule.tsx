@@ -1,26 +1,29 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, Check } from 'lucide-react';
-import { format, isToday, isThisWeek, isBefore, startOfDay } from 'date-fns';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, Check, CalendarDays, Crown, SlidersHorizontal } from 'lucide-react';
+import { format, isToday, isThisWeek, isBefore, startOfDay, isWithinInterval, isAfter } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
+import { usePremium } from '@/hooks/usePremium';
 import { CATEGORIES } from '@/lib/categories';
 import PaymentCard from '@/components/PaymentCard';
 import PaymentCardSkeleton from '@/components/PaymentCardSkeleton';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
 import Confetti from '@/components/Confetti';
+import PaymentCalendar from '@/components/PaymentCalendar';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
 import { haptic } from '@/lib/haptics';
 
-type TabId = 'upcoming' | 'paid';
+type TabId = 'upcoming' | 'paid' | 'calendar';
 type SortMode = 'date' | 'amount' | 'name';
 
-const TABS: { id: TabId; label: string; icon: typeof CalendarCheck }[] = [
+const TABS: { id: TabId; label: string; icon: typeof CalendarCheck; premium?: boolean }[] = [
   { id: 'upcoming', label: 'Upcoming', icon: CalendarCheck },
   { id: 'paid', label: 'Paid', icon: CheckCircle2 },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays, premium: true },
 ];
 
 const SORT_LABELS: Record<SortMode, string> = {
@@ -55,6 +58,7 @@ const SECTION_LABELS: Record<string, string> = {
 export default function Schedule() {
   const { userId, userName } = useUser();
   const { format: formatCurrency } = useCurrency();
+  const { isPremium } = usePremium();
   const { payments, loading, addPayment, updatePayment, deletePayment, markPaid, clearPaid, restorePayments, refetch } = usePayments(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
@@ -65,6 +69,12 @@ export default function Schedule() {
   const [showLongPressHint, setShowLongPressHint] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('date');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterAmountMin, setFilterAmountMin] = useState('');
+  const [filterAmountMax, setFilterAmountMax] = useState('');
+  const [filterCategories, setFilterCategories] = useState<string[]>([]);
 
   // Pull-to-refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -134,6 +144,24 @@ export default function Schedule() {
     }
   }, [showLongPressHint]);
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterDateFrom) count++;
+    if (filterDateTo) count++;
+    if (filterAmountMin) count++;
+    if (filterAmountMax) count++;
+    count += filterCategories.length;
+    return count;
+  }, [filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax, filterCategories]);
+
+  const clearAdvancedFilters = () => {
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setFilterAmountMin('');
+    setFilterAmountMax('');
+    setFilterCategories([]);
+  };
+
   const filteredPayments = useMemo(() => {
     let list = payments;
     if (activeFilter) list = list.filter(p => (p.category || 'other') === activeFilter);
@@ -144,12 +172,20 @@ export default function Schedule() {
         (p.notes && p.notes.toLowerCase().includes(q))
       );
     }
+    // Advanced filters (premium only)
+    if (isPremium) {
+      if (filterDateFrom) list = list.filter(p => p.due_date >= filterDateFrom);
+      if (filterDateTo) list = list.filter(p => p.due_date <= filterDateTo);
+      if (filterAmountMin) list = list.filter(p => Number(p.amount) >= Number(filterAmountMin));
+      if (filterAmountMax) list = list.filter(p => Number(p.amount) <= Number(filterAmountMax));
+      if (filterCategories.length > 0) list = list.filter(p => filterCategories.includes(p.category || 'other'));
+    }
     const sorted = [...list];
     if (sortMode === 'amount') sorted.sort((a, b) => b.amount - a.amount);
     else if (sortMode === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
     else sorted.sort((a, b) => a.due_date.localeCompare(b.due_date));
     return sorted;
-  }, [payments, activeFilter, searchQuery, sortMode]);
+  }, [payments, activeFilter, searchQuery, sortMode, isPremium, filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax, filterCategories]);
 
   const unpaid = filteredPayments.filter(p => !p.is_paid);
   const paid = filteredPayments.filter(p => p.is_paid);
@@ -538,7 +574,125 @@ export default function Schedule() {
                 </motion.span>
               </AnimatePresence>
             </motion.button>
+            {/* Advanced Filters button */}
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={() => {
+                if (!isPremium) {
+                  toast('Upgrade to Premium for advanced filters', { icon: '👑' });
+                  return;
+                }
+                setShowFilters(!showFilters);
+              }}
+              className="relative h-10 px-3 rounded-xl bg-secondary/60 flex items-center gap-1.5 flex-shrink-0"
+            >
+              {!isPremium && <Crown className="w-3 h-3 text-primary" />}
+              <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </motion.button>
           </div>
+
+          {/* Advanced Filters Panel */}
+          <AnimatePresence>
+            {showFilters && isPremium && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 p-4 rounded-2xl bg-card border border-border/50 space-y-4">
+                  {/* Date range */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Date Range</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={filterDateFrom}
+                        onChange={e => setFilterDateFrom(e.target.value)}
+                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground"
+                        placeholder="From"
+                      />
+                      <input
+                        type="date"
+                        value={filterDateTo}
+                        onChange={e => setFilterDateTo(e.target.value)}
+                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground"
+                        placeholder="To"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Amount range */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Amount Range</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={filterAmountMin}
+                        onChange={e => setFilterAmountMin(e.target.value)}
+                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground placeholder:text-muted-foreground/40"
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        value={filterAmountMax}
+                        onChange={e => setFilterAmountMax(e.target.value)}
+                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground placeholder:text-muted-foreground/40"
+                        placeholder="Max"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Category chips */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Categories</p>
+                    <div className="flex flex-wrap gap-2">
+                      {CATEGORIES.map(cat => {
+                        const Icon = cat.icon;
+                        const isActive = filterCategories.includes(cat.id);
+                        return (
+                          <motion.button
+                            key={cat.id}
+                            whileTap={{ scale: 0.93 }}
+                            onClick={() => {
+                              setFilterCategories(prev =>
+                                isActive ? prev.filter(c => c !== cat.id) : [...prev, cat.id]
+                              );
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              isActive
+                                ? 'text-card-foreground'
+                                : 'bg-secondary/40 border border-border text-muted-foreground'
+                            }`}
+                            style={isActive ? { backgroundColor: `${cat.color}20`, color: cat.color } : undefined}
+                          >
+                            <Icon className="w-3 h-3" />
+                            {cat.label}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {activeFilterCount > 0 && (
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={clearAdvancedFilters}
+                      className="text-xs text-destructive font-medium"
+                    >
+                      Clear all filters
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.header>
 
         {/* Tab Switcher - iOS segmented control */}
@@ -546,7 +700,7 @@ export default function Schedule() {
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
-            const count = tab.id === 'upcoming' ? unpaid.length : paid.length;
+            const count = tab.id === 'upcoming' ? unpaid.length : tab.id === 'paid' ? paid.length : 0;
             return (
               <motion.button
                 key={tab.id}
@@ -566,6 +720,9 @@ export default function Schedule() {
                 <span className="relative flex items-center gap-1.5">
                   <Icon className="w-3.5 h-3.5" />
                   {tab.label}
+                  {tab.premium && !isPremium && (
+                    <Crown className="w-3 h-3 text-primary" />
+                  )}
                   {count > 0 && (
                     <span className={`text-[10px] min-w-[16px] text-center px-1 py-px rounded-full font-semibold ${
                       isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground/60'
@@ -618,6 +775,21 @@ export default function Schedule() {
 
         {/* Tab content */}
         <AnimatePresence mode="wait">
+          {activeTab === 'calendar' ? (
+            <motion.div
+              key="calendar"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <PaymentCalendar
+                payments={payments}
+                isPremium={isPremium}
+                onUpgrade={() => toast('Upgrade to Premium for Calendar View', { icon: '👑' })}
+              />
+            </motion.div>
+          ) : (
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, x: activeTab === 'upcoming' ? -20 : 20 }}
@@ -703,6 +875,7 @@ export default function Schedule() {
               </>
             )}
           </motion.div>
+          )}
         </AnimatePresence>
 
         {/* FAB */}

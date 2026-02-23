@@ -70,6 +70,7 @@ export type Database = {
           default_reminder_days: number
           id: string
           is_premium: boolean
+          monthly_budget: number | null
           name: string
           paid_clear_day: number
           phone_hash: string
@@ -79,6 +80,7 @@ export type Database = {
           default_reminder_days?: number
           id?: string
           is_premium?: boolean
+          monthly_budget?: number | null
           name?: string
           paid_clear_day?: number
           phone_hash: string
@@ -88,6 +90,7 @@ export type Database = {
           default_reminder_days?: number
           id?: string
           is_premium?: boolean
+          monthly_budget?: number | null
           name?: string
           paid_clear_day?: number
           phone_hash?: string
