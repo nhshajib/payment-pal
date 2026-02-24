@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, useSpring, PanInfo, AnimatePresence } from 'framer-motion';
-import { Check, Pencil, Trash2, RotateCw, Undo2, CheckCircle2, ChevronRight, ChevronLeft, Receipt } from 'lucide-react';
+import { Check, Pencil, Trash2, RotateCw, Undo2, CheckCircle2, ChevronRight, ChevronLeft, Receipt, X, Hash, Image } from 'lucide-react';
 import { differenceInDays, parseISO, format, isToday, isTomorrow, isYesterday } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -345,12 +345,14 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
               </span>
             )}
             {isPaidTab && receiptData && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onReceiptTap?.(payment.id); }}
-                className="p-1 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
-              >
-                <Receipt className="w-3.5 h-3.5 text-primary" />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onReceiptTap?.(payment.id); }}
+                  className="p-1 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-primary" />
+                </button>
+              </div>
             )}
             <DaysRing payment={payment} />
           </div>

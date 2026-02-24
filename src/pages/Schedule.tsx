@@ -16,6 +16,8 @@ import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
 import { haptic } from '@/lib/haptics';
+import { useReceiptStash } from '@/hooks/useReceiptStash';
+import { Receipt as ReceiptIcon } from 'lucide-react';
 
 type TabId = 'upcoming' | 'paid' | 'calendar';
 type SortMode = 'date' | 'amount' | 'name';
@@ -75,6 +77,8 @@ export default function Schedule() {
   const [filterAmountMin, setFilterAmountMin] = useState('');
   const [filterAmountMax, setFilterAmountMax] = useState('');
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
+  const { receipts, getReceipt } = useReceiptStash();
+  const [receiptPopover, setReceiptPopover] = useState<{ paymentId: string; paymentName: string } | null>(null);
 
   // Pull-to-refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -427,6 +431,8 @@ export default function Schedule() {
               onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
               onDelete={handleDelete}
               isPaidTab={activeTab === 'paid'}
+              receiptData={activeTab === 'paid' ? getReceipt(p.id) : undefined}
+              onReceiptTap={(id) => setReceiptPopover({ paymentId: id, paymentName: p.name })}
             />
           ))}
         </AnimatePresence>
@@ -971,6 +977,76 @@ export default function Schedule() {
               </motion.div>
             </>
           )}
+        </AnimatePresence>
+
+        {/* Receipt Detail Popover */}
+        <AnimatePresence>
+          {receiptPopover && (() => {
+            const rd = getReceipt(receiptPopover.paymentId);
+            return (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.6 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="fixed inset-0 bg-black z-[70]"
+                  onClick={() => setReceiptPopover(null)}
+                />
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.8 }}
+                  className="fixed bottom-0 left-0 right-0 z-[70] max-w-md mx-auto"
+                >
+                  <div className="rounded-t-[22px] overflow-hidden shadow-2xl bg-popover border border-border/50 border-b-0">
+                    <div className="flex justify-center pt-3 pb-1">
+                      <div className="w-9 h-[4px] rounded-full bg-muted-foreground/30" />
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
+                      <h2 className="text-[17px] font-bold text-foreground tracking-[-0.3px]">Payment Receipt</h2>
+                      <motion.button
+                        whileTap={{ scale: 0.85 }}
+                        onClick={() => setReceiptPopover(null)}
+                        className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
+                      >
+                        <X className="w-4 h-4 text-muted-foreground" />
+                      </motion.button>
+                    </div>
+                    <div className="px-5 py-5 space-y-4">
+                      <p className="text-sm text-muted-foreground text-center">
+                        Receipt for <span className="font-semibold text-card-foreground">{receiptPopover.paymentName}</span>
+                      </p>
+                      {rd?.confirmationNumber && (
+                        <div className="rounded-xl bg-secondary/50 px-4 py-3 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <ReceiptIcon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Confirmation #</p>
+                            <p className="text-sm font-mono font-semibold text-card-foreground truncate">{rd.confirmationNumber}</p>
+                          </div>
+                        </div>
+                      )}
+                      {rd?.receiptImage && (
+                        <div className="rounded-xl overflow-hidden border border-border/50">
+                          <img
+                            src={rd.receiptImage}
+                            alt="Receipt"
+                            className="w-full max-h-64 object-contain bg-secondary/30"
+                          />
+                        </div>
+                      )}
+                      {!rd?.confirmationNumber && !rd?.receiptImage && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No receipt details saved.</p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            );
+          })()}
         </AnimatePresence>
       </div>
     </PageTransition>
