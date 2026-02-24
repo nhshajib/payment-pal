@@ -547,12 +547,20 @@ export default function Settings() {
     if (digits.length < 10) { toast.error('Enter a valid phone number'); return; }
     setRoommateSearching(true);
     try {
-      const hash = await hashPhone(digits);
-      const { data } = await supabase.from('users').select('id, name').eq('phone_hash', hash).maybeSingle();
+      // Try both with and without common country code prefixes to handle registration format differences
+      const hashRaw = await hashPhone(digits);
+      const hashWith1 = await hashPhone('1' + digits);
+      const { data } = await supabase.from('users').select('id, name, phone_hash').eq('phone_hash', hashRaw).maybeSingle();
       if (data) {
-        setRoommateSearchResult({ found: true, userId: data.id, name: (data as any).name || 'User', phoneHash: hash });
+        setRoommateSearchResult({ found: true, userId: data.id, name: (data as any).name || 'User', phoneHash: hashRaw });
       } else {
-        setRoommateSearchResult({ found: false, phoneHash: hash });
+        // Try with country code prefix
+        const { data: data2 } = await supabase.from('users').select('id, name, phone_hash').eq('phone_hash', hashWith1).maybeSingle();
+        if (data2) {
+          setRoommateSearchResult({ found: true, userId: data2.id, name: (data2 as any).name || 'User', phoneHash: hashWith1 });
+        } else {
+          setRoommateSearchResult({ found: false, phoneHash: hashRaw });
+        }
       }
     } catch { toast.error('Search failed'); }
     finally { setRoommateSearching(false); }
