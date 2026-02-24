@@ -196,7 +196,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         style={{ x: rawX }}
         whileTap={{ scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-        className="relative rounded-2xl bg-card px-4 py-4 cursor-grab active:cursor-grabbing"
+        className="relative rounded-2xl mono-card px-4 py-4 cursor-grab active:cursor-grabbing"
       >
         {/* Swipe hint */}
         <AnimatePresence>
@@ -219,11 +219,8 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
 
         <div className="flex items-center gap-3.5">
           {/* Circular icon */}
-          <div
-            className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: `${category.color}18` }}
-          >
-            <CategoryIcon className="w-[18px] h-[18px]" style={{ color: category.color }} />
+          <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 mono-card-solid">
+            <CategoryIcon className="w-[18px] h-[18px] text-muted-foreground" />
           </div>
 
           {/* Name + date */}
