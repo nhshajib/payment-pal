@@ -32,7 +32,6 @@ function getRelativeDate(dateStr: string): string {
 const SWIPE_THRESHOLD = 100;
 const EDIT_THRESHOLD = -50;
 const DELETE_THRESHOLD = -140;
-const LONG_PRESS_MS = 500;
 const HINT_KEY = 'paytrack_swipe_hint_seen';
 
 export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab, receiptData, onReceiptTap }: Props) {
@@ -40,8 +39,6 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const rawX = useMotionValue(0);
   const x = useSpring(rawX, { stiffness: 500, damping: 35 });
   const [showMenu, setShowMenu] = useState(false);
-  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const [showHint, setShowHint] = useState(false);
@@ -108,34 +105,27 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
 
   const handleDragStart = () => {
     isDragging.current = true;
-    cancelLongPress();
     if (showHint) {
       setShowHint(false);
       localStorage.setItem(HINT_KEY, '1');
     }
   };
 
-  const cancelLongPress = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+
+  const handlePointerDown = useCallback(() => {
+    // No-op: we no longer use long press
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    // No-op: we no longer use long press
+  }, []);
+
+  const handleCardTap = useCallback(() => {
+    if (!isDragging.current) {
+      haptic(15);
+      setShowMenu(true);
     }
   }, []);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    const rect = cardRef.current?.getBoundingClientRect();
-    const posX = e.clientX - (rect?.left || 0);
-    const posY = e.clientY - (rect?.top || 0);
-    longPressTimer.current = setTimeout(() => {
-      if (!isDragging.current) {
-        haptic(30);
-        setMenuPos({ x: posX, y: posY });
-        setShowMenu(true);
-      }
-    }, LONG_PRESS_MS);
-  }, []);
-
-  const handlePointerUp = useCallback(() => { cancelLongPress(); }, [cancelLongPress]);
 
   const menuItems = [
     ...(!payment.is_paid ? [
@@ -160,6 +150,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onClick={handleCardTap}
     >
       {/* Swipe right — mark paid */}
       {!payment.is_paid && (
@@ -272,8 +263,8 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: -8 }}
               transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-              className="absolute z-[90] min-w-[170px]"
-              style={{ left: Math.min(menuPos.x, 200), top: menuPos.y + 8 }}
+              className="absolute z-[90] min-w-[170px] left-1/2 -translate-x-1/2"
+              style={{ top: '50%' }}
             >
               <div className="bg-card border border-border/60 rounded-2xl shadow-2xl shadow-black/25 overflow-hidden py-1">
                 {menuItems.map((item, i) => {

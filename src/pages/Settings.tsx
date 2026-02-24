@@ -783,8 +783,24 @@ export default function Settings() {
           icon={<Database className="w-[18px] h-[18px]" />}
           title="Export Data"
           onClick={() => navigateTo('data')}
-          isLast
+          isLast={!canInstall}
         />
+        {canInstall && (
+          <IOSRow
+            icon={<Download className="w-[18px] h-[18px]" />}
+            title="Install App"
+            subtitle={isIOS ? 'Add to Home Screen' : 'Install to your device'}
+            onClick={async () => {
+              if (isIOS) {
+                setShowIOSInstructions(true);
+              } else {
+                const result = await promptInstall();
+                if (result === 'accepted') toast.success('App installed!');
+              }
+            }}
+            isLast
+          />
+        )}
       </IOSSection>
 
       {/* Sign Out */}
