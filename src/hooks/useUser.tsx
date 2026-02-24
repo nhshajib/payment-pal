@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, createElement } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { hashPhone } from '@/lib/hash';
+import { hashPhone, hashPin } from '@/lib/hash';
 import type { ReactNode } from 'react';
 
 const STORAGE_KEY = 'paytrack_phone_hash';
@@ -13,9 +13,11 @@ interface UserContextType {
   userName: string;
   loading: boolean;
   isOnboarded: boolean;
-  register: (phone: string, name?: string) => Promise<string>;
+  register: (phone: string, name: string, pin: string) => Promise<string>;
+  login: (phone: string, pin: string) => Promise<string>;
   restore: (phone: string) => Promise<string>;
   updateName: (name: string) => Promise<void>;
+  changePin: (currentPin: string, newPin: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -39,39 +41,55 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const register = useCallback(async (phone: string, name?: string) => {
+  const setSession = (hash: string, id: string, name: string) => {
+    localStorage.setItem(STORAGE_KEY, hash);
+    localStorage.setItem(USER_ID_KEY, id);
+    localStorage.setItem(USER_NAME_KEY, name);
+    setPhoneHash(hash);
+    setUserId(id);
+    setUserName(name);
+  };
+
+  const register = useCallback(async (phone: string, name: string, pin: string) => {
     const hash = await hashPhone(phone);
+    const pinH = await hashPin(pin);
+
+    // Check if user already exists
     const { data: existing } = await supabase
       .from('users')
-      .select('id, name')
+      .select('id')
       .eq('phone_hash', hash)
       .maybeSingle();
 
-    if (existing) {
-      localStorage.setItem(STORAGE_KEY, hash);
-      localStorage.setItem(USER_ID_KEY, existing.id);
-      localStorage.setItem(USER_NAME_KEY, (existing as any).name || name || '');
-      setPhoneHash(hash);
-      setUserId(existing.id);
-      setUserName((existing as any).name || name || '');
-      return existing.id;
-    }
+    if (existing) throw new Error('An account with this phone number already exists. Please sign in instead.');
 
     const { data: newUser, error } = await supabase
       .from('users')
-      .insert({ phone_hash: hash, name: name || '' } as any)
+      .insert({ phone_hash: hash, name, pin_hash: pinH, phone_number: phone } as any)
       .select('id')
       .single();
 
     if (error) throw error;
 
-    localStorage.setItem(STORAGE_KEY, hash);
-    localStorage.setItem(USER_ID_KEY, newUser.id);
-    localStorage.setItem(USER_NAME_KEY, name || '');
-    setPhoneHash(hash);
-    setUserId(newUser.id);
-    setUserName(name || '');
+    setSession(hash, newUser.id, name);
     return newUser.id;
+  }, []);
+
+  const login = useCallback(async (phone: string, pin: string) => {
+    const hash = await hashPhone(phone);
+    const pinH = await hashPin(pin);
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, name, pin_hash')
+      .eq('phone_hash', hash)
+      .maybeSingle();
+
+    if (!user) throw new Error('No account found with that phone number');
+    if ((user as any).pin_hash !== pinH) throw new Error('Incorrect PIN');
+
+    setSession(hash, user.id, (user as any).name || '');
+    return user.id;
   }, []);
 
   const restore = useCallback(async (phone: string) => {
@@ -84,12 +102,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     if (!user) throw new Error('No account found with that phone number');
 
-    localStorage.setItem(STORAGE_KEY, hash);
-    localStorage.setItem(USER_ID_KEY, user.id);
-    localStorage.setItem(USER_NAME_KEY, (user as any).name || '');
-    setPhoneHash(hash);
-    setUserId(user.id);
-    setUserName((user as any).name || '');
+    setSession(hash, user.id, (user as any).name || '');
     return user.id;
   }, []);
 
@@ -98,6 +111,28 @@ export function UserProvider({ children }: { children: ReactNode }) {
     await supabase.from('users').update({ name } as any).eq('id', userId);
     localStorage.setItem(USER_NAME_KEY, name);
     setUserName(name);
+  }, [userId]);
+
+  const changePin = useCallback(async (currentPin: string, newPin: string) => {
+    if (!userId) throw new Error('Not logged in');
+    const currentHash = await hashPin(currentPin);
+    const { data: user } = await supabase
+      .from('users')
+      .select('pin_hash')
+      .eq('id', userId)
+      .single();
+
+    if (!user || (user as any).pin_hash !== currentHash) {
+      throw new Error('Current PIN is incorrect');
+    }
+
+    const newHash = await hashPin(newPin);
+    const { error } = await supabase
+      .from('users')
+      .update({ pin_hash: newHash } as any)
+      .eq('id', userId);
+
+    if (error) throw error;
   }, [userId]);
 
   const logout = useCallback(() => {
@@ -116,8 +151,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     loading,
     isOnboarded: !!phoneHash,
     register,
+    login,
     restore,
     updateName,
+    changePin,
     logout,
   };
 
