@@ -1,7 +1,7 @@
 import { useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Banknote, Timer, Users, ExternalLink, XCircle, Trash2, ChevronRight, Sparkles, Crown } from 'lucide-react';
-import { parseISO, format, differenceInDays, isAfter } from 'date-fns';
+import { Banknote, Timer, Users, ExternalLink, XCircle, Trash2, ChevronRight, Sparkles, Crown, TrendingUp, Lock, AlertTriangle } from 'lucide-react';
+import { parseISO, format, differenceInDays, isAfter, addDays, isBefore } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -38,6 +38,27 @@ export default function Overview() {
 
   const activeTrials = useMemo(() => trials.filter(t => !t.is_cancelled), [trials]);
   const sharedBills = useMemo(() => unpaid.filter(p => p.is_shared), [unpaid]);
+
+  // Price Hike Alerts: recurring bills where amount > previous_amount
+  const priceHikes = useMemo(() => {
+    return payments.filter(p => p.is_recurring && (p as any).previous_amount > 0 && Number(p.amount) > Number((p as any).previous_amount))
+      .map(p => ({
+        ...p,
+        increase: Number(p.amount) - Number((p as any).previous_amount),
+      }));
+  }, [payments]);
+
+  // 30-Day Future Outlook
+  const thirtyDayTotal = useMemo(() => {
+    const now = new Date();
+    const future = addDays(now, 30);
+    return unpaid
+      .filter(p => {
+        const d = parseISO(p.due_date);
+        return !isBefore(d, now) && isBefore(d, future);
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+  }, [unpaid]);
 
   const stagger = (i: number) => ({ delay: 0.06 + i * 0.04 });
 
@@ -284,6 +305,149 @@ export default function Overview() {
                 })}
               </AnimatePresence>
             </div>
+          )}
+        </motion.section>
+
+        {/* ━━━ SECTION 4: PRICE HIKE ALERTS (Premium) ━━━ */}
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={stagger(3)}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-2 mb-4 ml-1">
+            <AlertTriangle className="w-4 h-4 text-muted-foreground/60" />
+            <span className="text-[11px] font-semibold uppercase tracking-[1px] text-muted-foreground/60">
+              Price Hike Alerts
+            </span>
+            {!isPremium && <Crown className="w-3 h-3 text-primary" />}
+          </div>
+
+          {isPremium ? (
+            priceHikes.length === 0 ? (
+              <div className="rounded-2xl mono-card p-5 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mono-card-solid mb-3">
+                  <AlertTriangle className="w-5 h-5 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm text-muted-foreground/50">No price increases detected</p>
+                <p className="text-xs text-muted-foreground/30 mt-1">We'll alert you when recurring bills go up</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {priceHikes.map((bill, i) => (
+                  <motion.div
+                    key={bill.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className="rounded-2xl mono-card px-4 py-4 flex items-center gap-3.5"
+                  >
+                    <div className="w-11 h-11 rounded-full mono-card-solid flex items-center justify-center flex-shrink-0">
+                      <TrendingUp className="w-[18px] h-[18px] text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-[15px] tracking-tight text-foreground truncate">{bill.name}</h3>
+                      <p className="text-[13px] mt-0.5 text-primary font-medium">
+                        +{formatCurrency(bill.increase)} increase
+                      </p>
+                    </div>
+                    <span className="text-[17px] font-bold tracking-tight text-foreground leading-none flex-shrink-0">
+                      {formatCurrency(Number(bill.amount))}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            )
+          ) : (
+            /* Locked State */
+            <motion.div
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { haptic(15); navigate('/premium'); }}
+              className="relative rounded-2xl mono-card overflow-hidden cursor-pointer"
+            >
+              {/* Mock data — blurred */}
+              <div className="p-4 space-y-3 blur-[6px] select-none pointer-events-none">
+                {['Internet Bill', 'Cloud Storage', 'Streaming'].map((name, i) => (
+                  <div key={name} className="flex items-center gap-3 rounded-xl mono-card-solid px-3 py-3">
+                    <div className="w-9 h-9 rounded-full mono-card flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-muted-foreground/40" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">{name}</p>
+                      <p className="text-xs text-primary">+${(5 + i * 2).toFixed(2)}</p>
+                    </div>
+                    <span className="text-sm font-bold text-foreground">${(49.99 + i * 10).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Overlay */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/40 backdrop-blur-sm">
+                <div className="w-12 h-12 rounded-2xl mono-card-solid flex items-center justify-center mb-3 border border-border/30">
+                  <Crown className="w-5 h-5 text-primary" />
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/20"
+                >
+                  Unlock Alerts
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </motion.section>
+
+        {/* ━━━ SECTION 5: 30-DAY FUTURE OUTLOOK (Premium) ━━━ */}
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={stagger(4)}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-2 mb-4 ml-1">
+            <Banknote className="w-4 h-4 text-muted-foreground/60" />
+            <span className="text-[11px] font-semibold uppercase tracking-[1px] text-muted-foreground/60">
+              30-Day Outlook
+            </span>
+            {!isPremium && <Crown className="w-3 h-3 text-primary" />}
+          </div>
+
+          {isPremium ? (
+            <div className="rounded-2xl mono-card p-5">
+              <p className="text-[13px] text-muted-foreground/50 mb-1">Total due in the next 30 days</p>
+              <p className="text-4xl font-extrabold tracking-tight text-foreground mt-2">
+                {formatCurrency(thirtyDayTotal)}
+              </p>
+              <p className="text-[13px] text-muted-foreground/40 mt-2">
+                {unpaid.filter(p => {
+                  const d = parseISO(p.due_date);
+                  return !isBefore(d, new Date()) && isBefore(d, addDays(new Date(), 30));
+                }).length} upcoming bill{unpaid.filter(p => {
+                  const d = parseISO(p.due_date);
+                  return !isBefore(d, new Date()) && isBefore(d, addDays(new Date(), 30));
+                }).length !== 1 ? 's' : ''}
+              </p>
+            </div>
+          ) : (
+            /* Locked State */
+            <motion.div
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { haptic(15); navigate('/premium'); }}
+              className="relative rounded-2xl mono-card overflow-hidden cursor-pointer p-5"
+            >
+              {/* Blurred mock number */}
+              <div className="blur-[8px] select-none pointer-events-none">
+                <p className="text-[13px] text-muted-foreground/50 mb-1">Total due in the next 30 days</p>
+                <p className="text-4xl font-extrabold tracking-tight text-foreground mt-2">$2,847</p>
+                <p className="text-[13px] text-muted-foreground/40 mt-2">12 upcoming bills</p>
+              </div>
+              {/* Overlay */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(229, 9, 20, 0.12)' }}>
+                  <Lock className="w-5 h-5" style={{ color: '#E50914' }} />
+                </div>
+                <p className="text-sm font-semibold text-foreground">See next month's total</p>
+              </div>
+            </motion.div>
           )}
         </motion.section>
 

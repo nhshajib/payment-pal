@@ -15,6 +15,7 @@ import Onboarding from "./pages/Onboarding";
 import Schedule from "./pages/Schedule";
 import Overview from "./pages/Overview";
 import Settings from "./pages/Settings";
+import Premium from "./pages/Premium";
 import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
 
@@ -142,6 +143,10 @@ function AppRoutes() {
           <Route
             path="/settings"
             element={isOnboarded ? <Settings /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/premium"
+            element={isOnboarded ? <Premium /> : <Navigate to="/" replace />}
           />
           <Route path="*" element={<NotFound />} />
         </Routes>
