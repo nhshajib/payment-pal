@@ -1,150 +1,60 @@
 
 
-# Roommate/Partner Management + Free Trial Tracker
+# Free Trials as a Standalone Feature on Schedule Page
 
-## Overview
+## What Changes
 
-This plan adds two premium-gated features: (1) a **Roommate & Partner management system** in Settings where users can invite contacts by phone number and manage shared bill connections, and (2) a **Free Trial Tracker** feature that lets users add and monitor free trials with expiration countdown alerts.
+### 1. FAB becomes a "Type Picker" (Schedule page)
+When the user taps the "+" FAB on the Schedule page, instead of immediately opening the AddPaymentSheet, a small bottom action sheet appears with two options:
+- **Regular Payment** -- opens AddPaymentSheet as before
+- **Free Trial** (with a Crown icon for premium) -- if premium, opens the enhanced AddTrialSheet; if not premium, shows the premium upsell toast/popup
 
-## Database Changes
+### 2. Replace "Calendar" tab with "Free Trials" tab
+The segmented control changes from `Upcoming | Paid | Calendar` to `Upcoming | Paid | Trials`. The Trials tab:
+- Shows a Crown icon next to "Trials" label (like Calendar did)
+- If not premium, tapping it shows a premium upsell
+- If premium, displays all active (non-cancelled) trials sorted by expiration, with countdown badges and swipe-to-cancel
 
-### New Table: `roommates`
+### 3. Enhanced AddTrialSheet
+The existing AddTrialSheet gets additional fields:
+- **Website/Service URL** (optional) -- the website the trial is from
+- **Reminder days before expiry** -- a selector (1 day, 3 days, 1 week) so users know when to cancel
+- **Category** -- reuse existing category picker or a simple "type" field
 
-Stores the relationship between users who share bills together.
+### 4. Free Trial Cards in the Trials Tab
+Each trial card shows:
+- Trial name (bold)
+- "Expires in X days" badge (green if >7 days, orange if 3-7, red if <=3)
+- Cancel URL as a tappable link button
+- Swipe-left to delete, tap to mark cancelled
+- Cancelled trials shown dimmed at the bottom
 
-```text
-roommates
-  id          uuid  (PK, default gen_random_uuid())
-  user_id     uuid  (NOT NULL, FK -> users.id ON DELETE CASCADE)
-  partner_id  uuid  (nullable, FK -> users.id -- set when partner confirms)
-  phone_hash  text  (NOT NULL -- hash of invited phone)
-  nickname    text  (NOT NULL, default '')
-  status      text  (NOT NULL, default 'pending' -- 'pending' | 'confirmed' | 'declined')
-  created_at  timestamptz (default now())
-  UNIQUE(user_id, phone_hash)
-```
-
-RLS policies: permissive SELECT/INSERT/UPDATE/DELETE with `true` (matching existing pattern for this app's client-side auth model).
-
-### New Table: `free_trials`
-
-Tracks user free trial subscriptions separately from regular payments.
-
-```text
-free_trials
-  id            uuid  (PK, default gen_random_uuid())
-  user_id       uuid  (NOT NULL, FK -> users.id ON DELETE CASCADE)
-  name          text  (NOT NULL)
-  expires_on    date  (NOT NULL)
-  cancel_url    text  (default '')
-  is_cancelled  boolean (default false)
-  notes         text  (default '')
-  created_at    timestamptz (default now())
-```
-
-RLS policies: same permissive pattern as payments table.
+### 5. Free Trials also appear on Overview page
+The existing Free Trials section on Overview stays but becomes a compact summary (top 3 expiring-soonest trials with a "See All" link that navigates to Schedule > Trials tab).
 
 ---
 
-## Feature 1: Roommate & Partner Management
+## Technical Details
 
-### Settings Sub-Page: "Roommates & Partners"
+### Files Modified
 
-Add a new settings category in the main menu and a new sub-page view (`'roommates'` added to `SettingsView` type).
+| File | Changes |
+|------|---------|
+| `src/pages/Schedule.tsx` | Replace Calendar tab with Trials tab; add "type picker" sheet state for FAB; import and render AddTrialSheet and trial cards; integrate `useFreeTrials` hook |
+| `src/components/AddTrialSheet.tsx` | Add reminder_days field, website URL field; enhance form layout to match AddPaymentSheet style |
+| `src/components/AddPaymentSheet.tsx` | No changes needed |
+| `src/hooks/useFreeTrials.ts` | No changes (existing hook covers all CRUD) |
 
-**Main Menu Entry** (in GENERAL section):
-- Icon: `Users` with a teal/green gradient
-- Title: "Roommates & Partners"
-- Subtitle: "Manage shared bill contacts"
-- Premium-gated: tapping shows premium modal if not premium
+### No database changes needed
+The `free_trials` table already has all required columns (`name`, `expires_on`, `cancel_url`, `is_cancelled`, `notes`). The reminder days can be stored in the `notes` field as a prefix or we can add a `reminder_days` column via migration. Since the notification system already reads from `notes`, storing reminder preference in `notes` as JSON is simpler and avoids a migration.
 
-**Sub-Page UI**:
-1. **Add Roommate Section**: Phone number input field with a "Search" button
-   - On search, hash the phone and query `users` table for a matching `phone_hash`
-   - If found: show the user's name with a green "Add" button -- inserts into `roommates` with `status: 'confirmed'` and `partner_id` set
-   - If not found: show "Not on PayTrack yet" with an orange "Invite" button
+### Implementation Flow
 
-2. **Invite Flow** (for unregistered users):
-   - Insert into `roommates` with `status: 'pending'`, `partner_id: null`
-   - Show share options: "Copy Link" and "Share" (using Web Share API if available)
-   - Invitation message: `"Hi! [USER_NAME] invited you to track shared payments on PayTrack. Download the app to get started: [APP_URL]"`
-   - The link points to the published app URL
+**FAB Type Picker**: A small `AnimatePresence` bottom sheet with two tappable rows. State: `fabPickerOpen: boolean`. Tapping "Regular Payment" sets `fabPickerOpen=false` and `sheetOpen=true`. Tapping "Free Trial" checks premium status first.
 
-3. **Roommate List**: Shows all roommates grouped by status
-   - **Confirmed**: Green dot, name, phone mask. Tap to remove (with confirmation)
-   - **Pending**: Orange dot, phone hash mask, "Invite Again" button, "Remove" button
+**Trials Tab Content**: Render trials from `useFreeTrials` hook grouped into "Active" and "Cancelled" sections. Each trial card uses the same minimalist iOS list-item style as PaymentCard (circular icon, name, countdown badge, swipe gesture).
 
-### New Hook: `src/hooks/useRoommates.ts`
+**Premium Gating**: The "Trials" tab and "Free Trial" FAB option both check `isPremium`. Non-premium users see a toast: "Upgrade to Premium for Free Trial Tracking" with a Crown icon.
 
-Manages CRUD operations for the `roommates` table:
-- `fetchRoommates(userId)` -- loads all roommates for this user
-- `addRoommate(phoneHash, partnerId?, nickname?)` -- insert
-- `removeRoommate(id)` -- delete
-- `updateStatus(id, status)` -- update
-
-### Shared Bill Integration in AddPaymentSheet
-
-When the "Shared Bill" toggle is ON:
-- Instead of just manual amount entry, show a "Split With" selector
-- Display confirmed roommates as tappable chips/pills
-- Selecting roommates is informational (no backend linking of payments to roommates yet -- purely UI display)
-- The existing `isShared`, `totalAmount`, `userShareAmount` fields continue to work as before
-
----
-
-## Feature 2: Free Trial Tracker
-
-### Settings Sub-Page Enhancement
-
-Add "Free Trial Tracker" as a row inside the existing main menu or as part of a new "Features" section. Premium-gated.
-
-### New Page Section in Overview
-
-Add a collapsible "Free Trials" section at the bottom of the Overview page:
-- Shows active (non-cancelled) trials sorted by expiration date
-- Each trial card shows:
-  - Trial name
-  - "Expires in X days" countdown badge (orange if <=3 days, red if <=1 day)
-  - "Cancel" link button (opens `cancel_url` in new tab if provided)
-  - Checkmark button to mark as cancelled
-
-### New Hook: `src/hooks/useFreeTrials.ts`
-
-Manages CRUD for the `free_trials` table:
-- `fetchTrials(userId)` -- load all
-- `addTrial({ name, expires_on, cancel_url, notes })` -- insert
-- `cancelTrial(id)` -- update `is_cancelled: true`
-- `deleteTrial(id)` -- delete
-
-### Add Trial Drawer
-
-A new `AddTrialSheet` component (simpler than AddPaymentSheet):
-- Fields: Trial Name (required), Expiration Date (required), Cancel URL (optional), Notes (optional)
-- Triggered from the Free Trials section in Overview or from Settings
-
----
-
-## File Change Summary
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `supabase/migrations/` | Create | New `roommates` and `free_trials` tables with RLS |
-| `src/hooks/useRoommates.ts` | Create | CRUD hook for roommates table |
-| `src/hooks/useFreeTrials.ts` | Create | CRUD hook for free_trials table |
-| `src/components/AddTrialSheet.tsx` | Create | Drawer form for adding free trials |
-| `src/pages/Settings.tsx` | Edit | Add "Roommates & Partners" sub-page, free trial settings entry |
-| `src/pages/Overview.tsx` | Edit | Add Free Trials collapsible section |
-| `src/components/AddPaymentSheet.tsx` | Edit | Show roommate chips when Shared Bill is ON |
-| `src/integrations/supabase/types.ts` | Auto-updated | Will reflect new tables after migration |
-
----
-
-## Technical Notes
-
-- Both features are **premium-gated**: non-premium users see the premium upsell modal when tapping these options.
-- Phone number search uses the same `hashPhone()` utility from `src/lib/hash.ts` to match against `phone_hash` in the `users` table.
-- The invitation system is "soft" -- it creates a pending record and generates a shareable message. There is no server-side invitation tracking or push notification to the invitee. When the invitee registers with the same phone number, the inviter can search again and the status will update to confirmed.
-- The Web Share API (`navigator.share()`) is used for social media sharing with a clipboard fallback.
-- Free trial countdown uses `differenceInDays` from date-fns, consistent with existing patterns.
-- RLS policies follow the existing permissive pattern since the app uses client-side identification (phone-hash based, not Supabase Auth).
+**AddTrialSheet Enhancements**: Add a "Remind me" row with pill buttons (1 day, 3 days, 1 week before expiry) matching the existing reminder UI pattern in PaymentActionSheet. Add a website URL input field.
 
