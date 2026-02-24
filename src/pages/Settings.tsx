@@ -105,16 +105,16 @@ function SettingsModal({
 }
 
 /* ─── iOS Section container ─── */
-function IOSSection({ label, children, danger = false, index = 0 }: { label: string; children: ReactNode; danger?: boolean; index?: number }) {
+function IOSSection({ label, children, index = 0 }: { label: string; children: ReactNode; danger?: boolean; index?: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06, type: 'spring', stiffness: 300, damping: 28 }}
-      className="mb-6"
+      className="mb-8"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.8px] mb-2 ml-1 text-muted-foreground">{label}</p>
-      <div className={`rounded-[16px] overflow-hidden border ${danger ? 'bg-destructive/5 border-destructive/15' : 'bg-card border-border/50'}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.8px] mb-2 ml-4 text-neutral-500">{label}</p>
+      <div className="rounded-2xl overflow-hidden bg-neutral-900/50">
         {children}
       </div>
     </motion.div>
@@ -123,28 +123,21 @@ function IOSSection({ label, children, danger = false, index = 0 }: { label: str
 
 /* ─── iOS Row ─── */
 function IOSRow({
-  icon, iconColor, title, subtitle, value, onClick, rightElement, destructive = false, isLast = false,
+  icon, title, subtitle, value, onClick, rightElement, destructive = false, isLast = false,
+  iconColor: _ic,
 }: {
-  icon: ReactNode; iconColor: string; title: string; subtitle?: string; value?: string;
+  icon: ReactNode; iconColor?: string; title: string; subtitle?: string; value?: string;
   onClick?: () => void; rightElement?: ReactNode; destructive?: boolean; isLast?: boolean;
 }) {
   const content = (
-    <div className="flex items-center gap-3 px-4" style={{ minHeight: '54px' }}>
-      <div
-        className="w-7 h-7 rounded-[7px] flex items-center justify-center flex-shrink-0"
-        style={{ background: `linear-gradient(135deg, ${iconColor}ee 0%, ${iconColor}99 100%)`, boxShadow: `0 2px 6px ${iconColor}33` }}
-      >
-        <span style={{ color: '#fff', display: 'flex' }}>{icon}</span>
-      </div>
+    <div className="flex items-center gap-3.5 px-4" style={{ minHeight: '48px' }}>
+      <span className="flex-shrink-0 text-neutral-400 flex">{icon}</span>
       <div className="flex-1 flex items-center justify-between min-w-0 py-[13px]">
-        <div className="min-w-0 flex-1">
-          <p className={`text-[16px] font-semibold leading-tight tracking-[-0.3px] ${destructive ? 'text-destructive' : 'text-card-foreground'}`}>{title}</p>
-          {subtitle && <p className="text-[13px] mt-0.5 truncate text-muted-foreground">{subtitle}</p>}
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-          {value && <span className="text-[15px] tracking-[-0.2px] text-muted-foreground">{value}</span>}
+        <p className={`text-[16px] font-medium tracking-[-0.2px] ${destructive ? 'text-[#E50914]' : 'text-white'}`}>{title}</p>
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+          {value && <span className="text-[15px] tracking-[-0.2px] text-neutral-500">{value}</span>}
           {rightElement}
-          {onClick && !rightElement && <ChevronRight className="w-4 h-4 text-muted-foreground/25" />}
+          {onClick && !rightElement && <ChevronRight className="w-4 h-4 text-neutral-600" />}
         </div>
       </div>
     </div>
@@ -153,13 +146,13 @@ function IOSRow({
   return (
     <>
       {onClick ? (
-        <motion.button whileTap={{ scale: 0.98, backgroundColor: 'hsl(var(--secondary))' }} transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }} onClick={onClick} className="w-full text-left">
+        <motion.button whileTap={{ scale: 0.98, backgroundColor: 'rgba(255,255,255,0.03)' }} transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }} onClick={onClick} className="w-full text-left">
           {content}
         </motion.button>
       ) : (
         <div>{content}</div>
       )}
-      {!isLast && <div className="ml-[52px] mr-0 h-px bg-border/50" />}
+      {!isLast && <div className="ml-[56px] mr-4 h-px bg-neutral-800" />}
     </>
   );
 }
@@ -173,26 +166,23 @@ function IOSAppearanceRow({ mode, theme, setMode }: { mode: 'light' | 'auto' | '
   ];
   return (
     <div className="px-4 py-3">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-7 h-7 rounded-[7px] flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0bee 0%, #f59e0b99 100%)', boxShadow: '0 2px 6px #f59e0b33' }}>
+      <div className="flex items-center gap-3.5 mb-3">
+        <span className="text-neutral-400 flex">
           <AnimatePresence mode="wait">
-            <motion.div key={theme} initial={{ rotate: -45, opacity: 0, scale: 0.6 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 45, opacity: 0, scale: 0.6 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} style={{ display: 'flex', color: '#fff' }}>
-              {theme === 'dark' ? <Moon className="w-[14px] h-[14px]" /> : <Sun className="w-[14px] h-[14px]" />}
+            <motion.div key={theme} initial={{ rotate: -45, opacity: 0, scale: 0.6 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 45, opacity: 0, scale: 0.6 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} style={{ display: 'flex' }}>
+              {theme === 'dark' ? <Moon className="w-[18px] h-[18px]" /> : <Sun className="w-[18px] h-[18px]" />}
             </motion.div>
           </AnimatePresence>
-        </div>
-        <div>
-          <p className="text-[16px] font-semibold tracking-[-0.3px] text-card-foreground">Appearance</p>
-          <p className="text-[13px] text-muted-foreground">{mode === 'auto' ? 'System default' : mode === 'dark' ? 'Dark mode' : 'Light mode'}</p>
-        </div>
+        </span>
+        <p className="text-[16px] font-medium tracking-[-0.2px] text-white">Appearance</p>
       </div>
-      <div className="flex p-1 rounded-[10px] bg-secondary/60">
+      <div className="flex p-1 rounded-[10px] bg-neutral-800/60">
         {opts.map(opt => {
           const Icon = opt.icon;
           const active = mode === opt.id;
           return (
-            <motion.button key={opt.id} whileTap={{ scale: 0.96 }} onClick={() => setMode(opt.id)} className={`relative flex-1 flex items-center justify-center gap-1.5 py-[7px] rounded-[8px] text-[13px] font-semibold z-10 transition-colors ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {active && <motion.div layoutId="appearance-thumb" className="absolute inset-0 rounded-[8px] bg-card shadow-sm" transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }} />}
+            <motion.button key={opt.id} whileTap={{ scale: 0.96 }} onClick={() => setMode(opt.id)} className={`relative flex-1 flex items-center justify-center gap-1.5 py-[7px] rounded-[8px] text-[13px] font-semibold z-10 transition-colors ${active ? 'text-white' : 'text-neutral-500'}`}>
+              {active && <motion.div layoutId="appearance-thumb" className="absolute inset-0 rounded-[8px] bg-neutral-700 shadow-sm" transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }} />}
               <span className="relative z-10 flex items-center gap-1"><Icon className="w-3 h-3" />{opt.label}</span>
             </motion.button>
           );
@@ -209,11 +199,11 @@ function SubPageHeader({ title, onBack }: { title: string; onBack: () => void })
       <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={onBack}
-        className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center flex-shrink-0"
+        className="w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center flex-shrink-0"
       >
-        <ChevronLeft className="w-5 h-5 text-foreground" />
+        <ChevronLeft className="w-5 h-5 text-white" />
       </motion.button>
-      <h1 className="font-bold text-foreground" style={{ fontSize: '28px', letterSpacing: '-0.4px', lineHeight: 1.1 }}>{title}</h1>
+      <h1 className="font-bold text-white" style={{ fontSize: '28px', letterSpacing: '-0.4px', lineHeight: 1.1 }}>{title}</h1>
     </div>
   );
 }
@@ -389,11 +379,10 @@ export default function Settings() {
   /* ─── SUB-PAGE: Profile & Account ─── */
   const renderProfile = () => (
     <div>
-      <SubPageHeader title="Profile & Account" onBack={navigateBack} />
+      <SubPageHeader title="Account & Security" onBack={navigateBack} />
       <IOSSection label="PROFILE" index={0}>
         <IOSRow
-          icon={<User className="w-[14px] h-[14px]" />}
-          iconColor="#3b82f6"
+          icon={<User className="w-[18px] h-[18px]" />}
           title="Name"
           value={userName || 'Not set'}
           onClick={() => { setTempName(userName); setActiveModal('name'); }}
@@ -402,29 +391,23 @@ export default function Settings() {
       </IOSSection>
       <IOSSection label="SECURITY" index={1}>
         <IOSRow
-          icon={<Lock className="w-[14px] h-[14px]" />}
-          iconColor="#e50914"
+          icon={<Lock className="w-[18px] h-[18px]" />}
           title="Change PIN"
-          subtitle="Update your 4-digit PIN"
           onClick={() => { setChangePinCurrent(''); setChangePinNew(''); setChangePinConfirm(''); setActiveModal('change-pin'); }}
           isLast
         />
       </IOSSection>
       <IOSSection label="DEVICE" index={2}>
         <IOSRow
-          icon={<Smartphone className="w-[14px] h-[14px]" />}
-          iconColor="#3b82f6"
+          icon={<Smartphone className="w-[18px] h-[18px]" />}
           title="Restore / Change Device"
-          subtitle="Transfer data to a new device"
           onClick={() => { setPhone(''); setActiveModal('restore'); }}
           isLast={!canInstall}
         />
         {canInstall && (
           <IOSRow
-            icon={<Download className="w-[14px] h-[14px]" />}
-            iconColor="#3b82f6"
+            icon={<Download className="w-[18px] h-[18px]" />}
             title="Install App"
-            subtitle={isIOS ? 'Add to Home Screen' : 'Install for quick access'}
             onClick={async () => {
               if (hasNativePrompt) {
                 const result = await promptInstall();
@@ -441,21 +424,19 @@ export default function Settings() {
   /* ─── SUB-PAGE: Appearance & Display ─── */
   const renderAppearance = () => (
     <div>
-      <SubPageHeader title="Appearance & Display" onBack={navigateBack} />
+      <SubPageHeader title="Appearance" onBack={navigateBack} />
       <IOSSection label="THEME" index={0}>
         <IOSAppearanceRow mode={mode} theme={theme} setMode={setMode} />
       </IOSSection>
       <IOSSection label="CUSTOMIZATION" index={1}>
         <IOSRow
-          icon={<Palette className="w-[14px] h-[14px]" />}
-          iconColor="#8b5cf6"
+          icon={<Palette className="w-[18px] h-[18px]" />}
           title="Accent Color"
           value={isPremium ? ACCENT_COLORS.find(c => c.id === accentColor)?.label || 'Red' : 'Premium'}
           onClick={() => { if (!isPremium) { setActiveModal('premium'); return; } setActiveModal('accent'); }}
         />
         <IOSRow
-          icon={<Coins className="w-[14px] h-[14px]" />}
-          iconColor="#e50914"
+          icon={<Coins className="w-[18px] h-[18px]" />}
           title="Currency"
           value={`${currency.symbol} — ${currency.code}`}
           onClick={() => { setTempCurrency(currency); setActiveModal('currency'); }}
@@ -530,37 +511,30 @@ export default function Settings() {
   /* ─── SUB-PAGE: Data & Export ─── */
   const renderData = () => (
     <div>
-      <SubPageHeader title="Data & Export" onBack={navigateBack} />
+      <SubPageHeader title="Export Data" onBack={navigateBack} />
       <IOSSection label="EXPORT" index={0}>
         <IOSRow
-          icon={<FileDown className="w-[14px] h-[14px]" />}
-          iconColor="#10b981"
+          icon={<FileDown className="w-[18px] h-[18px]" />}
           title="Export Payments"
-          subtitle={isPremium ? 'Download as CSV' : 'Premium feature'}
+          value={isPremium ? 'CSV' : 'Premium'}
           onClick={handleExportCSV}
           isLast
         />
       </IOSSection>
       <IOSSection label="SUPPORT" index={1}>
         <IOSRow
-          icon={<MessageSquare className="w-[14px] h-[14px]" />}
-          iconColor="#10b981"
+          icon={<MessageSquare className="w-[18px] h-[18px]" />}
           title="Feedback"
-          subtitle="Send us your thoughts"
           onClick={() => { window.location.href = 'mailto:feedback@paytrack.app?subject=PayTrack Feedback'; }}
         />
         <IOSRow
-          icon={<Star className="w-[14px] h-[14px]" />}
-          iconColor="#f59e0b"
+          icon={<Star className="w-[18px] h-[18px]" />}
           title="Rate App"
-          subtitle="Help us improve"
           onClick={() => { toast.success('Thanks for your support!'); }}
         />
         <IOSRow
-          icon={<Info className="w-[14px] h-[14px]" />}
-          iconColor="#6366f1"
+          icon={<Info className="w-[18px] h-[18px]" />}
           title="About PayTrack"
-          subtitle="Version 2.5 · Changelog"
           onClick={() => setActiveModal('about')}
           isLast
         />
@@ -729,59 +703,54 @@ export default function Settings() {
   /* ─── MAIN MENU ─── */
   const renderMain = () => (
     <div>
-      <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
-        <h1 className="font-bold text-foreground" style={{ fontSize: '34px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>Settings</h1>
+      {/* iOS Large Title */}
+      <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+        <h1 className="font-bold text-white" style={{ fontSize: '34px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>Settings</h1>
       </motion.header>
 
-      {/* Premium Banner */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02, type: 'spring', stiffness: 300, damping: 28 }} className="mb-6">
-        {isPremium ? (
-          <div className="rounded-[16px] border border-status-success/20 bg-status-success/5 p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-status-success/15 flex items-center justify-center flex-shrink-0"><Crown className="w-5 h-5 text-status-success" /></div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-card-foreground">Premium Active</p>
-              <p className="text-xs text-muted-foreground">All features unlocked</p>
-            </div>
-            <Sparkles className="w-4 h-4 text-status-success/60" />
+      {/* Profile Block */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.02, type: 'spring', stiffness: 300, damping: 28 }}
+        className="flex items-center gap-3.5 mb-10"
+      >
+        <div className="w-14 h-14 rounded-full bg-neutral-800 flex items-center justify-center flex-shrink-0">
+          <span className="text-xl font-bold text-neutral-400">
+            {userName ? userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-lg font-semibold text-white truncate">{userName || 'User'}</p>
+            {isPremium && (
+              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
+                Premium
+              </span>
+            )}
           </div>
-        ) : (
-          <motion.button whileTap={{ scale: 0.98 }} onClick={() => setActiveModal('premium')} className="w-full rounded-[16px] border border-primary/20 p-4 text-left relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08) 0%, hsl(var(--primary) / 0.03) 100%)' }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0"><Crown className="w-5 h-5 text-primary" /></div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-card-foreground">Upgrade to Premium</p>
-                <p className="text-xs text-muted-foreground">Custom themes, CSV export & more</p>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-lg font-bold text-primary">$0.99</span>
-                <span className="text-[10px] text-muted-foreground">one-time</span>
-              </div>
-            </div>
+        </div>
+        {!isPremium && (
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setActiveModal('premium')}
+            className="flex-shrink-0 text-xs font-semibold text-[#E50914] px-3 py-1.5 rounded-full border border-neutral-800"
+          >
+            Upgrade
           </motion.button>
         )}
       </motion.div>
 
-      {/* Category Navigation */}
-      <IOSSection label="GENERAL" index={0}>
+      {/* Block 1: Personal */}
+      <IOSSection label="PERSONAL" index={0}>
         <IOSRow
-          icon={<User className="w-[14px] h-[14px]" />}
-          iconColor="#3b82f6"
-          title="Profile & Account"
-          subtitle="Name, device, install"
+          icon={<Shield className="w-[18px] h-[18px]" />}
+          title="Account & Security"
           onClick={() => navigateTo('profile')}
         />
         <IOSRow
-          icon={<Eye className="w-[14px] h-[14px]" />}
-          iconColor="#f59e0b"
-          title="Appearance & Display"
-          subtitle="Theme, accent color, currency"
-          onClick={() => navigateTo('appearance')}
-        />
-        <IOSRow
-          icon={<Users className="w-[14px] h-[14px]" />}
-          iconColor="#14b8a6"
-          title="Roommates & Partners"
-          subtitle="Manage shared bill contacts"
+          icon={<Users className="w-[18px] h-[18px]" />}
+          title="Roommates & Shared Bills"
           onClick={() => {
             if (!isPremium) { setActiveModal('premium'); return; }
             fetchRoommates();
@@ -791,19 +760,21 @@ export default function Settings() {
         />
       </IOSSection>
 
-      <IOSSection label="APP" index={1}>
+      {/* Block 2: Preferences */}
+      <IOSSection label="PREFERENCES" index={1}>
         <IOSRow
-          icon={<Bell className="w-[14px] h-[14px]" />}
-          iconColor="#6366f1"
-          title="Notifications & Reminders"
-          subtitle="Alerts, reminder days, budget"
+          icon={<Eye className="w-[18px] h-[18px]" />}
+          title="Appearance"
+          onClick={() => navigateTo('appearance')}
+        />
+        <IOSRow
+          icon={<Bell className="w-[18px] h-[18px]" />}
+          title="Notifications"
           onClick={() => navigateTo('notifications')}
         />
         <IOSRow
-          icon={<Database className="w-[14px] h-[14px]" />}
-          iconColor="#10b981"
-          title="Data & Export"
-          subtitle="CSV export, support, about"
+          icon={<Database className="w-[18px] h-[18px]" />}
+          title="Export Data"
           onClick={() => navigateTo('data')}
           isLast
         />
@@ -814,15 +785,14 @@ export default function Settings() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.14, type: 'spring', stiffness: 300, damping: 28 }}
-        className="mb-6"
+        className="mt-12 mb-6"
       >
         <motion.button
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => setActiveModal('logout')}
-          className="w-full rounded-[16px] border border-destructive/15 bg-destructive/5 px-4 py-4 flex items-center justify-center gap-2"
+          className="w-full py-3 flex items-center justify-center"
         >
-          <LogOut className="w-4 h-4 text-destructive" />
-          <span className="text-[16px] font-semibold text-destructive">Sign Out</span>
+          <span className="text-lg font-semibold text-[#E50914]">Sign Out</span>
         </motion.button>
       </motion.div>
 
@@ -833,12 +803,9 @@ export default function Settings() {
         transition={{ delay: 0.4 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => setActiveModal('about')}
-        className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground"
+        className="text-[12px] text-center mt-2 w-full py-2 text-neutral-600"
       >
-        <span className="flex items-center justify-center gap-1.5">
-          PayTrack v2.5 · Your data is synced securely
-          {isPremium && <Crown className="w-3 h-3 text-status-success inline" />}
-        </span>
+        PayTrack v2.5
       </motion.button>
     </div>
   );
