@@ -995,12 +995,25 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.5</p>
+              <p className="text-sm text-muted-foreground">Version 2.6</p>
             </div>
             <div className="text-left space-y-3">
               <div>
-                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.5</span><span className="text-xs text-muted-foreground">Latest</span></div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.6</span><span className="text-xs text-muted-foreground">Latest</span></div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Price Hike Alerts — subscription creep detection</li>
+                  <li>30-Day Future Outlook — upcoming bill forecast</li>
+                  <li>Premium upgrade paywall page</li>
+                  <li>International country code picker for roommate search</li>
+                  <li>Monochrome splash screen redesign</li>
+                  <li>Tap-to-open payment card action menu</li>
+                  <li>Install App shortcut in Settings</li>
+                  <li>Phone hash login fix for cross-format compatibility</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.5</span></div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
                   <li>Calendar view with payment dots</li><li>Monthly budget goals & tracking</li><li>Spending predictions & forecasts</li><li>Recurring cost analysis</li><li>Advanced search filters</li>
                 </ul>
               </div>

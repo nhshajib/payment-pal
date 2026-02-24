@@ -69,6 +69,7 @@ export type Database = {
           name: string
           notes: string
           payment_url: string
+          previous_amount: number
           receipt_url: string
           reminder_days: number
           total_amount: number
@@ -88,6 +89,7 @@ export type Database = {
           name: string
           notes?: string
           payment_url?: string
+          previous_amount?: number
           receipt_url?: string
           reminder_days?: number
           total_amount?: number
@@ -107,6 +109,7 @@ export type Database = {
           name?: string
           notes?: string
           payment_url?: string
+          previous_amount?: number
           receipt_url?: string
           reminder_days?: number
           total_amount?: number
