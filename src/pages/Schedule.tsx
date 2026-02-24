@@ -1,17 +1,18 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, Check, CalendarDays, Crown, SlidersHorizontal } from 'lucide-react';
-import { format, isToday, isThisWeek, isBefore, startOfDay } from 'date-fns';
+import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, Check, CalendarDays, Crown, SlidersHorizontal, CreditCard, Timer, ExternalLink, XCircle } from 'lucide-react';
+import { format, isToday, isThisWeek, isBefore, startOfDay, differenceInDays, parseISO } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
 import { usePremium } from '@/hooks/usePremium';
+import { useFreeTrials } from '@/hooks/useFreeTrials';
 import { CATEGORIES } from '@/lib/categories';
 import PaymentCard from '@/components/PaymentCard';
 import PaymentCardSkeleton from '@/components/PaymentCardSkeleton';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
+import AddTrialSheet from '@/components/AddTrialSheet';
 import Confetti from '@/components/Confetti';
-import PaymentCalendar from '@/components/PaymentCalendar';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
@@ -19,13 +20,13 @@ import { haptic } from '@/lib/haptics';
 import { useReceiptStash } from '@/hooks/useReceiptStash';
 import { Receipt as ReceiptIcon } from 'lucide-react';
 
-type TabId = 'upcoming' | 'paid' | 'calendar';
+type TabId = 'upcoming' | 'paid' | 'trials';
 type SortMode = 'date' | 'amount' | 'name';
 
 const TABS: { id: TabId; label: string; premium?: boolean }[] = [
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'paid', label: 'Paid' },
-  { id: 'calendar', label: 'Calendar', premium: true },
+  { id: 'trials', label: 'Trials', premium: true },
 ];
 
 const SORT_LABELS: Record<SortMode, string> = { date: 'Date', amount: 'Amount', name: 'Name' };
@@ -51,7 +52,10 @@ export default function Schedule() {
   const { format: formatCurrency } = useCurrency();
   const { isPremium } = usePremium();
   const { payments, loading, addPayment, updatePayment, deletePayment, markPaid, clearPaid, restorePayments, refetch } = usePayments(userId);
+  const { trials, loading: trialsLoading, fetchTrials, addTrial, cancelTrial, deleteTrial } = useFreeTrials(userId);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [trialSheetOpen, setTrialSheetOpen] = useState(false);
+  const [fabPickerOpen, setFabPickerOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
@@ -68,6 +72,9 @@ export default function Schedule() {
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const { receipts, getReceipt } = useReceiptStash();
   const [receiptPopover, setReceiptPopover] = useState<{ paymentId: string; paymentName: string } | null>(null);
+
+  // Fetch trials on mount
+  useEffect(() => { fetchTrials(); }, [fetchTrials]);
 
   // Pull-to-refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -107,6 +114,7 @@ export default function Schedule() {
       setIsRefreshing(true);
       animate(pullY, 60, { type: 'spring', stiffness: 300, damping: 30 });
       await refetch();
+      await fetchTrials();
       setIsRefreshing(false);
       setRefreshComplete(true);
       haptic(10);
@@ -117,7 +125,7 @@ export default function Schedule() {
     } else {
       animate(pullY, 0, { type: 'spring', stiffness: 500, damping: 35 });
     }
-  }, [pullY, refetch]);
+  }, [pullY, refetch, fetchTrials]);
 
   useEffect(() => {
     const hintSeen = localStorage.getItem('paytrack_longpress_hint');
@@ -248,6 +256,17 @@ export default function Schedule() {
     haptic(15);
   };
 
+  const handleTrialSubmit = async (data: { name: string; expires_on: string; cancel_url?: string; notes?: string }) => {
+    try {
+      await addTrial(data);
+      toast.success('Free trial added');
+    } catch { toast.error('Failed to add trial'); }
+  };
+
+  // Trials data
+  const activeTrials = useMemo(() => trials.filter(t => !t.is_cancelled), [trials]);
+  const cancelledTrials = useMemo(() => trials.filter(t => t.is_cancelled), [trials]);
+
   const currentList = activeTab === 'upcoming' ? unpaid : paid;
   const showSkeleton = loading && payments.length === 0;
 
@@ -341,6 +360,202 @@ export default function Schedule() {
     );
   };
 
+  const renderTrialCard = (trial: typeof trials[0], index: number) => {
+    const daysLeft = differenceInDays(parseISO(trial.expires_on), new Date());
+    const isExpired = daysLeft < 0;
+    const urgencyColor = trial.is_cancelled
+      ? 'text-muted-foreground'
+      : isExpired
+        ? 'text-primary'
+        : daysLeft <= 3
+          ? 'text-primary'
+          : daysLeft <= 7
+            ? 'text-yellow-500'
+            : 'text-emerald-500';
+
+    const urgencyBg = trial.is_cancelled
+      ? 'bg-muted/50'
+      : isExpired
+        ? 'bg-primary/10'
+        : daysLeft <= 3
+          ? 'bg-primary/10'
+          : daysLeft <= 7
+            ? 'bg-yellow-500/10'
+            : 'bg-emerald-500/10';
+
+    const urgencyText = trial.is_cancelled
+      ? 'Cancelled'
+      : isExpired
+        ? `Expired ${Math.abs(daysLeft)}d ago`
+        : daysLeft === 0
+          ? 'Expires today'
+          : daysLeft === 1
+            ? 'Expires tomorrow'
+            : `${daysLeft} days left`;
+
+    return (
+      <motion.div
+        key={trial.id}
+        layout
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: trial.is_cancelled ? 0.5 : 1, y: 0 }}
+        exit={{ opacity: 0, x: -120, scale: 0.92 }}
+        transition={{ delay: index * 0.03, type: 'spring', stiffness: 400, damping: 30 }}
+        className="rounded-2xl bg-card px-4 py-4"
+      >
+        <div className="flex items-center gap-3.5">
+          {/* Icon */}
+          <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-500/15">
+            <Timer className="w-[18px] h-[18px] text-orange-500" />
+          </div>
+
+          {/* Name + expiry */}
+          <div className="flex-1 min-w-0">
+            <h3 className={`font-semibold text-[15px] tracking-tight truncate ${trial.is_cancelled ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+              {trial.name}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${urgencyBg} ${urgencyColor}`}>
+                {urgencyText}
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {trial.cancel_url && !trial.is_cancelled && (
+              <motion.a
+                whileTap={{ scale: 0.9 }}
+                href={trial.cancel_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-secondary/60 flex items-center justify-center"
+                onClick={e => e.stopPropagation()}
+              >
+                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+              </motion.a>
+            )}
+            {!trial.is_cancelled && (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => {
+                  haptic(20);
+                  cancelTrial(trial.id);
+                  toast.success('Trial marked as cancelled');
+                }}
+                className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center"
+              >
+                <XCircle className="w-4 h-4 text-primary" />
+              </motion.button>
+            )}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => {
+                haptic(20);
+                deleteTrial(trial.id);
+                toast.success('Trial deleted');
+              }}
+              className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center"
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderTrialsContent = () => {
+    if (!isPremium) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-20"
+        >
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+            <Crown className="w-7 h-7 text-primary" />
+          </div>
+          <p className="text-foreground font-semibold text-base">Premium Feature</p>
+          <p className="text-muted-foreground/50 text-sm mt-1.5 max-w-[240px] mx-auto">
+            Track your free trials and get reminders before they expire
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => toast('Upgrade to Premium for Free Trial Tracking', { icon: '👑' })}
+            className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/25"
+          >
+            <Crown className="w-4 h-4" /> Unlock Premium
+          </motion.button>
+        </motion.div>
+      );
+    }
+
+    if (trialsLoading && trials.length === 0) {
+      return <PaymentCardSkeleton count={3} />;
+    }
+
+    if (trials.length === 0) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-20"
+        >
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-card mb-4">
+            <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
+              <Timer className="w-7 h-7 text-muted-foreground/40" />
+            </motion.div>
+          </div>
+          <p className="text-foreground font-semibold text-base">No free trials</p>
+          <p className="text-muted-foreground/50 text-sm mt-1.5 max-w-[240px] mx-auto">
+            Add a free trial to track when it expires
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setTrialSheetOpen(true)}
+            className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/25"
+          >
+            <Plus className="w-4 h-4" /> Add Trial
+          </motion.button>
+        </motion.div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {activeTrials.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-3 mt-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[1px] text-muted-foreground/60">Active</span>
+              <div className="flex-1 h-px bg-border/20" />
+              <span className="text-[11px] text-muted-foreground/40">{activeTrials.length}</span>
+            </div>
+            <div className="space-y-2">
+              <AnimatePresence mode="popLayout">
+                {activeTrials.map((t, i) => renderTrialCard(t, i))}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+        {cancelledTrials.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-3 mt-4">
+              <span className="text-[11px] font-semibold uppercase tracking-[1px] text-muted-foreground/40">Cancelled</span>
+              <div className="flex-1 h-px bg-border/20" />
+              <span className="text-[11px] text-muted-foreground/40">{cancelledTrials.length}</span>
+            </div>
+            <div className="space-y-2">
+              <AnimatePresence mode="popLayout">
+                {cancelledTrials.map((t, i) => renderTrialCard(t, i))}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <PageTransition>
       <Confetti trigger={confettiTrigger} />
@@ -363,7 +578,6 @@ export default function Schedule() {
             Total Upcoming
           </p>
           <div className="relative inline-block">
-            {/* Red glow aura behind total */}
             <div
               className="absolute -inset-4 rounded-3xl opacity-20 blur-2xl pointer-events-none"
               style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)) 0%, transparent 70%)' }}
@@ -515,12 +729,19 @@ export default function Schedule() {
           <div className="relative flex rounded-xl p-[3px] bg-card">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id;
-              const count = tab.id === 'upcoming' ? unpaid.length : tab.id === 'paid' ? paid.length : 0;
+              const count = tab.id === 'upcoming' ? unpaid.length : tab.id === 'paid' ? paid.length : tab.id === 'trials' ? activeTrials.length : 0;
               return (
                 <motion.button
                   key={tab.id}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => { setActiveTab(tab.id); haptic(15); }}
+                  onClick={() => {
+                    if (tab.id === 'trials' && !isPremium) {
+                      toast('Upgrade to Premium for Free Trial Tracking', { icon: '👑' });
+                      return;
+                    }
+                    setActiveTab(tab.id);
+                    haptic(15);
+                  }}
                   className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-[13px] font-semibold transition-colors z-10 ${isActive ? 'text-foreground' : 'text-muted-foreground/50'}`}
                 >
                   {isActive && (
@@ -532,7 +753,7 @@ export default function Schedule() {
                   )}
                   <span className="relative flex items-center gap-1.5">
                     {tab.label}
-                    {tab.premium && !isPremium && <Crown className="w-3 h-3 text-primary" />}
+                    {tab.premium && <Crown className="w-3 h-3 text-primary" />}
                     {count > 0 && (
                       <span className={`text-[10px] min-w-[16px] text-center px-1 py-px rounded-full font-semibold ${isActive ? 'bg-primary/15 text-primary' : 'bg-muted/50 text-muted-foreground/40'}`}>
                         {count}
@@ -546,7 +767,7 @@ export default function Schedule() {
         </motion.div>
 
         {/* ━━━ CATEGORY FILTER (text-only scroll row) ━━━ */}
-        {usedCategories.length > 1 && (
+        {activeTab !== 'trials' && usedCategories.length > 1 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -578,19 +799,15 @@ export default function Schedule() {
 
         {/* ━━━ CONTENT ━━━ */}
         <AnimatePresence mode="wait">
-          {activeTab === 'calendar' ? (
+          {activeTab === 'trials' ? (
             <motion.div
-              key="calendar"
+              key="trials"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              <PaymentCalendar
-                payments={payments}
-                isPremium={isPremium}
-                onUpgrade={() => toast('Upgrade to Premium for Calendar View', { icon: '👑' })}
-              />
+              {renderTrialsContent()}
             </motion.div>
           ) : (
             <motion.div
@@ -667,19 +884,88 @@ export default function Schedule() {
         </AnimatePresence>
 
         {/* ━━━ FAB ━━━ */}
-        {activeTab === 'upcoming' && !sheetOpen && (
+        {(activeTab === 'upcoming' || activeTab === 'trials') && !sheetOpen && !trialSheetOpen && (
           <motion.button
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
             whileTap={{ scale: 0.85, rotate: 90 }}
             transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-            onClick={() => { setEditing(null); setSheetOpen(true); haptic(20); }}
+            onClick={() => {
+              haptic(20);
+              if (activeTab === 'trials') {
+                // Directly open trial sheet when on trials tab
+                setTrialSheetOpen(true);
+              } else {
+                setFabPickerOpen(true);
+              }
+            }}
             className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center z-[60] shadow-xl shadow-primary/30"
           >
             <Plus className="w-7 h-7" strokeWidth={2.5} />
           </motion.button>
         )}
+
+        {/* ━━━ FAB TYPE PICKER ━━━ */}
+        <AnimatePresence>
+          {fabPickerOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[65]"
+                onClick={() => setFabPickerOpen(false)}
+              />
+              <motion.div
+                initial={{ y: 40, opacity: 0, scale: 0.9 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 40, opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="fixed bottom-36 right-5 z-[66] w-56"
+              >
+                <div className="bg-card rounded-2xl shadow-2xl shadow-black/30 overflow-hidden border border-border/30">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      setFabPickerOpen(false);
+                      setEditing(null);
+                      setSheetOpen(true);
+                      haptic(15);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <CreditCard className="w-4.5 h-4.5 text-primary" />
+                    </div>
+                    Regular Payment
+                  </motion.button>
+                  <div className="h-px bg-border/30 mx-4" />
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      setFabPickerOpen(false);
+                      if (!isPremium) {
+                        toast('Upgrade to Premium for Free Trial Tracking', { icon: '👑' });
+                        return;
+                      }
+                      setTrialSheetOpen(true);
+                      haptic(15);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                      <Timer className="w-4.5 h-4.5 text-orange-500" />
+                    </div>
+                    <span className="flex-1 text-left">Free Trial</span>
+                    <Crown className="w-3.5 h-3.5 text-primary" />
+                  </motion.button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         <AddPaymentSheet
           open={sheetOpen}
@@ -687,6 +973,12 @@ export default function Schedule() {
           onSubmit={handleSubmit}
           editing={editing}
           recentPayments={payments}
+        />
+
+        <AddTrialSheet
+          open={trialSheetOpen}
+          onClose={() => setTrialSheetOpen(false)}
+          onSubmit={handleTrialSubmit}
         />
 
         {/* Clear Paid Confirmation */}
