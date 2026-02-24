@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, useSpring, PanInfo, AnimatePresence } from 'framer-motion';
-import { Check, Pencil, Trash2, RotateCw, Undo2, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Check, Pencil, Trash2, RotateCw, Undo2, CheckCircle2, ChevronRight, ChevronLeft, Receipt } from 'lucide-react';
 import { differenceInDays, parseISO, format, isToday, isTomorrow, isYesterday } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -15,6 +15,8 @@ interface Props {
   onEdit: (payment: Payment) => void;
   onDelete: (id: string) => void;
   isPaidTab?: boolean;
+  receiptData?: { confirmationNumber?: string; receiptImage?: string };
+  onReceiptTap?: (paymentId: string) => void;
 }
 
 function getRelativeDate(dateStr: string): string {
@@ -81,7 +83,7 @@ function DaysRing({ payment }: { payment: Payment }) {
   );
 }
 
-export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab }: Props) {
+export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab, receiptData, onReceiptTap }: Props) {
   const { format: formatCurrency } = useCurrency();
   const rawX = useMotionValue(0);
   const x = useSpring(rawX, { stiffness: 500, damping: 35 });
@@ -121,6 +123,8 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
 
   const category = getCategoryById(payment.category || 'other');
   const CategoryIcon = category.icon;
+  const isFreeTrial = payment.category === 'free_trial';
+  const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
 
   useEffect(() => {
     const unsubscribe = rawX.on('change', (v) => {
@@ -265,7 +269,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         style={{ x: rawX, scale: cardScale, boxShadow: cardShadow, borderLeft: `3px solid ${category.color}30` }}
         whileTap={{ scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-        className="relative glass-card px-4 py-3.5 cursor-grab active:cursor-grabbing"
+        className={`relative glass-card px-4 py-3.5 cursor-grab active:cursor-grabbing ${isFreeTrial && !payment.is_paid ? 'free-trial-pulse' : ''}`}
       >
         {/* Swipe hint arrows (first-time only) */}
         <AnimatePresence>
@@ -335,6 +339,19 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
             }`}>
               {formatCurrency(Number(payment.amount))}
             </span>
+            {isFreeTrial && !payment.is_paid && daysLeft >= 0 && daysLeft <= 14 && (
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-[hsl(25,95%,53%)]/15 text-[hsl(25,95%,53%)]">
+                {daysLeft === 0 ? 'Ends today' : `Ends in ${daysLeft}d`}
+              </span>
+            )}
+            {isPaidTab && receiptData && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onReceiptTap?.(payment.id); }}
+                className="p-1 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
+              >
+                <Receipt className="w-3.5 h-3.5 text-primary" />
+              </button>
+            )}
             <DaysRing payment={payment} />
           </div>
         </div>

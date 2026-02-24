@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, Bell, RotateCw, Zap, HelpCircle } from 'lucide-react';
+import { X, CalendarDays, Bell, RotateCw, Zap, HelpCircle, Globe, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -33,6 +33,10 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
   const [notes, setNotes] = useState('');
   const [isVariableAmount, setIsVariableAmount] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [isShared, setIsShared] = useState(false);
+  const [totalAmount, setTotalAmount] = useState('');
+  const [userShareAmount, setUserShareAmount] = useState('');
 
   // Quick-add: last 3 unique payment names (not editing mode)
   const quickAddItems = useMemo(() => {
@@ -60,6 +64,10 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
       setCategory(editing.category || 'other');
       setNotes(editing.notes || '');
       setIsVariableAmount(editing.amount === 0);
+      setPaymentUrl(editing.paymentUrl || '');
+      setIsShared(editing.isShared || false);
+      setTotalAmount(editing.totalAmount ? String(editing.totalAmount) : '');
+      setUserShareAmount(editing.userShareAmount ? String(editing.userShareAmount) : '');
     } else {
       setName('');
       setAmount('');
@@ -69,6 +77,10 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
       setCategory('other');
       setNotes('');
       setIsVariableAmount(false);
+      setPaymentUrl('');
+      setIsShared(false);
+      setTotalAmount('');
+      setUserShareAmount('');
     }
   }, [editing, open]);
 
@@ -82,15 +94,20 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const finalAmount = isVariableAmount ? 0 : isShared ? (parseFloat(userShareAmount) || 0) : (parseFloat(amount) || 0);
     onSubmit({
       name,
-      amount: isVariableAmount ? 0 : (parseFloat(amount) || 0),
+      amount: finalAmount,
       due_date: format(dueDate, 'yyyy-MM-dd'),
       is_paid: editing?.is_paid ?? false,
       reminder_days: parseInt(reminderDays) || 3,
       is_recurring: isRecurring,
       category,
       notes: notes.trim(),
+      paymentUrl: paymentUrl.trim() || undefined,
+      isShared: isShared || undefined,
+      totalAmount: isShared ? (parseFloat(totalAmount) || 0) : undefined,
+      userShareAmount: isShared ? (parseFloat(userShareAmount) || 0) : undefined,
     });
     onClose();
   };
@@ -186,39 +203,113 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
                   />
                 </div>
 
-                {/* Amount */}
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground/50">
-                    {currency.symbol}
+                {/* Amount - Standard or Split */}
+                {!isShared ? (
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground/50">
+                      {currency.symbol}
+                    </div>
+                    <Input
+                      type="number"
+                      value={amount}
+                      onChange={e => setAmount(e.target.value)}
+                      placeholder="0.00"
+                      required={!isVariableAmount}
+                      className="h-16 text-3xl font-bold bg-secondary/50 border-0 rounded-2xl pl-12 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary transition-shadow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
                   </div>
-                  <Input
-                    type="number"
-                    value={amount}
-                    onChange={e => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    required
-                    className="h-16 text-3xl font-bold bg-secondary/50 border-0 rounded-2xl pl-12 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary transition-shadow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Total Bill Amount</label>
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-muted-foreground/50">
+                          {currency.symbol}
+                        </div>
+                        <Input
+                          type="number"
+                          value={totalAmount}
+                          onChange={e => setTotalAmount(e.target.value)}
+                          placeholder="0.00"
+                          required
+                          className="h-14 text-2xl font-bold bg-secondary/50 border-0 rounded-2xl pl-10 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary transition-shadow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">My Share</label>
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-primary/60">
+                          {currency.symbol}
+                        </div>
+                        <Input
+                          type="number"
+                          value={userShareAmount}
+                          onChange={e => setUserShareAmount(e.target.value)}
+                          placeholder="0.00"
+                          required
+                          className="h-14 text-2xl font-bold bg-secondary/50 border-0 rounded-2xl pl-10 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary transition-shadow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Shared Bill Toggle */}
+                <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-card-foreground">Shared Bill</p>
+                      <p className="text-xs text-muted-foreground">Split with roommates</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isShared}
+                    onCheckedChange={(v) => {
+                      setIsShared(v);
+                      if (!v) { setTotalAmount(''); setUserShareAmount(''); }
+                    }}
                   />
                 </div>
 
                 {/* Variable Amount Toggle */}
-                <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-status-warning/15 flex items-center justify-center">
-                      <HelpCircle className="w-4 h-4 text-status-warning" />
+                {!isShared && (
+                  <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-status-warning/15 flex items-center justify-center">
+                        <HelpCircle className="w-4 h-4 text-status-warning" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-card-foreground">Variable Amount</p>
+                        <p className="text-xs text-muted-foreground">Set amount later</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-card-foreground">Variable Amount</p>
-                      <p className="text-xs text-muted-foreground">Set amount later</p>
-                    </div>
+                    <Switch
+                      checked={isVariableAmount}
+                      onCheckedChange={(v) => {
+                        setIsVariableAmount(v);
+                        if (v) setAmount('');
+                      }}
+                    />
                   </div>
-                  <Switch
-                    checked={isVariableAmount}
-                    onCheckedChange={(v) => {
-                      setIsVariableAmount(v);
-                      if (v) setAmount('');
-                    }}
-                  />
+                )}
+
+                {/* Payment Website URL */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Payment Website (optional)</label>
+                  <div className="relative">
+                    <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                    <Input
+                      type="url"
+                      value={paymentUrl}
+                      onChange={e => setPaymentUrl(e.target.value)}
+                      placeholder="https://pay.example.com"
+                      className="h-12 bg-secondary/50 border-0 rounded-xl pl-10 text-sm focus-visible:ring-1 focus-visible:ring-primary transition-shadow"
+                    />
+                  </div>
                 </div>
 
                 {/* Divider */}

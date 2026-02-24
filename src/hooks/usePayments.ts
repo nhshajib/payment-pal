@@ -14,6 +14,13 @@ export interface Payment {
   category: string;
   notes: string;
   created_at: string;
+  // Frontend-only optional fields
+  paymentUrl?: string;
+  isShared?: boolean;
+  totalAmount?: number;
+  userShareAmount?: number;
+  confirmationNumber?: string;
+  receiptImage?: string;
 }
 
 export function usePayments(userId: string | null) {
