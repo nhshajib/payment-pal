@@ -753,7 +753,7 @@ export default function Schedule() {
                   )}
                   <span className="relative flex items-center gap-1.5">
                     {tab.label}
-                    {tab.premium && <Crown className="w-3 h-3 text-primary" />}
+                    {tab.premium && !isPremium && <Crown className="w-3 h-3 text-primary" />}
                     {count > 0 && (
                       <span className={`text-[10px] min-w-[16px] text-center px-1 py-px rounded-full font-semibold ${isActive ? 'bg-primary/15 text-primary' : 'bg-muted/50 text-muted-foreground/40'}`}>
                         {count}
@@ -959,7 +959,7 @@ export default function Schedule() {
                       <Timer className="w-4.5 h-4.5 text-orange-500" />
                     </div>
                     <span className="flex-1 text-left">Free Trial</span>
-                    <Crown className="w-3.5 h-3.5 text-primary" />
+                    {!isPremium && <Crown className="w-3.5 h-3.5 text-primary" />}
                   </motion.button>
                 </div>
               </motion.div>
