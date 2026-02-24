@@ -22,47 +22,62 @@ const queryClient = new QueryClient();
 /* ─── Cinematic Splash Screen ─── */
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2800);
+    const timer = setTimeout(onComplete, 3200);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
   return (
     <motion.div
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background overflow-hidden"
-      exit={{ opacity: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
     >
-      {/* Subtle radial glow behind illustration */}
+      {/* Ambient glow rings */}
       <motion.div
-        className="absolute w-[400px] h-[400px] rounded-full"
+        className="absolute rounded-full"
         style={{
-          background: "radial-gradient(circle, hsl(var(--primary) / 0.12) 0%, transparent 70%)",
+          width: 500,
+          height: 500,
+          background: "radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 65%)",
         }}
         initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1.8, opacity: 1 }}
-        transition={{ duration: 1.4, ease: "easeOut" }}
+        animate={{ scale: 2, opacity: 1 }}
+        transition={{ duration: 2, ease: "easeOut" }}
       />
 
-      {/* Illustration */}
+      {/* Illustration in a themed card-like container */}
       <motion.div
-        className="relative z-10 mb-6"
-        initial={{ opacity: 0, scale: 0.7, y: 20 }}
+        className="relative z-10 mb-8 rounded-[28px] p-5 flex items-center justify-center"
+        style={{
+          background: "hsl(var(--card) / 0.6)",
+          border: "1px solid hsl(var(--border) / 0.5)",
+          boxShadow: "0 8px 40px hsl(var(--primary) / 0.08), 0 0 0 1px hsl(var(--border) / 0.3)",
+        }}
+        initial={{ opacity: 0, scale: 0.6, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.7, type: "spring", stiffness: 180, damping: 22 }}
+        transition={{ delay: 0.1, duration: 0.8, type: "spring", stiffness: 160, damping: 20 }}
       >
-        <img
+        {/* Subtle float/bounce loop */}
+        <motion.img
           src={revenueGif}
           alt="PayTrack illustration"
-          className="w-40 h-40 object-contain"
+          className="w-52 h-52 object-contain"
+          style={{ filter: "saturate(0.85) brightness(1.05)" }}
+          animate={{ y: [0, -6, 0] }}
+          transition={{
+            duration: 2.4,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
       </motion.div>
 
       {/* Logo */}
       <motion.h1
-        className="relative z-10 text-4xl font-extrabold tracking-tight"
-        initial={{ opacity: 0, y: 14 }}
+        className="relative z-10 text-5xl font-extrabold tracking-tight"
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.5, type: "spring", stiffness: 200, damping: 24 }}
+        transition={{ delay: 0.55, duration: 0.5, type: "spring", stiffness: 200, damping: 24 }}
       >
         <span className="text-foreground">Pay</span>
         <span className="text-primary">Track</span>
@@ -70,26 +85,26 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
 
       {/* Tagline */}
       <motion.p
-        className="relative z-10 text-muted-foreground text-sm mt-1.5 tracking-wide"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.75, duration: 0.4 }}
+        className="relative z-10 text-muted-foreground text-xs mt-2 tracking-[0.15em] uppercase font-medium"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.85, duration: 0.5 }}
       >
         Never miss a payment
       </motion.p>
 
       {/* Loading bar */}
       <motion.div
-        className="relative z-10 mt-10 h-[3px] rounded-full bg-muted overflow-hidden"
+        className="relative z-10 mt-12 h-[2.5px] rounded-full bg-border overflow-hidden"
         initial={{ width: 0, opacity: 0 }}
-        animate={{ width: 140, opacity: 1 }}
-        transition={{ delay: 0.9, duration: 0.3 }}
+        animate={{ width: 160, opacity: 1 }}
+        transition={{ delay: 1.1, duration: 0.3 }}
       >
         <motion.div
           className="h-full rounded-full bg-primary"
           initial={{ width: "0%" }}
           animate={{ width: "100%" }}
-          transition={{ delay: 1.0, duration: 1.6, ease: [0.25, 0.1, 0.25, 1] }}
+          transition={{ delay: 1.2, duration: 1.8, ease: [0.22, 0.68, 0.36, 1] }}
         />
       </motion.div>
     </motion.div>
