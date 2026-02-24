@@ -21,6 +21,7 @@ import {
   Target, Settings2, Eye, Database, Info, Users, Copy, UserPlus, Clock3,
 } from 'lucide-react';
 import { useRoommates } from '@/hooks/useRoommates';
+import { usePaydays } from '@/hooks/usePaydays';
 import { hashPhone } from '@/lib/hash';
 import { useTheme } from '@/hooks/useTheme';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -261,6 +262,8 @@ export default function Settings() {
   const [notifStatus, setNotifStatus] = useState(getNotificationStatus());
   const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
   const [tempBudget, setTempBudget] = useState('');
+  const { payDays, updatePayDays } = usePaydays();
+  const [tempPayDays, setTempPayDays] = useState<number[]>(payDays);
 
   useEffect(() => {
     if (!userId) return;
@@ -497,6 +500,13 @@ export default function Settings() {
           title="Monthly Budget"
           value={isPremium ? (monthlyBudget ? `${monthlyBudget}` : 'Not set') : 'Premium'}
           onClick={() => { if (!isPremium) { setActiveModal('premium'); return; } setTempBudget(monthlyBudget ? String(monthlyBudget) : ''); setActiveModal('budget'); }}
+        />
+        <IOSRow
+          icon={<CalendarDays className="w-[14px] h-[14px]" />}
+          iconColor="#3b82f6"
+          title="Payday Dates"
+          value={payDays.map(d => ordinal(d)).join(', ')}
+          onClick={() => { setTempPayDays([...payDays]); setActiveModal('paydays'); }}
           isLast
         />
       </IOSSection>
@@ -1154,6 +1164,42 @@ export default function Settings() {
                 <Send className="w-4 h-4 mr-2" />🧪 Test Notification
               </Button>
             </motion.div>
+          </div>
+        </SettingsModal>
+
+        {/* Payday Dates Modal */}
+        <SettingsModal open={activeModal === 'paydays'} onClose={close} title="Payday Dates" onSave={() => {
+          updatePayDays(tempPayDays);
+          toast.success(`Paydays set to ${tempPayDays.map(d => ordinal(d)).join(' & ')}`);
+          close();
+        }} saveDisabled={tempPayDays.length === 0}>
+          <div className="space-y-5">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-blue-500/10 border border-blue-500/20 mb-4">
+                <CalendarDays className="w-8 h-8 text-blue-500" />
+              </div>
+              <p className="text-sm text-muted-foreground">Select the days of the month you get paid. This powers the Paycheck Survival card on the Insights page.</p>
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {Array.from({ length: 28 }, (_, i) => i + 1).map(d => {
+                const active = tempPayDays.includes(d);
+                return (
+                  <motion.button
+                    key={d}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setTempPayDays(prev => active ? prev.filter(x => x !== d) : [...prev, d])}
+                    className={`h-10 rounded-lg text-sm font-semibold transition-all ${active ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25' : 'bg-secondary/50 text-muted-foreground'}`}
+                  >
+                    {d}
+                  </motion.button>
+                );
+              })}
+            </div>
+            {tempPayDays.length > 0 && (
+              <p className="text-xs text-center text-muted-foreground">
+                Selected: {[...tempPayDays].sort((a, b) => a - b).map(d => ordinal(d)).join(', ')}
+              </p>
+            )}
           </div>
         </SettingsModal>
 
