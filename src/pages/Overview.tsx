@@ -26,7 +26,6 @@ export default function Overview() {
 
   const unpaid = useMemo(() => payments.filter(p => !p.is_paid), [payments]);
 
-  // Paycheck Survival
   const paycheckSummary = useMemo(() => {
     if (!nextPayday) return null;
     const bills = unpaid.filter(p => !isAfter(parseISO(p.due_date), nextPayday));
@@ -37,10 +36,7 @@ export default function Overview() {
     return { count: bills.length, total, date: nextPayday };
   }, [nextPayday, unpaid]);
 
-  // Active Free Trials
   const activeTrials = useMemo(() => trials.filter(t => !t.is_cancelled), [trials]);
-
-  // Shared Bills
   const sharedBills = useMemo(() => unpaid.filter(p => p.is_shared), [unpaid]);
 
   const stagger = (i: number) => ({ delay: 0.06 + i * 0.04 });
@@ -70,13 +66,13 @@ export default function Overview() {
           className="mb-8"
         >
           <div className="flex items-center gap-2 mb-4 ml-1">
-            <Banknote className="w-4 h-4 text-primary" />
+            <Banknote className="w-4 h-4 text-muted-foreground/60" />
             <span className="text-[11px] font-semibold uppercase tracking-[1px] text-muted-foreground/60">
               Paycheck Survival
             </span>
           </div>
 
-          <div className="rounded-2xl bg-card p-5">
+          <div className="rounded-2xl mono-card p-5">
             {paycheckSummary ? (
               <>
                 <div className="flex items-start justify-between">
@@ -88,20 +84,14 @@ export default function Overview() {
                       {format(paycheckSummary.date, 'EEEE, MMM d')}
                     </p>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Banknote className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 rounded-xl mono-card-solid flex items-center justify-center flex-shrink-0">
+                    <Banknote className="w-5 h-5 text-muted-foreground" />
                   </div>
                 </div>
-                <div className="mt-5 pt-4 border-t border-border/10">
-                  <div className="relative inline-block">
-                    <div
-                      className="absolute -inset-3 rounded-2xl opacity-15 blur-xl pointer-events-none"
-                      style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)) 0%, transparent 70%)' }}
-                    />
-                    <p className="text-3xl font-extrabold tracking-tight text-foreground relative">
-                      {formatCurrency(paycheckSummary.total)}
-                    </p>
-                  </div>
+                <div className="mt-5 pt-4 border-t border-border/30">
+                  <p className="text-3xl font-extrabold tracking-tight text-foreground">
+                    {formatCurrency(paycheckSummary.total)}
+                  </p>
                   <p className="text-[13px] text-muted-foreground/50 mt-1.5">
                     due before your next paycheck
                     <span className="text-muted-foreground/30"> · </span>
@@ -133,17 +123,17 @@ export default function Overview() {
         >
           <div className="flex items-center justify-between mb-4 ml-1">
             <div className="flex items-center gap-2">
-              <Timer className="w-4 h-4 text-primary" />
+              <Timer className="w-4 h-4 text-muted-foreground/60" />
               <span className="text-[11px] font-semibold uppercase tracking-[1px] text-muted-foreground/60">
                 Active Free Trials
               </span>
-              <Crown className="w-3 h-3 text-primary" />
+              {!isPremium && <Crown className="w-3 h-3 text-primary" />}
             </div>
             {activeTrials.length > 0 && (
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate('/schedule')}
-                className="flex items-center gap-1 text-[11px] font-semibold text-primary"
+                className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground/60"
               >
                 See All <ChevronRight className="w-3 h-3" />
               </motion.button>
@@ -151,21 +141,21 @@ export default function Overview() {
           </div>
 
           {!isPremium ? (
-            <div className="rounded-2xl bg-card p-5 text-center">
+            <div className="rounded-2xl mono-card p-5 text-center">
               <Crown className="w-6 h-6 text-primary mx-auto mb-2" />
               <p className="text-sm font-semibold text-foreground">Premium Feature</p>
               <p className="text-xs text-muted-foreground/50 mt-1">Track free trials & get expiry alerts</p>
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => toast('Upgrade to Premium for Free Trial Tracking', { icon: '👑' })}
-                className="mt-3 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-lg shadow-primary/25"
+                className="mt-3 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
               >
                 Unlock Premium
               </motion.button>
             </div>
           ) : activeTrials.length === 0 ? (
-            <div className="rounded-2xl bg-card p-5 text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-card mb-3">
+            <div className="rounded-2xl mono-card p-5 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mono-card-solid mb-3">
                 <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
                   <Sparkles className="w-5 h-5 text-muted-foreground/30" />
                 </motion.div>
@@ -177,8 +167,8 @@ export default function Overview() {
               {activeTrials.slice(0, 5).map((trial, i) => {
                 const daysLeft = differenceInDays(parseISO(trial.expires_on), new Date());
                 const isExpired = daysLeft < 0;
-                const urgencyColor = isExpired ? 'text-primary' : daysLeft <= 3 ? 'text-primary' : daysLeft <= 7 ? 'text-yellow-500' : 'text-emerald-500';
-                const urgencyBg = isExpired ? 'bg-primary/15' : daysLeft <= 3 ? 'bg-primary/15' : daysLeft <= 7 ? 'bg-yellow-500/10' : 'bg-emerald-500/10';
+                const urgencyText = isExpired ? `Expired ${Math.abs(daysLeft)}d ago` : daysLeft === 0 ? 'Expires today' : `${daysLeft}d left`;
+                const isUrgent = isExpired || daysLeft <= 3;
 
                 return (
                   <motion.div
@@ -186,14 +176,14 @@ export default function Overview() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="flex-shrink-0 w-44 rounded-2xl bg-card p-4"
+                    className="flex-shrink-0 w-44 rounded-2xl mono-card p-4"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center mb-3">
-                      <Timer className="w-4 h-4 text-orange-500" />
+                    <div className="w-9 h-9 rounded-xl mono-card-solid flex items-center justify-center mb-3">
+                      <Timer className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <h3 className="text-sm font-semibold text-foreground truncate mb-2">{trial.name}</h3>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${urgencyBg} ${urgencyColor}`}>
-                      {isExpired ? `Expired ${Math.abs(daysLeft)}d ago` : daysLeft === 0 ? 'Expires today' : `${daysLeft}d left`}
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isUrgent ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                      {urgencyText}
                     </span>
                     <div className="flex gap-1.5 mt-3">
                       {trial.cancel_url && (
@@ -202,7 +192,7 @@ export default function Overview() {
                           href={trial.cancel_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-7 h-7 rounded-lg bg-secondary/60 flex items-center justify-center"
+                          className="w-7 h-7 rounded-lg mono-card-solid flex items-center justify-center"
                           onClick={e => e.stopPropagation()}
                         >
                           <ExternalLink className="w-3 h-3 text-muted-foreground" />
@@ -211,16 +201,16 @@ export default function Overview() {
                       <motion.button
                         whileTap={{ scale: 0.9 }}
                         onClick={() => { haptic(20); cancelTrial(trial.id); toast.success('Cancelled'); }}
-                        className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center"
+                        className="w-7 h-7 rounded-lg mono-card-solid flex items-center justify-center"
                       >
-                        <XCircle className="w-3 h-3 text-primary" />
+                        <XCircle className="w-3 h-3 text-muted-foreground" />
                       </motion.button>
                       <motion.button
                         whileTap={{ scale: 0.9 }}
                         onClick={() => { haptic(20); deleteTrial(trial.id); toast.success('Deleted'); }}
-                        className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center"
+                        className="w-7 h-7 rounded-lg mono-card-solid flex items-center justify-center"
                       >
-                        <Trash2 className="w-3 h-3 text-destructive" />
+                        <Trash2 className="w-3 h-3 text-muted-foreground" />
                       </motion.button>
                     </div>
                   </motion.div>
@@ -238,15 +228,15 @@ export default function Overview() {
           className="mb-8"
         >
           <div className="flex items-center gap-2 mb-4 ml-1">
-            <Users className="w-4 h-4 text-primary" />
+            <Users className="w-4 h-4 text-muted-foreground/60" />
             <span className="text-[11px] font-semibold uppercase tracking-[1px] text-muted-foreground/60">
               Shared Bills
             </span>
           </div>
 
           {sharedBills.length === 0 ? (
-            <div className="rounded-2xl bg-card p-5 text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-card mb-3">
+            <div className="rounded-2xl mono-card p-5 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mono-card-solid mb-3">
                 <Users className="w-5 h-5 text-muted-foreground/30" />
               </div>
               <p className="text-sm text-muted-foreground/50">No shared bills yet</p>
@@ -266,10 +256,10 @@ export default function Overview() {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
-                      className="rounded-2xl bg-card px-4 py-4 flex items-center gap-3.5"
+                      className="rounded-2xl mono-card px-4 py-4 flex items-center gap-3.5"
                     >
-                      <div className="w-11 h-11 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                        <Users className="w-[18px] h-[18px] text-blue-500" />
+                      <div className="w-11 h-11 rounded-full mono-card-solid flex items-center justify-center flex-shrink-0">
+                        <Users className="w-[18px] h-[18px] text-muted-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-[15px] tracking-tight text-foreground truncate">
@@ -297,14 +287,14 @@ export default function Overview() {
           )}
         </motion.section>
 
-        {/* ━━━ EMPTY STATE (when nothing to show) ━━━ */}
+        {/* ━━━ EMPTY STATE ━━━ */}
         {!paycheckSummary && activeTrials.length === 0 && sharedBills.length === 0 && unpaid.length === 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-16"
           >
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-card mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mono-card mb-4">
               <Sparkles className="w-7 h-7 text-muted-foreground/40" />
             </div>
             <p className="text-foreground font-semibold text-base">All clear!</p>

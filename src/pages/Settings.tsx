@@ -113,8 +113,8 @@ function IOSSection({ label, children, index = 0 }: { label: string; children: R
       transition={{ delay: index * 0.06, type: 'spring', stiffness: 300, damping: 28 }}
       className="mb-8"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.8px] mb-2 ml-4 text-neutral-500">{label}</p>
-      <div className="rounded-2xl overflow-hidden bg-neutral-900/50">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.8px] mb-2 ml-4 text-muted-foreground">{label}</p>
+      <div className="rounded-2xl overflow-hidden mono-card">
         {children}
       </div>
     </motion.div>
@@ -131,13 +131,13 @@ function IOSRow({
 }) {
   const content = (
     <div className="flex items-center gap-3.5 px-4" style={{ minHeight: '48px' }}>
-      <span className="flex-shrink-0 text-neutral-400 flex">{icon}</span>
+      <span className="flex-shrink-0 text-muted-foreground flex">{icon}</span>
       <div className="flex-1 flex items-center justify-between min-w-0 py-[13px]">
-        <p className={`text-[16px] font-medium tracking-[-0.2px] ${destructive ? 'text-[#E50914]' : 'text-white'}`}>{title}</p>
+        <p className={`text-[16px] font-medium tracking-[-0.2px] ${destructive ? 'text-[#E50914]' : 'text-foreground'}`}>{title}</p>
         <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-          {value && <span className="text-[15px] tracking-[-0.2px] text-neutral-500">{value}</span>}
+          {value && <span className="text-[15px] tracking-[-0.2px] text-muted-foreground">{value}</span>}
           {rightElement}
-          {onClick && !rightElement && <ChevronRight className="w-4 h-4 text-neutral-600" />}
+          {onClick && !rightElement && <ChevronRight className="w-4 h-4 text-muted-foreground/50" />}
         </div>
       </div>
     </div>
@@ -152,7 +152,7 @@ function IOSRow({
       ) : (
         <div>{content}</div>
       )}
-      {!isLast && <div className="ml-[56px] mr-4 h-px bg-neutral-800" />}
+      {!isLast && <div className="ml-[56px] mr-4 h-px bg-border" />}
     </>
   );
 }
@@ -161,28 +161,27 @@ function IOSRow({
 function IOSAppearanceRow({ mode, theme, setMode }: { mode: 'light' | 'auto' | 'dark'; theme: 'light' | 'dark'; setMode: (m: 'light' | 'auto' | 'dark') => void }) {
   const opts = [
     { id: 'light' as const, label: 'Light', icon: Sun },
-    { id: 'auto' as const, label: 'Auto', icon: Monitor },
     { id: 'dark' as const, label: 'Dark', icon: Moon },
   ];
   return (
     <div className="px-4 py-3">
       <div className="flex items-center gap-3.5 mb-3">
-        <span className="text-neutral-400 flex">
+        <span className="text-muted-foreground flex">
           <AnimatePresence mode="wait">
             <motion.div key={theme} initial={{ rotate: -45, opacity: 0, scale: 0.6 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 45, opacity: 0, scale: 0.6 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} style={{ display: 'flex' }}>
               {theme === 'dark' ? <Moon className="w-[18px] h-[18px]" /> : <Sun className="w-[18px] h-[18px]" />}
             </motion.div>
           </AnimatePresence>
         </span>
-        <p className="text-[16px] font-medium tracking-[-0.2px] text-white">Appearance</p>
+        <p className="text-[16px] font-medium tracking-[-0.2px] text-foreground">Appearance</p>
       </div>
-      <div className="flex p-1 rounded-[10px] bg-neutral-800/60">
+      <div className="flex p-1 rounded-[10px] bg-muted">
         {opts.map(opt => {
           const Icon = opt.icon;
           const active = mode === opt.id;
           return (
-            <motion.button key={opt.id} whileTap={{ scale: 0.96 }} onClick={() => setMode(opt.id)} className={`relative flex-1 flex items-center justify-center gap-1.5 py-[7px] rounded-[8px] text-[13px] font-semibold z-10 transition-colors ${active ? 'text-white' : 'text-neutral-500'}`}>
-              {active && <motion.div layoutId="appearance-thumb" className="absolute inset-0 rounded-[8px] bg-neutral-700 shadow-sm" transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }} />}
+            <motion.button key={opt.id} whileTap={{ scale: 0.96 }} onClick={() => setMode(opt.id)} className={`relative flex-1 flex items-center justify-center gap-1.5 py-[7px] rounded-[8px] text-[13px] font-semibold z-10 transition-colors ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {active && <motion.div layoutId="appearance-thumb" className="absolute inset-0 rounded-[8px] bg-card shadow-sm" transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }} />}
               <span className="relative z-10 flex items-center gap-1"><Icon className="w-3 h-3" />{opt.label}</span>
             </motion.button>
           );
@@ -199,11 +198,11 @@ function SubPageHeader({ title, onBack }: { title: string; onBack: () => void })
       <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={onBack}
-        className="w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center flex-shrink-0"
+        className="w-9 h-9 rounded-full bg-card flex items-center justify-center flex-shrink-0"
       >
-        <ChevronLeft className="w-5 h-5 text-white" />
+        <ChevronLeft className="w-5 h-5 text-foreground" />
       </motion.button>
-      <h1 className="font-bold text-white" style={{ fontSize: '28px', letterSpacing: '-0.4px', lineHeight: 1.1 }}>{title}</h1>
+      <h1 className="font-bold text-foreground" style={{ fontSize: '28px', letterSpacing: '-0.4px', lineHeight: 1.1 }}>{title}</h1>
     </div>
   );
 }
@@ -715,16 +714,16 @@ export default function Settings() {
         transition={{ delay: 0.02, type: 'spring', stiffness: 300, damping: 28 }}
         className="flex items-center gap-3.5 mb-10"
       >
-        <div className="w-14 h-14 rounded-full bg-neutral-800 flex items-center justify-center flex-shrink-0">
-          <span className="text-xl font-bold text-neutral-400">
+        <div className="w-14 h-14 rounded-full mono-card-solid flex items-center justify-center flex-shrink-0">
+          <span className="text-xl font-bold text-muted-foreground">
             {userName ? userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'}
           </span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-lg font-semibold text-white truncate">{userName || 'User'}</p>
+            <p className="text-lg font-semibold text-foreground truncate">{userName || 'User'}</p>
             {isPremium && (
-              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                 Premium
               </span>
             )}
@@ -803,7 +802,7 @@ export default function Settings() {
         transition={{ delay: 0.4 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => setActiveModal('about')}
-        className="text-[12px] text-center mt-2 w-full py-2 text-neutral-600"
+        className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground/50"
       >
         PayTrack v2.5
       </motion.button>

@@ -45,11 +45,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setMode = useCallback((m: ThemeMode) => setModeState(m), []);
 
   const toggleTheme = useCallback(() => {
-    setModeState(prev => {
-      if (prev === 'dark') return 'light';
-      if (prev === 'light') return 'auto';
-      return 'dark';
-    });
+    setModeState(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
 
   return createElement(

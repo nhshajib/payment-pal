@@ -365,23 +365,15 @@ export default function Schedule() {
     const isExpired = daysLeft < 0;
     const urgencyColor = trial.is_cancelled
       ? 'text-muted-foreground'
-      : isExpired
+      : isExpired || daysLeft <= 3
         ? 'text-primary'
-        : daysLeft <= 3
-          ? 'text-primary'
-          : daysLeft <= 7
-            ? 'text-yellow-500'
-            : 'text-emerald-500';
+        : 'text-muted-foreground';
 
     const urgencyBg = trial.is_cancelled
-      ? 'bg-muted/50'
-      : isExpired
+      ? 'bg-muted'
+      : isExpired || daysLeft <= 3
         ? 'bg-primary/10'
-        : daysLeft <= 3
-          ? 'bg-primary/10'
-          : daysLeft <= 7
-            ? 'bg-yellow-500/10'
-            : 'bg-emerald-500/10';
+        : 'bg-muted';
 
     const urgencyText = trial.is_cancelled
       ? 'Cancelled'
@@ -401,12 +393,12 @@ export default function Schedule() {
         animate={{ opacity: trial.is_cancelled ? 0.5 : 1, y: 0 }}
         exit={{ opacity: 0, x: -120, scale: 0.92 }}
         transition={{ delay: index * 0.03, type: 'spring', stiffness: 400, damping: 30 }}
-        className="rounded-2xl bg-card px-4 py-4"
+        className="rounded-2xl mono-card px-4 py-4"
       >
         <div className="flex items-center gap-3.5">
           {/* Icon */}
-          <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-500/15">
-            <Timer className="w-[18px] h-[18px] text-orange-500" />
+          <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 mono-card-solid">
+            <Timer className="w-[18px] h-[18px] text-muted-foreground" />
           </div>
 
           {/* Name + expiry */}
@@ -429,7 +421,7 @@ export default function Schedule() {
                 href={trial.cancel_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-xl bg-secondary/60 flex items-center justify-center"
+                className="w-9 h-9 rounded-xl mono-card-solid flex items-center justify-center"
                 onClick={e => e.stopPropagation()}
               >
                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -443,7 +435,7 @@ export default function Schedule() {
                   cancelTrial(trial.id);
                   toast.success('Trial marked as cancelled');
                 }}
-                className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center"
+                className="w-9 h-9 rounded-xl mono-card-solid flex items-center justify-center"
               >
                 <XCircle className="w-4 h-4 text-primary" />
               </motion.button>
@@ -455,7 +447,7 @@ export default function Schedule() {
                 deleteTrial(trial.id);
                 toast.success('Trial deleted');
               }}
-              className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center"
+              className="w-9 h-9 rounded-xl mono-card-solid flex items-center justify-center"
             >
               <Trash2 className="w-4 h-4 text-destructive" />
             </motion.button>
@@ -502,7 +494,7 @@ export default function Schedule() {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center py-20"
         >
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-card mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mono-card mb-4">
             <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
               <Timer className="w-7 h-7 text-muted-foreground/40" />
             </motion.div>
@@ -577,21 +569,15 @@ export default function Schedule() {
           <p className="text-[13px] font-medium text-muted-foreground/60 uppercase tracking-[1.5px] mb-1">
             Total Upcoming
           </p>
-          <div className="relative inline-block">
-            <div
-              className="absolute -inset-4 rounded-3xl opacity-20 blur-2xl pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)) 0%, transparent 70%)' }}
-            />
-            <motion.h1
-              key={totalUpcoming}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="text-5xl font-extrabold tracking-tight text-foreground leading-none relative"
-            >
-              {formatCurrency(totalUpcoming)}
-            </motion.h1>
-          </div>
+          <motion.h1
+            key={totalUpcoming}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="text-5xl font-extrabold tracking-tight text-foreground leading-none"
+          >
+            {formatCurrency(totalUpcoming)}
+          </motion.h1>
           <p className="text-[13px] text-muted-foreground/50 mt-2">
             {summary.unpaidCount} bill{summary.unpaidCount !== 1 ? 's' : ''} remaining
             {summary.overdueCount > 0 && (
@@ -614,7 +600,7 @@ export default function Schedule() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search"
-                className="w-full h-10 bg-card border-0 rounded-xl pl-10 pr-9 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all"
+                className="w-full h-10 mono-card border-0 rounded-xl pl-10 pr-9 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-border transition-all"
               />
               {searchQuery && (
                 <motion.button
@@ -629,7 +615,7 @@ export default function Schedule() {
             <motion.button
               whileTap={{ scale: 0.92 }}
               onClick={cycleSortMode}
-              className="h-10 px-3 rounded-xl bg-card flex items-center gap-1.5 flex-shrink-0"
+              className="h-10 px-3 rounded-xl mono-card flex items-center gap-1.5 flex-shrink-0"
             >
               <AnimatePresence mode="wait">
                 <motion.span
@@ -640,9 +626,9 @@ export default function Schedule() {
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="flex items-center gap-1.5"
                 >
-                  {sortMode === 'date' && <Clock className="w-3.5 h-3.5 text-primary" />}
-                  {sortMode === 'amount' && <ArrowDownUp className="w-3.5 h-3.5 text-primary" />}
-                  {sortMode === 'name' && <ArrowDownAZ className="w-3.5 h-3.5 text-primary" />}
+                  {sortMode === 'date' && <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
+                  {sortMode === 'amount' && <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" />}
+                  {sortMode === 'name' && <ArrowDownAZ className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="text-xs font-medium text-foreground">{SORT_LABELS[sortMode]}</span>
                 </motion.span>
               </AnimatePresence>
@@ -653,7 +639,7 @@ export default function Schedule() {
                 if (!isPremium) { toast('Upgrade to Premium for advanced filters', { icon: '👑' }); return; }
                 setShowFilters(!showFilters);
               }}
-              className="relative h-10 px-3 rounded-xl bg-card flex items-center gap-1.5 flex-shrink-0"
+              className="relative h-10 px-3 rounded-xl mono-card flex items-center gap-1.5 flex-shrink-0"
             >
               {!isPremium && <Crown className="w-3 h-3 text-primary" />}
               <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
@@ -676,7 +662,7 @@ export default function Schedule() {
               transition={{ type: 'spring', stiffness: 300, damping: 28 }}
               className="overflow-hidden mb-5"
             >
-              <div className="p-4 rounded-2xl bg-card space-y-4">
+              <div className="p-4 rounded-2xl mono-card space-y-4">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Date Range</p>
                   <div className="flex gap-2">
@@ -726,7 +712,7 @@ export default function Schedule() {
           transition={{ delay: 0.08 }}
           className="mb-5"
         >
-          <div className="relative flex rounded-xl p-[3px] bg-card">
+          <div className="relative flex rounded-xl p-[3px] mono-card">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               const count = tab.id === 'upcoming' ? unpaid.length : tab.id === 'paid' ? paid.length : tab.id === 'trials' ? activeTrials.length : 0;
@@ -747,7 +733,7 @@ export default function Schedule() {
                   {isActive && (
                     <motion.div
                       layoutId="scheduleTab"
-                      className="absolute inset-0 rounded-[10px] bg-secondary"
+                      className="absolute inset-0 rounded-[10px] mono-card-solid"
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   )}
@@ -825,7 +811,7 @@ export default function Schedule() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-center py-20"
                 >
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-card mb-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mono-card mb-4">
                     <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
                       <Sparkles className="w-7 h-7 text-muted-foreground/40" />
                     </motion.div>
@@ -925,7 +911,7 @@ export default function Schedule() {
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 className="fixed bottom-36 right-5 z-[66] w-56"
               >
-                <div className="bg-card rounded-2xl shadow-2xl shadow-black/30 overflow-hidden border border-border/30">
+                <div className="mono-card rounded-2xl shadow-2xl shadow-black/30 overflow-hidden border border-border/30">
                   <motion.button
                     whileTap={{ scale: 0.97 }}
                     onClick={() => {
@@ -936,8 +922,8 @@ export default function Schedule() {
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-secondary/60 transition-colors"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <CreditCard className="w-4.5 h-4.5 text-primary" />
+                    <div className="w-9 h-9 rounded-xl mono-card-solid flex items-center justify-center">
+                      <CreditCard className="w-4.5 h-4.5 text-muted-foreground" />
                     </div>
                     Regular Payment
                   </motion.button>
@@ -955,8 +941,8 @@ export default function Schedule() {
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-secondary/60 transition-colors"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                      <Timer className="w-4.5 h-4.5 text-orange-500" />
+                    <div className="w-9 h-9 rounded-xl mono-card-solid flex items-center justify-center">
+                      <Timer className="w-4.5 h-4.5 text-muted-foreground" />
                     </div>
                     <span className="flex-1 text-left">Free Trial</span>
                     {!isPremium && <Crown className="w-3.5 h-3.5 text-primary" />}

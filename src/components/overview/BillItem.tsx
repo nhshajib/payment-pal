@@ -66,16 +66,13 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
         whileTap={{ scale: 0.98 }}
         onClick={() => onTap(payment)}
         className={cn(
-          "relative bg-card rounded-2xl px-4 py-3.5 flex items-center gap-3.5 cursor-pointer active:bg-secondary/30 transition-colors touch-pan-y",
+          "relative mono-card rounded-2xl px-4 py-3.5 flex items-center gap-3.5 cursor-pointer active:bg-secondary/30 transition-colors touch-pan-y",
           isFreeTrial && "free-trial-pulse"
         )}
       >
         {/* Icon */}
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: `${cat.color}12` }}
-        >
-          <Icon className="w-5 h-5" style={{ color: cat.color }} />
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mono-card-solid">
+          <Icon className="w-5 h-5 text-muted-foreground" />
         </div>
 
         {/* Info */}
