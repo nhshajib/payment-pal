@@ -1,104 +1,113 @@
 
 
-# Payment Pal: 5 Standout Features Implementation Plan
+# Settings Page Redesign: Clean & Organized
 
-## Overview
+## Problem
+The current Settings page is a 1,577-line monolith with 7 sections (Premium, Account, Preferences, Data, Notifications, Support, Danger Zone) all visible at once in a long scroll. Users are overwhelmed by ~15+ rows and numerous modals competing for attention.
 
-This plan adds five major frontend features to Payment Pal. No backend/database changes -- all new data properties are managed via local state, extended TypeScript interfaces, and localStorage persistence.
+## Solution: Category-Based Navigation
 
----
+Replace the flat scroll with a **two-level navigation** pattern -- a clean top-level menu with 4-5 grouped categories, each opening into its own focused sub-page (rendered inline with a back button, no route change). This mirrors how iOS Settings actually works.
 
-## 1. Data Model Updates
+### Top-Level Categories
 
-Extend the `Payment` interface in `src/hooks/usePayments.ts` with optional frontend-only properties:
+```text
++----------------------------------+
+|  Settings                        |
+|                                  |
+|  [Premium Banner - stays here]   |
+|                                  |
+|  GENERAL                         |
+|  +------------------------------+|
+|  | Profile & Account        >   ||
+|  |------------------------------|
+|  | Appearance & Display     >   ||
+|  +------------------------------+|
+|                                  |
+|  APP                             |
+|  +------------------------------+|
+|  | Notifications & Reminders >  ||
+|  |------------------------------|
+|  | Data & Export             >  ||
+|  +------------------------------+|
+|                                  |
+|  +------------------------------+|
+|  | About PayTrack            >  ||
+|  +------------------------------+|
+|                                  |
+|  [Sign Out]                      |
+|                                  |
+|  PayTrack v2.5                   |
++----------------------------------+
+```
 
-- `paymentUrl?: string` -- for Pay Portal links
-- `isShared?: boolean`, `totalAmount?: number`, `userShareAmount?: number` -- for Split Bill mode
-- `confirmationNumber?: string`, `receiptImage?: string` -- for receipt stash (stored in localStorage)
+### Sub-Pages (slide-in from right)
 
-Add `free_trial` to `src/lib/categories.ts` with a `Timer` icon and orange color.
+Each category page shows only its relevant settings:
 
-Create a new local state hook `src/hooks/usePaydays.ts` to manage mock payday dates (stored in localStorage, default: 1st and 15th of each month).
+- **Profile & Account**: Name, Phone/Restore, Install App
+- **Appearance & Display**: Theme toggle, Accent Color, Currency
+- **Notifications & Reminders**: Master toggle, notification types, default reminder days, clear paid day
+- **Data & Export**: Monthly Budget, Export CSV
 
----
-
-## 2. Feature Breakdown
-
-### Feature 1: "Paycheck Survival" View
-
-**Files**: `src/pages/Overview.tsx`, new `src/hooks/usePaydays.ts`
-
-- Add a toggle at the top of the Overview tab: "Monthly View" / "Paycheck View" using pill-style buttons.
-- `usePaydays` hook manages an array of upcoming payday dates in localStorage.
-- In Paycheck View, bills are grouped by the next upcoming payday instead of Overdue/This Week/Later.
-- Summary header reads: "You have X bills totaling $Y due before your next paycheck on [Date]."
-- A small settings popover lets users add/edit payday dates.
-
-### Feature 2: Pay Portal Links
-
-**Files**: `src/components/AddPaymentSheet.tsx`, `src/components/overview/BillItem.tsx`
-
-- Add a "Payment Website URL" input field in AddPaymentSheet (with a `Globe` icon).
-- In BillItem, if `paymentUrl` exists, render a subtle `ExternalLink` icon button that opens the URL in a new tab via `window.open()`.
-- The icon appears between the bill name and the amount, stopping event propagation to avoid triggering the action sheet.
-
-### Feature 3: Split Bill / Roommate Mode
-
-**Files**: `src/components/AddPaymentSheet.tsx`, `src/components/overview/BillItem.tsx`, `src/pages/Overview.tsx`
-
-- Add a "Shared Bill" toggle in AddPaymentSheet. When ON:
-  - Replace the single Amount field with "Total Bill Amount" and "My Share" fields.
-  - Store `isShared: true`, `totalAmount`, and `userShareAmount` on the payment.
-- In BillItem, if `isShared`, show `userShareAmount` as the large number and "Total: $X" as secondary text below.
-- The Overview summary card calculates totals using `userShareAmount` when available, falling back to `amount`.
-
-### Feature 4: Free Trial Timebomb
-
-**Files**: `src/lib/categories.ts`, `src/components/overview/BillItem.tsx`, `src/components/PaymentCard.tsx`
-
-- Add a `free_trial` category with `Timer` icon and `hsl(25, 95%, 53%)` orange color.
-- In BillItem, if category is `free_trial`:
-  - Add a pulsing orange border using a CSS animation.
-  - Show a countdown badge (e.g., "Ends in 3 days") next to the amount.
-- Apply the same visual treatment in PaymentCard for the Schedule tab.
-
-### Feature 5: Digital Receipt & Confirmation Stash
-
-**Files**: new `src/components/overview/MarkPaidDrawer.tsx`, `src/pages/Overview.tsx`, `src/components/PaymentCard.tsx`
-
-- Create `MarkPaidDrawer` -- a slide-up drawer (using vaul `Drawer` component) that intercepts the "Mark as Paid" action.
-- Drawer contents:
-  - Header: "Marking [Bill Name] as Paid"
-  - Optional text input: "Confirmation Number"
-  - Optional "Attach Receipt" button (stores a base64 string or filename in localStorage)
-  - Primary "Confirm Payment" button
-- Store confirmation data in a localStorage-backed `useReceiptStash` map (`Record<paymentId, { confirmationNumber, receiptImage }>`).
-- In the Paid tab (Schedule page), if receipt data exists, show a small `Receipt` icon badge on the payment card. Tapping it opens a small detail popover showing the confirmation number and receipt thumbnail.
+This cuts the visible items on the main page from ~15 to ~5 categories, making it instantly scannable.
 
 ---
 
-## 3. File Change Summary
+## Technical Approach
+
+### File Changes
 
 | File | Action | Purpose |
-|------|--------|---------|
-| `src/hooks/usePayments.ts` | Edit | Extend Payment interface with optional fields |
-| `src/hooks/usePaydays.ts` | Create | Mock payday state with localStorage |
-| `src/hooks/useReceiptStash.ts` | Create | localStorage-backed receipt/confirmation data |
-| `src/lib/categories.ts` | Edit | Add `free_trial` category |
-| `src/pages/Overview.tsx` | Edit | Paycheck view toggle, shared bill calculations, receipt drawer integration |
-| `src/components/AddPaymentSheet.tsx` | Edit | Pay URL field, Shared Bill toggle with dual amount fields |
-| `src/components/overview/BillItem.tsx` | Edit | External link button, shared bill display, free trial pulsing border |
-| `src/components/overview/MarkPaidDrawer.tsx` | Create | Confirmation number + receipt attachment drawer |
-| `src/components/overview/PaymentActionSheet.tsx` | Edit | Route "Mark Paid" through MarkPaidDrawer |
-| `src/components/PaymentCard.tsx` | Edit | Free trial visual treatment, receipt badge in Paid tab |
+|------|------|---------|
+| `src/pages/Settings.tsx` | Edit | Restructure into category navigation with sub-views |
 
----
+No new files needed -- the sub-pages are rendered inline using a `currentView` state variable (`'main' | 'profile' | 'appearance' | 'notifications' | 'data'`).
 
-## 4. Technical Notes
+### Implementation Details
 
-- All new data persists in **localStorage** only -- no Supabase schema changes.
-- The `usePaydays` hook defaults to bi-monthly paydays (1st and 15th) which users can customize.
-- Receipt "attachment" uses a file input that reads the image as a base64 data URL, stored in localStorage under a size-limited key.
-- Free trial countdown uses `differenceInDays(parseISO(due_date), new Date())` from date-fns.
-- All new UI follows the existing design system: rounded-2xl cards, `bg-card`/`bg-secondary` tokens, framer-motion animations, and the established spacing/typography patterns.
+1. **Navigation state**: Add `const [currentView, setCurrentView] = useState<string>('main')` to control which sub-page is shown.
+
+2. **Animated transitions**: Use `framer-motion` `AnimatePresence` with slide-left/slide-right transitions when navigating between the main menu and sub-pages (matching iOS drill-down behavior).
+
+3. **Back button**: Each sub-page gets a top bar with a `ChevronLeft` back button and the category title.
+
+4. **Premium banner**: Stays on the main page at the top -- it's the most important CTA and should not be buried.
+
+5. **Sign Out**: Stays on the main page at the bottom as a standalone red button -- not hidden inside a sub-page.
+
+6. **All existing modals preserved**: The bottom sheet modals (currency picker, reminder slider, etc.) continue to work exactly as they do now, just triggered from within their respective sub-pages instead of the main scroll.
+
+7. **Reduced cognitive load**: Each sub-page has at most 3-5 items, making every screen easy to scan in under 2 seconds.
+
+### Sub-Page Content Breakdown
+
+**Profile & Account** (3 items):
+- Name (opens existing name modal)
+- Restore / Change Device (opens existing restore modal)
+- Install App (if available)
+
+**Appearance & Display** (3 items):
+- Theme (Light/Auto/Dark segmented control -- inline, no modal needed)
+- Accent Color (opens existing accent modal, premium-gated)
+- Currency (opens existing currency modal)
+
+**Notifications & Reminders** (4 items):
+- Notifications toggle + settings (opens existing notification modal)
+- Default Reminder (opens existing reminder modal)
+- Clear Paid List (opens existing clear day modal)
+- Monthly Budget (opens existing budget modal, premium-gated)
+
+**Data & Export** (2 items):
+- Export Payments CSV (direct action, premium-gated)
+- About / Changelog (opens existing about modal)
+
+### Animation Pattern
+
+```text
+Main -> Sub-page:  Main slides left + fades, Sub-page slides in from right
+Sub-page -> Main:  Sub-page slides right + fades, Main slides in from left
+```
+
+Using framer-motion variants with `x` offset and opacity for smooth 300ms transitions.
 
