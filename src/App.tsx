@@ -132,8 +132,12 @@ function AppRoutes() {
             element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
           />
           <Route
-            path="/overview"
+            path="/insights"
             element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/overview"
+            element={<Navigate to="/insights" replace />}
           />
           <Route
             path="/settings"

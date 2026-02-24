@@ -59,41 +59,59 @@ export type Database = {
         Row: {
           amount: number
           category: string
+          confirmation_number: string
           created_at: string
           due_date: string
           id: string
           is_paid: boolean
           is_recurring: boolean
+          is_shared: boolean
           name: string
           notes: string
+          payment_url: string
+          receipt_url: string
           reminder_days: number
+          total_amount: number
           user_id: string
+          user_share_amount: number
         }
         Insert: {
           amount?: number
           category?: string
+          confirmation_number?: string
           created_at?: string
           due_date: string
           id?: string
           is_paid?: boolean
           is_recurring?: boolean
+          is_shared?: boolean
           name: string
           notes?: string
+          payment_url?: string
+          receipt_url?: string
           reminder_days?: number
+          total_amount?: number
           user_id: string
+          user_share_amount?: number
         }
         Update: {
           amount?: number
           category?: string
+          confirmation_number?: string
           created_at?: string
           due_date?: string
           id?: string
           is_paid?: boolean
           is_recurring?: boolean
+          is_shared?: boolean
           name?: string
           notes?: string
+          payment_url?: string
+          receipt_url?: string
           reminder_days?: number
+          total_amount?: number
           user_id?: string
+          user_share_amount?: number
         }
         Relationships: [
           {

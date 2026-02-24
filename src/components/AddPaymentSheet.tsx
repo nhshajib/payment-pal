@@ -69,10 +69,10 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
       setCategory(editing.category || 'other');
       setNotes(editing.notes || '');
       setIsVariableAmount(editing.amount === 0);
-      setPaymentUrl(editing.paymentUrl || '');
-      setIsShared(editing.isShared || false);
-      setTotalAmount(editing.totalAmount ? String(editing.totalAmount) : '');
-      setUserShareAmount(editing.userShareAmount ? String(editing.userShareAmount) : '');
+      setPaymentUrl(editing.payment_url || '');
+      setIsShared(editing.is_shared || false);
+      setTotalAmount(editing.total_amount ? String(editing.total_amount) : '');
+      setUserShareAmount(editing.user_share_amount ? String(editing.user_share_amount) : '');
     } else {
       setName('');
       setAmount('');
@@ -109,10 +109,12 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
       is_recurring: isRecurring,
       category,
       notes: notes.trim(),
-      paymentUrl: paymentUrl.trim() || undefined,
-      isShared: isShared || undefined,
-      totalAmount: isShared ? (parseFloat(totalAmount) || 0) : undefined,
-      userShareAmount: isShared ? (parseFloat(userShareAmount) || 0) : undefined,
+      payment_url: paymentUrl.trim() || '',
+      is_shared: isShared || false,
+      total_amount: isShared ? (parseFloat(totalAmount) || 0) : 0,
+      user_share_amount: isShared ? (parseFloat(userShareAmount) || 0) : 0,
+      confirmation_number: '',
+      receipt_url: '',
     });
     onClose();
   };

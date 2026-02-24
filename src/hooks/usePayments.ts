@@ -14,13 +14,12 @@ export interface Payment {
   category: string;
   notes: string;
   created_at: string;
-  // Frontend-only optional fields
-  paymentUrl?: string;
-  isShared?: boolean;
-  totalAmount?: number;
-  userShareAmount?: number;
-  confirmationNumber?: string;
-  receiptImage?: string;
+  payment_url: string;
+  is_shared: boolean;
+  total_amount: number;
+  user_share_amount: number;
+  confirmation_number: string;
+  receipt_url: string;
 }
 
 export function usePayments(userId: string | null) {
@@ -44,7 +43,6 @@ export function usePayments(userId: string | null) {
   }, [userId]);
 
   useEffect(() => {
-    // Load from cache first
     const cached = localStorage.getItem('paytrack_payments');
     if (cached) {
       try { setPayments(JSON.parse(cached)); } catch {}
@@ -84,7 +82,6 @@ export function usePayments(userId: string | null) {
   const markPaid = useCallback(async (payment: Payment) => {
     await updatePayment(payment.id, { is_paid: true });
 
-    // If recurring, create next month's entry
     if (payment.is_recurring && userId) {
       const nextDate = format(addMonths(new Date(payment.due_date), 1), 'yyyy-MM-dd');
       await addPayment({
@@ -96,6 +93,12 @@ export function usePayments(userId: string | null) {
         is_recurring: true,
         category: payment.category || 'other',
         notes: payment.notes || '',
+        payment_url: payment.payment_url || '',
+        is_shared: payment.is_shared || false,
+        total_amount: payment.total_amount || 0,
+        user_share_amount: payment.user_share_amount || 0,
+        confirmation_number: '',
+        receipt_url: '',
       });
     }
   }, [updatePayment, addPayment, userId]);
