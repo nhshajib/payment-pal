@@ -1,8 +1,8 @@
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, ExternalLink } from 'lucide-react';
 import { getCategoryById } from '@/lib/categories';
 import { useCurrency } from '@/hooks/useCurrency';
-import { format, parseISO, isToday, isTomorrow } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import type { Payment } from '@/hooks/usePayments';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +28,14 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
   const x = useMotionValue(0);
   const bgOpacity = useTransform(x, [-120, -60, 0], [1, 0.6, 0]);
   const checkScale = useTransform(x, [-120, -60, 0], [1, 0.5, 0]);
-  const remaining = payment.amount - partialAmount;
+
+  const isFreeTrial = payment.category === 'free_trial';
+  const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
+  const isShared = payment.isShared && payment.userShareAmount != null;
+
+  // Determine display amount
+  const displayAmount = isShared ? (payment.userShareAmount ?? payment.amount) : payment.amount;
+  const remaining = displayAmount - partialAmount;
   const isPartial = partialAmount > 0;
 
   const handleDragEnd = (_: any, info: PanInfo) => {
@@ -58,7 +65,10 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
         style={{ x }}
         whileTap={{ scale: 0.98 }}
         onClick={() => onTap(payment)}
-        className="relative bg-card rounded-2xl px-4 py-3.5 flex items-center gap-3.5 cursor-pointer active:bg-secondary/30 transition-colors touch-pan-y"
+        className={cn(
+          "relative bg-card rounded-2xl px-4 py-3.5 flex items-center gap-3.5 cursor-pointer active:bg-secondary/30 transition-colors touch-pan-y",
+          isFreeTrial && "free-trial-pulse"
+        )}
       >
         {/* Icon */}
         <div
@@ -70,8 +80,28 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-card-foreground truncate">{payment.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-card-foreground truncate">{payment.name}</p>
+            {/* Pay Portal Link */}
+            {payment.paymentUrl && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(payment.paymentUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="p-1 rounded-md hover:bg-secondary/60 transition-colors flex-shrink-0"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">{getRelativeLabel(payment.due_date)}</p>
+          {/* Shared bill secondary text */}
+          {isShared && payment.totalAmount != null && (
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+              Total Bill: {formatCurrency(payment.totalAmount)}
+            </p>
+          )}
         </div>
 
         {/* Amount / Status */}
@@ -95,6 +125,12 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
                 </p>
               )}
             </>
+          )}
+          {/* Free Trial countdown badge */}
+          {isFreeTrial && daysLeft >= 0 && daysLeft <= 14 && (
+            <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-[hsl(25,95%,53%)]/15 text-[hsl(25,95%,53%)]">
+              {daysLeft === 0 ? 'Ends today' : `Ends in ${daysLeft}d`}
+            </span>
           )}
         </div>
 

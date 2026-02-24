@@ -1,52 +1,67 @@
 import { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, AlertTriangle, Clock, CalendarClock, Plus } from 'lucide-react';
-import { addDays, isBefore, startOfDay, isAfter, parseISO, endOfDay } from 'date-fns';
+import { Wallet, AlertTriangle, Clock, CalendarClock, Plus, Banknote, Settings2 } from 'lucide-react';
+import { addDays, isBefore, startOfDay, isAfter, parseISO, endOfDay, format } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
+import { usePaydays } from '@/hooks/usePaydays';
+import { useReceiptStash } from '@/hooks/useReceiptStash';
 import PageTransition from '@/components/PageTransition';
 import BillItem from '@/components/overview/BillItem';
 import PaymentActionSheet from '@/components/overview/PaymentActionSheet';
+import MarkPaidDrawer from '@/components/overview/MarkPaidDrawer';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+type ViewMode = 'monthly' | 'paycheck';
 
 export default function Overview() {
   const { userId } = useUser();
   const { format: formatCurrency } = useCurrency();
   const { payments, markPaid, updatePayment, addPayment } = usePayments(userId);
+  const { payDays, updatePayDays, upcomingPaydays, nextPayday } = usePaydays();
+  const { saveReceipt } = useReceiptStash();
   const navigate = useNavigate();
 
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  // Local state for partial payments & variable amounts (frontend-only)
+  const [markPaidDrawerOpen, setMarkPaidDrawerOpen] = useState(false);
+  const [paymentToMarkPaid, setPaymentToMarkPaid] = useState<Payment | null>(null);
   const [partialAmounts, setPartialAmounts] = useState<Record<string, number>>({});
   const [variableAmounts, setVariableAmounts] = useState<Record<string, number>>({});
   const [paidAnimating, setPaidAnimating] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<ViewMode>('monthly');
+  const [paydayInput, setPaydayInput] = useState('');
 
   const unpaid = useMemo(() => payments.filter(p => !p.is_paid), [payments]);
 
   const today = startOfDay(new Date());
   const weekEnd = endOfDay(addDays(today, 7));
 
-  // Total due next 7 days
+  // Helper to get effective amount considering shared bills
+  const getEffectiveAmount = useCallback((p: Payment) => {
+    if (p.isShared && p.userShareAmount != null) return p.userShareAmount;
+    const variable = variableAmounts[p.id];
+    return p.amount === 0 ? (variable || 0) : p.amount;
+  }, [variableAmounts]);
+
   const totalNext7 = useMemo(() => {
     return unpaid
-      .filter(p => {
-        const d = parseISO(p.due_date);
-        return !isAfter(d, weekEnd);
-      })
+      .filter(p => !isAfter(parseISO(p.due_date), weekEnd))
       .reduce((sum, p) => {
-        const variable = variableAmounts[p.id];
-        const amt = p.amount === 0 ? (variable || 0) : p.amount;
+        const amt = getEffectiveAmount(p);
         const partial = partialAmounts[p.id] || 0;
         return sum + Math.max(0, amt - partial);
       }, 0);
-  }, [unpaid, weekEnd, partialAmounts, variableAmounts]);
+  }, [unpaid, weekEnd, partialAmounts, getEffectiveAmount]);
 
-  // Grouped bills
+  // Monthly groups
   const groups = useMemo(() => {
     const overdue: Payment[] = [];
     const thisWeek: Payment[] = [];
@@ -66,14 +81,67 @@ export default function Overview() {
     return { overdue, thisWeek, later };
   }, [unpaid, today, weekEnd]);
 
+  // Paycheck view groups
+  const paycheckGroups = useMemo(() => {
+    if (viewMode !== 'paycheck' || upcomingPaydays.length === 0) return [];
+    
+    const result: { payday: Date; bills: Payment[]; total: number }[] = [];
+    
+    for (let i = 0; i < upcomingPaydays.length; i++) {
+      const payday = upcomingPaydays[i];
+      const prevPayday = i === 0 ? today : upcomingPaydays[i - 1];
+      
+      const bills = unpaid.filter(p => {
+        const d = parseISO(p.due_date);
+        return (i === 0 ? true : isAfter(d, prevPayday)) && !isAfter(d, payday);
+      });
+      
+      if (bills.length > 0) {
+        const total = bills.reduce((sum, p) => {
+          const amt = getEffectiveAmount(p);
+          const partial = partialAmounts[p.id] || 0;
+          return sum + Math.max(0, amt - partial);
+        }, 0);
+        result.push({ payday, bills, total });
+      }
+    }
+    
+    // Bills after last payday
+    const lastPayday = upcomingPaydays[upcomingPaydays.length - 1];
+    const laterBills = unpaid.filter(p => isAfter(parseISO(p.due_date), lastPayday));
+    if (laterBills.length > 0) {
+      const total = laterBills.reduce((sum, p) => sum + Math.max(0, getEffectiveAmount(p) - (partialAmounts[p.id] || 0)), 0);
+      result.push({ payday: lastPayday, bills: laterBills, total });
+    }
+    
+    return result;
+  }, [viewMode, unpaid, upcomingPaydays, today, partialAmounts, getEffectiveAmount]);
+
+  // Next paycheck summary
+  const nextPaycheckSummary = useMemo(() => {
+    if (!nextPayday) return null;
+    const bills = unpaid.filter(p => !isAfter(parseISO(p.due_date), nextPayday));
+    const total = bills.reduce((sum, p) => sum + Math.max(0, getEffectiveAmount(p) - (partialAmounts[p.id] || 0)), 0);
+    return { count: bills.length, total, date: nextPayday };
+  }, [nextPayday, unpaid, partialAmounts, getEffectiveAmount]);
+
   const handleTap = useCallback((p: Payment) => {
     setSelectedPayment(p);
     setActionOpen(true);
   }, []);
 
-  const handleSwipePay = useCallback(async (p: Payment) => {
+  // Intercept mark paid to show the receipt drawer
+  const handleInitiateMarkPaid = useCallback((p: Payment) => {
+    setPaymentToMarkPaid(p);
+    setMarkPaidDrawerOpen(true);
+    setActionOpen(false);
+  }, []);
+
+  const handleConfirmPaid = useCallback(async (p: Payment, confirmationNumber?: string, receiptImage?: string) => {
+    if (confirmationNumber || receiptImage) {
+      saveReceipt(p.id, { confirmationNumber, receiptImage });
+    }
     setPaidAnimating(prev => new Set(prev).add(p.id));
-    // Small delay for exit animation
     setTimeout(async () => {
       await markPaid(p);
       setPaidAnimating(prev => {
@@ -83,7 +151,7 @@ export default function Overview() {
       });
       toast.success(`${p.name} marked as paid`);
     }, 400);
-  }, [markPaid]);
+  }, [markPaid, saveReceipt]);
 
   const handlePartialPay = useCallback((p: Payment, amount: number) => {
     setPartialAmounts(prev => ({
@@ -91,12 +159,12 @@ export default function Overview() {
       [p.id]: (prev[p.id] || 0) + amount,
     }));
     const total = (partialAmounts[p.id] || 0) + amount;
-    if (total >= p.amount) {
-      handleSwipePay(p);
+    if (total >= getEffectiveAmount(p)) {
+      handleInitiateMarkPaid(p);
     } else {
       toast.success(`Partial payment of ${amount} recorded`);
     }
-  }, [partialAmounts, handleSwipePay]);
+  }, [partialAmounts, handleInitiateMarkPaid, getEffectiveAmount]);
 
   const handleSetVariable = useCallback(async (p: Payment, amount: number) => {
     setVariableAmounts(prev => ({ ...prev, [p.id]: amount }));
@@ -113,6 +181,18 @@ export default function Overview() {
     await addPayment(data);
     toast.success('Payment added');
   }, [addPayment]);
+
+  const handleAddPayday = useCallback(() => {
+    const day = parseInt(paydayInput);
+    if (day >= 1 && day <= 31 && !payDays.includes(day)) {
+      updatePayDays([...payDays, day]);
+      setPaydayInput('');
+    }
+  }, [paydayInput, payDays, updatePayDays]);
+
+  const handleRemovePayday = useCallback((day: number) => {
+    updatePayDays(payDays.filter(d => d !== day));
+  }, [payDays, updatePayDays]);
 
   const renderGroup = (title: string, items: Payment[], icon: React.ReactNode, accent?: string) => {
     if (items.length === 0) return null;
@@ -140,7 +220,7 @@ export default function Overview() {
                   <BillItem
                     payment={p}
                     onTap={handleTap}
-                    onSwipePay={handleSwipePay}
+                    onSwipePay={handleInitiateMarkPaid}
                     partialAmount={partialAmounts[p.id]}
                     isVariable={p.amount === 0 && !variableAmounts[p.id]}
                   />
@@ -159,32 +239,125 @@ export default function Overview() {
         <motion.header
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Overview</h1>
         </motion.header>
 
-        {/* Summary Card — Total Due Next 7 Days */}
+        {/* View Mode Toggle */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.03 }}
+          className="mb-5 flex items-center gap-2"
+        >
+          <div className="flex bg-secondary/60 rounded-xl p-1 flex-1">
+            <button
+              onClick={() => setViewMode('monthly')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === 'monthly'
+                  ? 'bg-card text-card-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              Monthly View
+            </button>
+            <button
+              onClick={() => setViewMode('paycheck')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === 'paycheck'
+                  ? 'bg-card text-card-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              Paycheck View
+            </button>
+          </div>
+
+          {/* Payday Settings */}
+          {viewMode === 'paycheck' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-9 h-9 rounded-xl bg-secondary/60 flex items-center justify-center">
+                  <Settings2 className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 bg-card border-border" align="end">
+                <p className="text-xs font-semibold text-card-foreground mb-2">Payday Dates</p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {payDays.map(day => (
+                    <button
+                      key={day}
+                      onClick={() => handleRemovePayday(day)}
+                      className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                      {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'}  ×
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={paydayInput}
+                    onChange={e => setPaydayInput(e.target.value)}
+                    placeholder="Day"
+                    className="h-8 text-xs bg-secondary/50 border-0 rounded-lg"
+                  />
+                  <Button onClick={handleAddPayday} size="sm" className="rounded-lg h-8 text-xs px-3">
+                    Add
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </motion.div>
+
+        {/* Summary Card */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
           className="mb-8 rounded-3xl bg-card p-6"
         >
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Due Next 7 Days
-            </p>
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Wallet className="w-4 h-4 text-primary" />
-            </div>
-          </div>
-          <p className="text-4xl font-bold text-card-foreground tracking-tight">
-            {formatCurrency(totalNext7)}
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            {unpaid.length} bill{unpaid.length !== 1 ? 's' : ''} remaining
-          </p>
+          {viewMode === 'monthly' ? (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Due Next 7 Days
+                </p>
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Wallet className="w-4 h-4 text-primary" />
+                </div>
+              </div>
+              <p className="text-4xl font-bold text-card-foreground tracking-tight">
+                {formatCurrency(totalNext7)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {unpaid.length} bill{unpaid.length !== 1 ? 's' : ''} remaining
+              </p>
+            </>
+          ) : nextPaycheckSummary ? (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Before Next Paycheck
+                </p>
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Banknote className="w-4 h-4 text-primary" />
+                </div>
+              </div>
+              <p className="text-4xl font-bold text-card-foreground tracking-tight">
+                {formatCurrency(nextPaycheckSummary.total)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {nextPaycheckSummary.count} bill{nextPaycheckSummary.count !== 1 ? 's' : ''} due before {format(nextPaycheckSummary.date, 'MMM d')}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No paydays configured</p>
+          )}
         </motion.div>
 
         {/* Quick Add */}
@@ -210,22 +383,63 @@ export default function Overview() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
         >
-          {renderGroup(
-            'Overdue',
-            groups.overdue,
-            <AlertTriangle className="w-3.5 h-3.5 text-status-overdue" />,
-            'text-status-overdue'
-          )}
-          {renderGroup(
-            'This Week',
-            groups.thisWeek,
-            <Clock className="w-3.5 h-3.5 text-primary" />,
-            'text-primary'
-          )}
-          {renderGroup(
-            'Later',
-            groups.later,
-            <CalendarClock className="w-3.5 h-3.5 text-muted-foreground" />
+          {viewMode === 'monthly' ? (
+            <>
+              {renderGroup(
+                'Overdue',
+                groups.overdue,
+                <AlertTriangle className="w-3.5 h-3.5 text-status-overdue" />,
+                'text-status-overdue'
+              )}
+              {renderGroup(
+                'This Week',
+                groups.thisWeek,
+                <Clock className="w-3.5 h-3.5 text-primary" />,
+                'text-primary'
+              )}
+              {renderGroup(
+                'Later',
+                groups.later,
+                <CalendarClock className="w-3.5 h-3.5 text-muted-foreground" />
+              )}
+            </>
+          ) : (
+            paycheckGroups.map((group, i) => (
+              <div key={i} className="mb-6">
+                <div className="flex items-center gap-2 mb-3 ml-1">
+                  <Banknote className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                    Before {format(group.payday, 'MMM d')}
+                  </span>
+                  <span className="text-xs text-muted-foreground/60 ml-auto mr-1">
+                    {formatCurrency(group.total)}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <AnimatePresence mode="popLayout">
+                    {group.bills
+                      .filter(p => !paidAnimating.has(p.id))
+                      .map(p => (
+                        <motion.div
+                          key={p.id}
+                          layout
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, x: -200, scale: 0.9, transition: { duration: 0.3 } }}
+                        >
+                          <BillItem
+                            payment={p}
+                            onTap={handleTap}
+                            onSwipePay={handleInitiateMarkPaid}
+                            partialAmount={partialAmounts[p.id]}
+                            isVariable={p.amount === 0 && !variableAmounts[p.id]}
+                          />
+                        </motion.div>
+                      ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            ))
           )}
         </motion.div>
 
@@ -249,11 +463,19 @@ export default function Overview() {
           payment={selectedPayment}
           open={actionOpen}
           onClose={() => setActionOpen(false)}
-          onMarkPaid={handleSwipePay}
+          onMarkPaid={handleInitiateMarkPaid}
           onPartialPay={handlePartialPay}
           onUpdateReminder={handleUpdateReminder}
           onSetVariableAmount={handleSetVariable}
           partialAmounts={partialAmounts}
+        />
+
+        {/* Mark Paid Drawer (Receipt Stash) */}
+        <MarkPaidDrawer
+          payment={paymentToMarkPaid}
+          open={markPaidDrawerOpen}
+          onClose={() => setMarkPaidDrawerOpen(false)}
+          onConfirm={handleConfirmPaid}
         />
 
         {/* Add Payment Sheet */}

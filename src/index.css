@@ -240,4 +240,15 @@
       transparent 100%
     );
   }
+
+  /* Free Trial pulsing orange border */
+  .free-trial-pulse {
+    animation: free-trial-glow 2s ease-in-out infinite;
+    border: 1px solid hsl(25, 95%, 53%, 0.4);
+  }
+
+  @keyframes free-trial-glow {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(25, 95%, 53%, 0); border-color: hsl(25, 95%, 53%, 0.25); }
+    50% { box-shadow: 0 0 12px 2px hsl(25, 95%, 53%, 0.2); border-color: hsl(25, 95%, 53%, 0.5); }
+  }
 }
