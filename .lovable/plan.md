@@ -1,153 +1,104 @@
 
 
-## v2.5 -- Premium Feature Expansion (5 New Locked Features)
+# Payment Pal: 5 Standout Features Implementation Plan
 
-This plan adds 5 new genuinely useful premium features, all visible to free users but locked behind premium purchase. Each feature shows its UI but requires premium to interact, pushing users toward the upgrade.
+## Overview
 
----
-
-### New Premium Feature 1: Calendar View (Schedule Page)
-
-**What it does:** A visual month calendar showing colored dots on dates where payments are due. Tap a date to see that day's payments. Overdue dates show red dots, upcoming show primary color, paid show green.
-
-**Implementation in `src/pages/Schedule.tsx`:**
-- Add a third tab option in the tab switcher: "Upcoming | Paid | Calendar"
-- Calendar tab renders a custom month grid (not a full date-picker -- a simple 7-column grid)
-- Each day cell shows small colored dots for payments on that date
-- Tapping a date expands a list of payments for that day below the calendar
-- Free users see the calendar rendered but tapping any date shows a premium lock overlay with "Unlock Calendar View" button
-- The calendar tab itself shows a small Crown/Lock icon for free users
-
-**New component: `src/components/PaymentCalendar.tsx`**
-- Accepts payments array and isPremium boolean
-- Renders current month grid with navigation arrows (prev/next month)
-- Dots: red = overdue, primary = upcoming unpaid, green = paid
-- Selected date highlights with primary color ring
-- Below calendar: list of payments for selected date (or "No payments" empty state)
+This plan adds five major frontend features to Payment Pal. No backend/database changes -- all new data properties are managed via local state, extended TypeScript interfaces, and localStorage persistence.
 
 ---
 
-### New Premium Feature 2: Monthly Budget Goal (Overview Page)
+## 1. Data Model Updates
 
-**What it does:** Users set a monthly spending limit. A prominent progress ring/bar shows how much of the budget is used. Color shifts from green to yellow to red as they approach/exceed the limit.
+Extend the `Payment` interface in `src/hooks/usePayments.ts` with optional frontend-only properties:
 
-**Implementation:**
-- **Database:** Add `monthly_budget` column (numeric, nullable, default null) to `users` table
-- **`src/pages/Overview.tsx`:** New "Budget" card between summary cards and upcoming bills
-  - Shows a circular progress ring with amount spent vs budget
-  - Below ring: "X remaining" or "X over budget" text
-  - If no budget set: shows "Set Budget" button
-  - Free users see the card with a blurred overlay and lock icon
-- **`src/pages/Settings.tsx`:** Add "Monthly Budget" row under PREFERENCES section
-  - Premium users can set/edit their budget amount
-  - Free users tapping it opens premium modal
-- **`src/hooks/usePremium.ts`:** No changes needed -- uses isPremium check
+- `paymentUrl?: string` -- for Pay Portal links
+- `isShared?: boolean`, `totalAmount?: number`, `userShareAmount?: number` -- for Split Bill mode
+- `confirmationNumber?: string`, `receiptImage?: string` -- for receipt stash (stored in localStorage)
+
+Add `free_trial` to `src/lib/categories.ts` with a `Timer` icon and orange color.
+
+Create a new local state hook `src/hooks/usePaydays.ts` to manage mock payday dates (stored in localStorage, default: 1st and 15th of each month).
 
 ---
 
-### New Premium Feature 3: Spending Predictions (Overview Page)
+## 2. Feature Breakdown
 
-**What it does:** Shows a "Next Month Forecast" card that estimates next month's spending based on recurring payments plus historical average of non-recurring spending.
+### Feature 1: "Paycheck Survival" View
 
-**Implementation in `src/pages/Overview.tsx`:**
-- New card below the monthly insight section
-- Calculates: sum of all recurring payment amounts + average non-recurring spending from last 3 months
-- Shows: "Estimated next month: $X" with a small breakdown tooltip
-- Recurring total shown separately from variable spending
-- Free users see the card blurred with lock overlay and "Unlock Predictions" CTA
-- Uses only existing payment data -- no new database columns needed
+**Files**: `src/pages/Overview.tsx`, new `src/hooks/usePaydays.ts`
 
----
+- Add a toggle at the top of the Overview tab: "Monthly View" / "Paycheck View" using pill-style buttons.
+- `usePaydays` hook manages an array of upcoming payday dates in localStorage.
+- In Paycheck View, bills are grouped by the next upcoming payday instead of Overdue/This Week/Later.
+- Summary header reads: "You have X bills totaling $Y due before your next paycheck on [Date]."
+- A small settings popover lets users add/edit payday dates.
 
-### New Premium Feature 4: Recurring Cost Summary (Overview Page)
+### Feature 2: Pay Portal Links
 
-**What it does:** A dedicated card showing the total monthly recurring cost and an annual projection. Helps users understand their fixed monthly obligations at a glance.
+**Files**: `src/components/AddPaymentSheet.tsx`, `src/components/overview/BillItem.tsx`
 
-**Implementation in `src/pages/Overview.tsx`:**
-- New card showing:
-  - "Monthly Recurring: $X" (sum of all recurring, unpaid payments)
-  - "Annual Projection: $X" (monthly * 12)
-  - Small list of top 3 recurring payments by amount
-- Free users see the card with blurred content and lock overlay
-- No database changes needed -- computed from existing `is_recurring` field
+- Add a "Payment Website URL" input field in AddPaymentSheet (with a `Globe` icon).
+- In BillItem, if `paymentUrl` exists, render a subtle `ExternalLink` icon button that opens the URL in a new tab via `window.open()`.
+- The icon appears between the bill name and the amount, stopping event propagation to avoid triggering the action sheet.
 
----
+### Feature 3: Split Bill / Roommate Mode
 
-### New Premium Feature 5: Advanced Filters (Schedule Page)
+**Files**: `src/components/AddPaymentSheet.tsx`, `src/components/overview/BillItem.tsx`, `src/pages/Overview.tsx`
 
-**What it does:** Adds powerful filtering beyond basic search -- date range picker, amount range slider, and multi-category filter chips. Basic text search remains free.
+- Add a "Shared Bill" toggle in AddPaymentSheet. When ON:
+  - Replace the single Amount field with "Total Bill Amount" and "My Share" fields.
+  - Store `isShared: true`, `totalAmount`, and `userShareAmount` on the payment.
+- In BillItem, if `isShared`, show `userShareAmount` as the large number and "Total: $X" as secondary text below.
+- The Overview summary card calculates totals using `userShareAmount` when available, falling back to `amount`.
 
-**Implementation in `src/pages/Schedule.tsx`:**
-- Below the existing search bar, add a "Filters" button with a small badge showing active filter count
-- Tapping "Filters" opens a filter sheet/panel with:
-  - Date range: "From" and "To" date pickers
-  - Amount range: min/max input fields
-  - Category: tappable chips for multi-select (shows all categories, selected ones highlighted)
-- Free users tapping "Filters" button see premium lock modal
-- The filter button itself shows a Crown icon for free users as a visual cue
-- Premium users get the full filter sheet, active filters show as dismissible chips below the search bar
+### Feature 4: Free Trial Timebomb
 
----
+**Files**: `src/lib/categories.ts`, `src/components/overview/BillItem.tsx`, `src/components/PaymentCard.tsx`
 
-### Updated Premium Comparison Modal
+- Add a `free_trial` category with `Timer` icon and `hsl(25, 95%, 53%)` orange color.
+- In BillItem, if category is `free_trial`:
+  - Add a pulsing orange border using a CSS animation.
+  - Show a countdown badge (e.g., "Ends in 3 days") next to the amount.
+- Apply the same visual treatment in PaymentCard for the Schedule tab.
 
-Update the premium modal in Settings to show all 8 features (3 existing + 5 new):
+### Feature 5: Digital Receipt & Confirmation Stash
 
-**Free tier:**
-- Payment tracking and reminders
-- Push notifications
-- Basic search
-- Pull-to-refresh and data sync
+**Files**: new `src/components/overview/MarkPaidDrawer.tsx`, `src/pages/Overview.tsx`, `src/components/PaymentCard.tsx`
 
-**Premium tier ($0.99 one-time):**
-- Calendar view with date navigation
-- Monthly budget goals and tracking
-- Spending predictions and forecasts
-- Recurring cost analysis (monthly + annual)
-- Advanced search filters (date, amount, category)
-- Custom accent colors (6 themes)
-- Export payments as CSV
-- Advanced 6-month analytics
+- Create `MarkPaidDrawer` -- a slide-up drawer (using vaul `Drawer` component) that intercepts the "Mark as Paid" action.
+- Drawer contents:
+  - Header: "Marking [Bill Name] as Paid"
+  - Optional text input: "Confirmation Number"
+  - Optional "Attach Receipt" button (stores a base64 string or filename in localStorage)
+  - Primary "Confirm Payment" button
+- Store confirmation data in a localStorage-backed `useReceiptStash` map (`Record<paymentId, { confirmationNumber, receiptImage }>`).
+- In the Paid tab (Schedule page), if receipt data exists, show a small `Receipt` icon badge on the payment card. Tapping it opens a small detail popover showing the confirmation number and receipt thumbnail.
 
 ---
 
-### Premium Lock Component
+## 3. File Change Summary
 
-**New file: `src/components/PremiumLock.tsx`**
-- Reusable overlay component used across all locked features
-- Props: `title`, `subtitle`, `onUpgrade`, `compact` (boolean for inline vs overlay)
-- Renders: blurred backdrop + centered lock icon + text + "Unlock" button
-- Consistent iOS-native styling across all premium gates
-- Used in: Calendar view, Budget card, Predictions card, Recurring card, Advanced filters
-
----
-
-### Database Migration
-
-```sql
-ALTER TABLE public.users ADD COLUMN monthly_budget numeric DEFAULT null;
-```
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/hooks/usePayments.ts` | Edit | Extend Payment interface with optional fields |
+| `src/hooks/usePaydays.ts` | Create | Mock payday state with localStorage |
+| `src/hooks/useReceiptStash.ts` | Create | localStorage-backed receipt/confirmation data |
+| `src/lib/categories.ts` | Edit | Add `free_trial` category |
+| `src/pages/Overview.tsx` | Edit | Paycheck view toggle, shared bill calculations, receipt drawer integration |
+| `src/components/AddPaymentSheet.tsx` | Edit | Pay URL field, Shared Bill toggle with dual amount fields |
+| `src/components/overview/BillItem.tsx` | Edit | External link button, shared bill display, free trial pulsing border |
+| `src/components/overview/MarkPaidDrawer.tsx` | Create | Confirmation number + receipt attachment drawer |
+| `src/components/overview/PaymentActionSheet.tsx` | Edit | Route "Mark Paid" through MarkPaidDrawer |
+| `src/components/PaymentCard.tsx` | Edit | Free trial visual treatment, receipt badge in Paid tab |
 
 ---
 
-### Files Summary
+## 4. Technical Notes
 
-| File | Changes |
-|---|---|
-| `src/components/PremiumLock.tsx` | New -- reusable premium lock overlay component |
-| `src/components/PaymentCalendar.tsx` | New -- calendar month grid view with payment dots |
-| `src/pages/Schedule.tsx` | Add Calendar tab (3rd tab), advanced filters button with premium gate |
-| `src/pages/Overview.tsx` | Budget goal card, spending predictions card, recurring cost summary card -- all premium-locked |
-| `src/pages/Settings.tsx` | Monthly Budget row, updated premium comparison modal with all 8 features, v2.5 bump |
-| Migration | Add `monthly_budget` column to `users` table |
-
----
-
-### Design Principles
-
-- Every premium feature is VISIBLE but LOCKED -- users see the value before paying
-- Lock overlays use consistent glassmorphism blur with the reusable `PremiumLock` component
-- All new cards follow existing iOS-native card styling (rounded-2xl, bg-card, border-border/50)
-- Animations use existing spring physics patterns (stiffness: 300, damping: 28)
-- Theme-aware throughout -- all new components use semantic Tailwind tokens
+- All new data persists in **localStorage** only -- no Supabase schema changes.
+- The `usePaydays` hook defaults to bi-monthly paydays (1st and 15th) which users can customize.
+- Receipt "attachment" uses a file input that reads the image as a base64 data URL, stored in localStorage under a size-limited key.
+- Free trial countdown uses `differenceInDays(parseISO(due_date), new Date())` from date-fns.
+- All new UI follows the existing design system: rounded-2xl cards, `bg-card`/`bg-secondary` tokens, framer-motion animations, and the established spacing/typography patterns.
 
