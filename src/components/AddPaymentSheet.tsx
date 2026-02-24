@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, Bell, RotateCw, Zap } from 'lucide-react';
+import { X, CalendarDays, Bell, RotateCw, Zap, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -31,6 +31,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
   const [isRecurring, setIsRecurring] = useState(false);
   const [category, setCategory] = useState('other');
   const [notes, setNotes] = useState('');
+  const [isVariableAmount, setIsVariableAmount] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Quick-add: last 3 unique payment names (not editing mode)
@@ -58,6 +59,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
       setIsRecurring(editing.is_recurring);
       setCategory(editing.category || 'other');
       setNotes(editing.notes || '');
+      setIsVariableAmount(editing.amount === 0);
     } else {
       setName('');
       setAmount('');
@@ -66,6 +68,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
       setIsRecurring(false);
       setCategory('other');
       setNotes('');
+      setIsVariableAmount(false);
     }
   }, [editing, open]);
 
@@ -81,7 +84,7 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
     e.preventDefault();
     onSubmit({
       name,
-      amount: parseFloat(amount) || 0,
+      amount: isVariableAmount ? 0 : (parseFloat(amount) || 0),
       due_date: format(dueDate, 'yyyy-MM-dd'),
       is_paid: editing?.is_paid ?? false,
       reminder_days: parseInt(reminderDays) || 3,
@@ -195,6 +198,26 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
                     placeholder="0.00"
                     required
                     className="h-16 text-3xl font-bold bg-secondary/50 border-0 rounded-2xl pl-12 pr-5 placeholder:text-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary transition-shadow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+
+                {/* Variable Amount Toggle */}
+                <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-status-warning/15 flex items-center justify-center">
+                      <HelpCircle className="w-4 h-4 text-status-warning" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-card-foreground">Variable Amount</p>
+                      <p className="text-xs text-muted-foreground">Set amount later</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isVariableAmount}
+                    onCheckedChange={(v) => {
+                      setIsVariableAmount(v);
+                      if (v) setAmount('');
+                    }}
                   />
                 </div>
 
