@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      free_trials: {
+        Row: {
+          cancel_url: string
+          created_at: string
+          expires_on: string
+          id: string
+          is_cancelled: boolean
+          name: string
+          notes: string
+          user_id: string
+        }
+        Insert: {
+          cancel_url?: string
+          created_at?: string
+          expires_on: string
+          id?: string
+          is_cancelled?: boolean
+          name: string
+          notes?: string
+          user_id: string
+        }
+        Update: {
+          cancel_url?: string
+          created_at?: string
+          expires_on?: string
+          id?: string
+          is_cancelled?: boolean
+          name?: string
+          notes?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "free_trials_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -57,6 +98,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roommates: {
+        Row: {
+          created_at: string
+          id: string
+          nickname: string
+          partner_id: string | null
+          phone_hash: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nickname?: string
+          partner_id?: string | null
+          phone_hash: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nickname?: string
+          partner_id?: string | null
+          phone_hash?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roommates_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roommates_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"

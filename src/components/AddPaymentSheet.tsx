@@ -9,6 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useRoommates } from '@/hooks/useRoommates';
+import { useUser } from '@/hooks/useUser';
 import { CATEGORIES } from '@/lib/categories';
 import { format, parseISO } from 'date-fns';
 import { haptic } from '@/lib/haptics';
@@ -24,6 +26,9 @@ interface Props {
 
 export default function AddPaymentSheet({ open, onClose, onSubmit, editing, recentPayments = [] }: Props) {
   const { currency } = useCurrency();
+  const { userId } = useUser();
+  const { roommates, fetchRoommates, getConfirmedRoommates } = useRoommates(userId);
+  const [selectedRoommates, setSelectedRoommates] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState<Date>(new Date());
@@ -270,10 +275,40 @@ export default function AddPaymentSheet({ open, onClose, onSubmit, editing, rece
                     checked={isShared}
                     onCheckedChange={(v) => {
                       setIsShared(v);
-                      if (!v) { setTotalAmount(''); setUserShareAmount(''); }
+                      if (v) { fetchRoommates(); setSelectedRoommates([]); }
+                      else { setTotalAmount(''); setUserShareAmount(''); setSelectedRoommates([]); }
                     }}
                   />
                 </div>
+
+                {/* Roommate Chips */}
+                {isShared && getConfirmedRoommates().length > 0 && (
+                  <div className="bg-secondary/30 rounded-xl px-4 py-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 ml-0.5">Split With</p>
+                    <div className="flex flex-wrap gap-2">
+                      {getConfirmedRoommates().map(r => {
+                        const selected = selectedRoommates.includes(r.id);
+                        return (
+                          <motion.button
+                            key={r.id}
+                            type="button"
+                            whileTap={{ scale: 0.93 }}
+                            onClick={() => setSelectedRoommates(prev => selected ? prev.filter(id => id !== r.id) : [...prev, r.id])}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
+                              selected
+                                ? "bg-primary/15 border-primary/30 text-primary"
+                                : "bg-secondary/50 border-border/30 text-muted-foreground"
+                            )}
+                          >
+                            <Users className="w-3 h-3" />
+                            {r.partner_name || r.nickname || 'Roommate'}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Variable Amount Toggle */}
                 {!isShared && (

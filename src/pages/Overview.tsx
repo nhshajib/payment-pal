@@ -1,17 +1,20 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, AlertTriangle, Clock, CalendarClock, Plus, Banknote, Settings2 } from 'lucide-react';
-import { addDays, isBefore, startOfDay, isAfter, parseISO, endOfDay, format } from 'date-fns';
+import { Wallet, AlertTriangle, Clock, CalendarClock, Plus, Banknote, Settings2, Clock3, ExternalLink, CheckCircle2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { addDays, isBefore, startOfDay, isAfter, parseISO, endOfDay, format, differenceInDays } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
 import { usePaydays } from '@/hooks/usePaydays';
 import { useReceiptStash } from '@/hooks/useReceiptStash';
+import { useFreeTrials, type FreeTrial } from '@/hooks/useFreeTrials';
+import { usePremium } from '@/hooks/usePremium';
 import PageTransition from '@/components/PageTransition';
 import BillItem from '@/components/overview/BillItem';
 import PaymentActionSheet from '@/components/overview/PaymentActionSheet';
 import MarkPaidDrawer from '@/components/overview/MarkPaidDrawer';
 import AddPaymentSheet from '@/components/AddPaymentSheet';
+import AddTrialSheet from '@/components/AddTrialSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -26,7 +29,12 @@ export default function Overview() {
   const { payments, markPaid, updatePayment, addPayment } = usePayments(userId);
   const { payDays, updatePayDays, upcomingPaydays, nextPayday } = usePaydays();
   const { saveReceipt } = useReceiptStash();
+  const { isPremium } = usePremium();
+  const { trials, loading: trialsLoading, fetchTrials, addTrial, cancelTrial, deleteTrial } = useFreeTrials(userId);
   const navigate = useNavigate();
+
+  const [trialsOpen, setTrialsOpen] = useState(true);
+  const [addTrialOpen, setAddTrialOpen] = useState(false);
 
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
@@ -124,6 +132,10 @@ export default function Overview() {
     const total = bills.reduce((sum, p) => sum + Math.max(0, getEffectiveAmount(p) - (partialAmounts[p.id] || 0)), 0);
     return { count: bills.length, total, date: nextPayday };
   }, [nextPayday, unpaid, partialAmounts, getEffectiveAmount]);
+
+  useEffect(() => { if (userId && isPremium) fetchTrials(); }, [userId, isPremium, fetchTrials]);
+
+  const activeTrials = useMemo(() => trials.filter(t => !t.is_cancelled), [trials]);
 
   const handleTap = useCallback((p: Payment) => {
     setSelectedPayment(p);
@@ -443,6 +455,85 @@ export default function Overview() {
           )}
         </motion.div>
 
+        {/* Free Trials Section */}
+        {isPremium && activeTrials.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mb-6"
+          >
+            <button
+              onClick={() => setTrialsOpen(prev => !prev)}
+              className="flex items-center gap-2 mb-3 ml-1 w-full text-left"
+            >
+              <Clock3 className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary">Free Trials</span>
+              <span className="text-xs text-muted-foreground/60 ml-auto mr-1">{activeTrials.length}</span>
+              {trialsOpen ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground/40" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/40" />}
+            </button>
+            <AnimatePresence>
+              {trialsOpen && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden space-y-2">
+                  {activeTrials.map(trial => {
+                    const daysLeft = differenceInDays(parseISO(trial.expires_on), new Date());
+                    const urgencyColor = daysLeft <= 1 ? 'text-destructive' : daysLeft <= 3 ? 'text-yellow-500' : 'text-muted-foreground';
+                    const urgencyBg = daysLeft <= 1 ? 'bg-destructive/10' : daysLeft <= 3 ? 'bg-yellow-500/10' : 'bg-secondary/50';
+                    return (
+                      <motion.div
+                        key={trial.id}
+                        layout
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -100 }}
+                        className="rounded-2xl bg-card border border-border/50 p-4 flex items-center gap-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-card-foreground truncate">{trial.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${urgencyBg} ${urgencyColor}`}>
+                              {daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {trial.cancel_url && (
+                            <button
+                              onClick={() => window.open(trial.cancel_url, '_blank')}
+                              className="w-8 h-8 rounded-lg bg-secondary/60 flex items-center justify-center"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { cancelTrial(trial.id); toast.success('Trial marked as cancelled'); }}
+                            className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                          </button>
+                          <button
+                            onClick={() => { deleteTrial(trial.id); toast.success('Trial removed'); }}
+                            className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setAddTrialOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border text-xs font-medium text-muted-foreground"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Trial
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+
         {/* Empty State */}
         {unpaid.length === 0 && (
           <motion.div
@@ -484,6 +575,13 @@ export default function Overview() {
           onClose={() => setAddOpen(false)}
           onSubmit={handleAddSubmit}
           recentPayments={payments}
+        />
+
+        {/* Add Trial Sheet */}
+        <AddTrialSheet
+          open={addTrialOpen}
+          onClose={() => setAddTrialOpen(false)}
+          onSubmit={async (data) => { await addTrial(data); toast.success('Trial added!'); }}
         />
       </div>
     </PageTransition>
