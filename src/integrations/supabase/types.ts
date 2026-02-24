@@ -178,6 +178,8 @@ export type Database = {
           name: string
           paid_clear_day: number
           phone_hash: string
+          phone_number: string
+          pin_hash: string
         }
         Insert: {
           created_at?: string
@@ -188,6 +190,8 @@ export type Database = {
           name?: string
           paid_clear_day?: number
           phone_hash: string
+          phone_number?: string
+          pin_hash?: string
         }
         Update: {
           created_at?: string
@@ -198,6 +202,8 @@ export type Database = {
           name?: string
           paid_clear_day?: number
           phone_hash?: string
+          phone_number?: string
+          pin_hash?: string
         }
         Relationships: []
       }

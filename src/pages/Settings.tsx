@@ -18,7 +18,7 @@ import {
   ChevronRight, ChevronLeft, X, Check, Smartphone, BellRing, AlertTriangle,
   Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
   MessageSquare, Star, Crown, Sparkles, Palette, FileDown, Layers, TrendingUp,
-  Target, Settings2, Eye, Database, Info, Users, Copy, UserPlus, Clock3,
+  Target, Settings2, Eye, Database, Info, Users, Copy, UserPlus, Clock3, Lock, Shield,
 } from 'lucide-react';
 import { useRoommates } from '@/hooks/useRoommates';
 import { usePaydays } from '@/hooks/usePaydays';
@@ -229,7 +229,7 @@ const slideVariants = {
 
 /* ─── Main Settings Page ─── */
 export default function Settings() {
-  const { userId, userName, updateName, logout, restore } = useUser();
+  const { userId, userName, updateName, logout, restore, changePin } = useUser();
   const { currency, setCurrency } = useCurrency();
   const { mode, theme, setMode } = useTheme();
   const { isPremium, setPremium, accentColor, setAccentColor } = usePremium();
@@ -264,6 +264,10 @@ export default function Settings() {
   const [tempBudget, setTempBudget] = useState('');
   const { payDays, updatePayDays } = usePaydays();
   const [tempPayDays, setTempPayDays] = useState<number[]>(payDays);
+  const [changePinCurrent, setChangePinCurrent] = useState('');
+  const [changePinNew, setChangePinNew] = useState('');
+  const [changePinConfirm, setChangePinConfirm] = useState('');
+  const [changePinLoading, setChangePinLoading] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -396,7 +400,17 @@ export default function Settings() {
           isLast
         />
       </IOSSection>
-      <IOSSection label="DEVICE" index={1}>
+      <IOSSection label="SECURITY" index={1}>
+        <IOSRow
+          icon={<Lock className="w-[14px] h-[14px]" />}
+          iconColor="#e50914"
+          title="Change PIN"
+          subtitle="Update your 4-digit PIN"
+          onClick={() => { setChangePinCurrent(''); setChangePinNew(''); setChangePinConfirm(''); setActiveModal('change-pin'); }}
+          isLast
+        />
+      </IOSSection>
+      <IOSSection label="DEVICE" index={2}>
         <IOSRow
           icon={<Smartphone className="w-[14px] h-[14px]" />}
           iconColor="#3b82f6"
@@ -1200,6 +1214,63 @@ export default function Settings() {
                 Selected: {[...tempPayDays].sort((a, b) => a - b).map(d => ordinal(d)).join(', ')}
               </p>
             )}
+          </div>
+        </SettingsModal>
+
+        {/* Change PIN Modal */}
+        <SettingsModal open={activeModal === 'change-pin'} onClose={close} title="Change PIN" onSave={async () => {
+          if (changePinNew.length !== 4 || changePinCurrent.length !== 4) { toast.error('Enter a 4-digit PIN'); return; }
+          if (changePinNew !== changePinConfirm) { toast.error('New PINs do not match'); return; }
+          setChangePinLoading(true);
+          try {
+            await changePin(changePinCurrent, changePinNew);
+            toast.success('PIN updated successfully');
+            close();
+          } catch (err: any) {
+            toast.error(err?.message || 'Failed to update PIN');
+          } finally { setChangePinLoading(false); }
+        }} saveLabel={changePinLoading ? 'Saving...' : 'Update PIN'} saveDisabled={changePinLoading || changePinCurrent.length !== 4 || changePinNew.length !== 4 || changePinConfirm.length !== 4}>
+          <div className="space-y-5">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
+                <Shield className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">Enter your current PIN and choose a new 4-digit PIN.</p>
+            </div>
+            {[
+              { label: 'Current PIN', value: changePinCurrent, setter: setChangePinCurrent },
+              { label: 'New PIN', value: changePinNew, setter: setChangePinNew },
+              { label: 'Confirm New PIN', value: changePinConfirm, setter: setChangePinConfirm },
+            ].map(({ label, value, setter }) => (
+              <div key={label}>
+                <label className="text-[11px] text-muted-foreground font-semibold uppercase tracking-[0.8px] mb-2 block">{label}</label>
+                <div className="flex justify-center gap-3">
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} className={`w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center text-xl font-bold text-foreground ${i < value.length ? '' : 'text-muted-foreground/20'}`}>
+                      {i < value.length ? '•' : '–'}
+                    </div>
+                  ))}
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={value}
+                  onChange={e => setter(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="w-full h-0 opacity-0 absolute"
+                  autoFocus={label === 'Current PIN'}
+                />
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={value}
+                  onChange={e => setter(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="w-full h-12 mt-2 rounded-xl bg-secondary/50 border-0 text-center text-lg tracking-[1em] text-foreground outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="····"
+                />
+              </div>
+            ))}
           </div>
         </SettingsModal>
 
