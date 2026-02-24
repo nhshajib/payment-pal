@@ -120,12 +120,12 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
     // No-op: we no longer use long press
   }, []);
 
-  const handleCardTap = useCallback(() => {
-    if (!isDragging.current) {
+  const handleCardTap = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current && !showMenu) {
       haptic(15);
       setShowMenu(true);
     }
-  }, []);
+  }, [showMenu]);
 
   const menuItems = [
     ...(!payment.is_paid ? [
@@ -255,8 +255,8 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               className="fixed inset-0 z-[80] bg-background/60 backdrop-blur-sm"
-              onClick={() => setShowMenu(false)}
-              onPointerDown={() => setShowMenu(false)}
+              onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
+              onPointerDown={(e) => { e.stopPropagation(); setShowMenu(false); }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.8, y: -8 }}
