@@ -5,7 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import revenueGif from "@/assets/Revenue.gif";
+import Lottie from "lottie-react";
+import countingMoneyAnim from "@/assets/counting_money.json";
 import { UserProvider, useUser } from "@/hooks/useUser";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { ThemeProvider } from "@/hooks/useTheme";
@@ -45,31 +46,23 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         transition={{ duration: 2, ease: "easeOut" }}
       />
 
-      {/* Illustration in a themed card-like container */}
+      {/* Lottie Animation */}
       <motion.div
-        className="relative z-10 mb-8 rounded-[28px] p-5 flex items-center justify-center"
-        style={{
-          background: "hsl(var(--card) / 0.6)",
-          border: "1px solid hsl(var(--border) / 0.5)",
-          boxShadow: "0 8px 40px hsl(var(--primary) / 0.08), 0 0 0 1px hsl(var(--border) / 0.3)",
-        }}
+        className="relative z-10 mb-6 w-64 h-64"
         initial={{ opacity: 0, scale: 0.6, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.8, type: "spring", stiffness: 160, damping: 20 }}
       >
-        {/* Subtle float/bounce loop */}
-        <motion.img
-          src={revenueGif}
-          alt="PayTrack illustration"
-          className="w-60 h-60 object-contain"
-          style={{ filter: "saturate(0.85) brightness(1.05)" }}
-          animate={{ y: [0, -6, 0] }}
-          transition={{
-            duration: 2.4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Lottie
+            animationData={countingMoneyAnim}
+            loop
+            className="w-full h-full"
+          />
+        </motion.div>
       </motion.div>
 
       {/* Logo */}
