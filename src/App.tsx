@@ -61,7 +61,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         <motion.img
           src={revenueGif}
           alt="PayTrack illustration"
-          className="w-52 h-52 object-contain"
+          className="w-60 h-60 object-contain"
           style={{ filter: "saturate(0.85) brightness(1.05)" }}
           animate={{ y: [0, -6, 0] }}
           transition={{
