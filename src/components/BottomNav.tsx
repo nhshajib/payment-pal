@@ -14,7 +14,7 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom border-t border-border/40 bg-card/95 backdrop-blur-xl">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom border-t border-border/20 bg-background/80 backdrop-blur-2xl">
       <div className="flex justify-around items-center h-[52px] max-w-md mx-auto">
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path;
@@ -29,7 +29,6 @@ export default function BottomNav() {
               }}
               className="relative flex flex-col items-center justify-center gap-0.5 w-20 py-1"
             >
-              {/* Active pill background */}
               {isActive && (
                 <motion.div
                   layoutId="navPill"

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import { Plus, CalendarCheck, CheckCircle2, Sparkles, Trash2, Hand, Search, X, ArrowDownAZ, ArrowDownUp, Clock, Check, CalendarDays, Crown, SlidersHorizontal } from 'lucide-react';
-import { format, isToday, isThisWeek, isBefore, startOfDay, isWithinInterval, isAfter } from 'date-fns';
+import { format, isToday, isThisWeek, isBefore, startOfDay } from 'date-fns';
 import { usePayments, type Payment } from '@/hooks/usePayments';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -22,24 +22,13 @@ import { Receipt as ReceiptIcon } from 'lucide-react';
 type TabId = 'upcoming' | 'paid' | 'calendar';
 type SortMode = 'date' | 'amount' | 'name';
 
-const TABS: { id: TabId; label: string; icon: typeof CalendarCheck; premium?: boolean }[] = [
-  { id: 'upcoming', label: 'Upcoming', icon: CalendarCheck },
-  { id: 'paid', label: 'Paid', icon: CheckCircle2 },
-  { id: 'calendar', label: 'Calendar', icon: CalendarDays, premium: true },
+const TABS: { id: TabId; label: string; premium?: boolean }[] = [
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'paid', label: 'Paid' },
+  { id: 'calendar', label: 'Calendar', premium: true },
 ];
 
-const SORT_LABELS: Record<SortMode, string> = {
-  date: 'Date',
-  amount: 'Amount',
-  name: 'Name',
-};
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+const SORT_LABELS: Record<SortMode, string> = { date: 'Date', amount: 'Amount', name: 'Name' };
 
 function getDateSection(dateStr: string): 'overdue' | 'today' | 'this_week' | 'later' {
   const d = new Date(dateStr);
@@ -80,7 +69,7 @@ export default function Schedule() {
   const { receipts, getReceipt } = useReceiptStash();
   const [receiptPopover, setReceiptPopover] = useState<{ paymentId: string; paymentName: string } | null>(null);
 
-  // Pull-to-refresh state
+  // Pull-to-refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshComplete, setRefreshComplete] = useState(false);
   const pullY = useMotionValue(0);
@@ -159,11 +148,7 @@ export default function Schedule() {
   }, [filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax, filterCategories]);
 
   const clearAdvancedFilters = () => {
-    setFilterDateFrom('');
-    setFilterDateTo('');
-    setFilterAmountMin('');
-    setFilterAmountMax('');
-    setFilterCategories([]);
+    setFilterDateFrom(''); setFilterDateTo(''); setFilterAmountMin(''); setFilterAmountMax(''); setFilterCategories([]);
   };
 
   const filteredPayments = useMemo(() => {
@@ -171,12 +156,8 @@ export default function Schedule() {
     if (activeFilter) list = list.filter(p => (p.category || 'other') === activeFilter);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        (p.notes && p.notes.toLowerCase().includes(q))
-      );
+      list = list.filter(p => p.name.toLowerCase().includes(q) || (p.notes && p.notes.toLowerCase().includes(q)));
     }
-    // Advanced filters (premium only)
     if (isPremium) {
       if (filterDateFrom) list = list.filter(p => p.due_date >= filterDateFrom);
       if (filterDateTo) list = list.filter(p => p.due_date <= filterDateTo);
@@ -207,9 +188,7 @@ export default function Schedule() {
     return { unpaidCount, paidCount, overdueCount };
   }, [payments]);
 
-  const totalUpcoming = useMemo(() => {
-    return unpaid.reduce((sum, p) => sum + Number(p.amount), 0);
-  }, [unpaid]);
+  const totalUpcoming = useMemo(() => unpaid.reduce((sum, p) => sum + Number(p.amount), 0), [unpaid]);
 
   const groupedUpcoming = useMemo(() => {
     if (sortMode !== 'date') return null;
@@ -223,23 +202,14 @@ export default function Schedule() {
   }, [unpaid, sortMode]);
 
   useEffect(() => { requestNotificationPermission(); }, []);
-  useEffect(() => {
-    if (payments.length > 0) checkAndNotifyPayments(payments);
-  }, [payments]);
+  useEffect(() => { if (payments.length > 0) checkAndNotifyPayments(payments); }, [payments]);
 
   const handleSubmit = async (data: Omit<Payment, 'id' | 'user_id' | 'created_at'>) => {
     try {
-      if (editing) {
-        await updatePayment(editing.id, data);
-        toast.success('Payment updated');
-      } else {
-        await addPayment(data);
-        toast.success('Payment added');
-      }
+      if (editing) { await updatePayment(editing.id, data); toast.success('Payment updated'); }
+      else { await addPayment(data); toast.success('Payment added'); }
       setEditing(null);
-    } catch {
-      toast.error('Something went wrong');
-    }
+    } catch { toast.error('Something went wrong'); }
   };
 
   const handleDelete = async (id: string) => {
@@ -249,20 +219,11 @@ export default function Schedule() {
       toast.success('Payment deleted', {
         action: deletedPayment ? {
           label: 'Undo',
-          onClick: async () => {
-            try {
-              await restorePayments([deletedPayment]);
-              toast.success('Payment restored');
-            } catch {
-              toast.error('Failed to restore');
-            }
-          },
+          onClick: async () => { try { await restorePayments([deletedPayment]); toast.success('Payment restored'); } catch { toast.error('Failed to restore'); } },
         } : undefined,
         duration: 6000,
       });
-    } catch {
-      toast.error('Failed to delete');
-    }
+    } catch { toast.error('Failed to delete'); }
   };
 
   const handleMarkPaid = async (payment: Payment) => {
@@ -272,18 +233,12 @@ export default function Schedule() {
       setConfettiTrigger(true);
       setTimeout(() => setConfettiTrigger(false), 100);
       toast.success(payment.is_recurring ? 'Paid! Next month created.' : 'Marked as paid');
-    } catch {
-      toast.error('Failed to update');
-    }
+    } catch { toast.error('Failed to update'); }
   };
 
   const handleMarkUnpaid = async (payment: Payment) => {
-    try {
-      await updatePayment(payment.id, { is_paid: false });
-      toast.success('Marked as unpaid');
-    } catch {
-      toast.error('Failed to update');
-    }
+    try { await updatePayment(payment.id, { is_paid: false }); toast.success('Marked as unpaid'); }
+    catch { toast.error('Failed to update'); }
   };
 
   const cycleSortMode = () => {
@@ -300,29 +255,16 @@ export default function Schedule() {
     const radius = 10;
     const circumference = 2 * Math.PI * radius;
     return (
-      <motion.div
-        style={{ opacity: pullOpacity }}
-        className="flex justify-center py-3"
-      >
+      <motion.div style={{ opacity: pullOpacity }} className="flex justify-center py-3">
         <div className="relative w-8 h-8 flex items-center justify-center">
           {refreshComplete ? (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-            >
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
               <Check className="w-5 h-5 text-status-success" />
             </motion.div>
           ) : isRefreshing ? (
-            <motion.svg
-              width="28" height="28" viewBox="0 0 28 28"
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
-            >
+            <motion.svg width="28" height="28" viewBox="0 0 28 28" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
               <circle cx="14" cy="14" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" />
-              <circle cx="14" cy="14" r={radius} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5"
-                strokeDasharray={circumference} strokeDashoffset={circumference * 0.7}
-                strokeLinecap="round" />
+              <circle cx="14" cy="14" r={radius} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeDasharray={circumference} strokeDashoffset={circumference * 0.7} strokeLinecap="round" />
             </motion.svg>
           ) : (
             <motion.svg width="28" height="28" viewBox="0 0 28 28">
@@ -339,44 +281,6 @@ export default function Schedule() {
     );
   };
 
-  const SegmentedProgress = ({ paid, total }: { paid: number; total: number }) => {
-    const maxDots = 8;
-    const showDots = total <= maxDots;
-    return (
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 25, delay: 0.15 }}
-        className="flex flex-col items-end gap-1.5 flex-shrink-0"
-      >
-        {showDots ? (
-          <div className="flex items-center gap-1">
-            {Array.from({ length: total }).map((_, i) => (
-              <motion.div
-                key={i}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2 + i * 0.04, type: 'spring', stiffness: 500, damping: 25 }}
-                className={`w-[7px] h-[7px] rounded-full ${
-                  i < paid ? 'bg-status-success' : 'bg-muted'
-                }`}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex items-center gap-1">
-            <span className="text-[13px] font-bold text-status-success">{paid}</span>
-            <span className="text-[11px] text-muted-foreground/60">/</span>
-            <span className="text-[13px] font-semibold text-muted-foreground">{total}</span>
-          </div>
-        )}
-        <span className="text-[10px] text-muted-foreground/60 font-medium">
-          {paid === total ? 'All paid' : `${paid} paid`}
-        </span>
-      </motion.div>
-    );
-  };
-
   const renderPaymentList = () => {
     if (activeTab === 'upcoming' && groupedUpcoming && sortMode === 'date') {
       const sectionOrder = ['overdue', 'today', 'this_week', 'later'];
@@ -384,18 +288,16 @@ export default function Schedule() {
       return sectionOrder.map(section => {
         const items = groupedUpcoming[section];
         if (!items || items.length === 0) return null;
-        const sectionEl = (
-          <div key={section}>
-            <div className="flex items-center gap-2 mb-2 mt-1">
-              <span className={`text-[11px] font-semibold uppercase tracking-wider ${
-                section === 'overdue' ? 'text-status-overdue' : 'text-muted-foreground'
-              }`}>
+        return (
+          <div key={section} className="mb-2">
+            <div className="flex items-center gap-2 mb-3 mt-2">
+              <span className={`text-[11px] font-semibold uppercase tracking-[1px] ${section === 'overdue' ? 'text-primary' : 'text-muted-foreground/60'}`}>
                 {SECTION_LABELS[section]}
               </span>
-              <div className="flex-1 h-px bg-border/40" />
-              <span className="text-[11px] text-muted-foreground">{items.length}</span>
+              <div className="flex-1 h-px bg-border/20" />
+              <span className="text-[11px] text-muted-foreground/40">{items.length}</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {items.map(p => {
                 const idx = globalIdx++;
                 return (
@@ -414,12 +316,11 @@ export default function Schedule() {
             </div>
           </div>
         );
-        return sectionEl;
       });
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         <AnimatePresence mode="popLayout">
           {currentList.map((p, i) => (
             <PaymentCard
@@ -445,112 +346,65 @@ export default function Schedule() {
       <Confetti trigger={confettiTrigger} />
       <div
         ref={scrollRef}
-        className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto"
+        className="min-h-screen pb-24 px-5 pt-8 max-w-md mx-auto"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         <PullIndicator />
 
-        {/* Header */}
+        {/* ━━━ HERO SECTION ━━━ */}
         <motion.header
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <p className="text-[13px] font-medium text-muted-foreground/60 uppercase tracking-[1.5px] mb-1">
+            Total Upcoming
+          </p>
+          <div className="relative inline-block">
+            {/* Red glow aura behind total */}
+            <div
+              className="absolute -inset-4 rounded-3xl opacity-20 blur-2xl pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)) 0%, transparent 70%)' }}
+            />
+            <motion.h1
+              key={totalUpcoming}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="text-5xl font-extrabold tracking-tight text-foreground leading-none relative"
+            >
+              {formatCurrency(totalUpcoming)}
+            </motion.h1>
+          </div>
+          <p className="text-[13px] text-muted-foreground/50 mt-2">
+            {summary.unpaidCount} bill{summary.unpaidCount !== 1 ? 's' : ''} remaining
+            {summary.overdueCount > 0 && (
+              <span className="text-primary font-medium"> · {summary.overdueCount} overdue</span>
+            )}
+          </p>
+        </motion.header>
+
+        {/* ━━━ SEARCH BAR ━━━ */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
           className="mb-5"
         >
-          {/* Glassmorphism header panel */}
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="glass-header rounded-[16px] p-4 mb-4"
-          >
-            {/* Row 1: Avatar + greeting + segmented progress */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  className="relative w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/25"
-                >
-                  <span className="text-sm font-bold text-primary">
-                    {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                  </span>
-                  {summary.overdueCount > 0 && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.3 }}
-                      className="absolute -top-0.5 -right-0.5 flex items-center justify-center"
-                    >
-                      <span className="absolute w-4 h-4 rounded-full bg-status-overdue/30 animate-ping" />
-                      <span className="relative w-4 h-4 rounded-full bg-status-overdue flex items-center justify-center text-[8px] font-bold text-primary-foreground">
-                        {summary.overdueCount > 9 ? '9+' : summary.overdueCount}
-                      </span>
-                    </motion.div>
-                  )}
-                </motion.div>
-                <div>
-                  <motion.p
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 }}
-                    className="text-[13px] text-muted-foreground leading-tight"
-                  >
-                    {getGreeting()}{userName ? `, ${userName}` : ''}
-                  </motion.p>
-                  <motion.p
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="text-[11px] text-muted-foreground/60 leading-tight mt-0.5"
-                  >
-                    {format(new Date(), 'EEEE, MMMM d')}
-                  </motion.p>
-                </div>
-              </div>
-              <SegmentedProgress
-                paid={summary.paidCount}
-                total={summary.paidCount + summary.unpaidCount}
-              />
-            </div>
-
-            {/* Divider */}
-            <div className="h-px bg-border/30 my-1" />
-
-            {/* Row 2: Total upcoming amount */}
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mb-1">
-                Total Upcoming
-              </p>
-              <motion.p
-                key={totalUpcoming}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                className="text-[28px] font-bold tracking-tight text-foreground leading-none"
-              >
-                {formatCurrency(totalUpcoming)}
-              </motion.p>
-            </div>
-          </motion.div>
-
-          {/* Search & Sort */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 pointer-events-none" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 pointer-events-none" />
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search payments..."
-                className="w-full h-10 bg-secondary/60 border-0 rounded-xl pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+                placeholder="Search"
+                className="w-full h-10 bg-card border-0 rounded-xl pl-10 pr-9 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all"
               />
               {searchQuery && (
                 <motion.button
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  whileTap={{ scale: 0.8 }}
+                  initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.8 }}
                   onClick={() => setSearchQuery('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-muted flex items-center justify-center"
                 >
@@ -559,41 +413,36 @@ export default function Schedule() {
               )}
             </div>
             <motion.button
-              layout
               whileTap={{ scale: 0.92 }}
               onClick={cycleSortMode}
-              className="h-10 px-3 rounded-xl bg-secondary/60 flex items-center gap-1.5 flex-shrink-0 transition-colors active:bg-secondary overflow-hidden"
+              className="h-10 px-3 rounded-xl bg-card flex items-center gap-1.5 flex-shrink-0"
             >
               <AnimatePresence mode="wait">
                 <motion.span
                   key={sortMode}
-                  initial={{ y: 12, opacity: 0, filter: 'blur(4px)' }}
-                  animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
-                  exit={{ y: -12, opacity: 0, filter: 'blur(4px)' }}
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -10, opacity: 0 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="flex items-center gap-1.5"
                 >
                   {sortMode === 'date' && <Clock className="w-3.5 h-3.5 text-primary" />}
                   {sortMode === 'amount' && <ArrowDownUp className="w-3.5 h-3.5 text-primary" />}
                   {sortMode === 'name' && <ArrowDownAZ className="w-3.5 h-3.5 text-primary" />}
-                  <span className="text-xs font-medium text-card-foreground">{SORT_LABELS[sortMode]}</span>
+                  <span className="text-xs font-medium text-foreground">{SORT_LABELS[sortMode]}</span>
                 </motion.span>
               </AnimatePresence>
             </motion.button>
-            {/* Advanced Filters button */}
             <motion.button
               whileTap={{ scale: 0.92 }}
               onClick={() => {
-                if (!isPremium) {
-                  toast('Upgrade to Premium for advanced filters', { icon: '👑' });
-                  return;
-                }
+                if (!isPremium) { toast('Upgrade to Premium for advanced filters', { icon: '👑' }); return; }
                 setShowFilters(!showFilters);
               }}
-              className="relative h-10 px-3 rounded-xl bg-secondary/60 flex items-center gap-1.5 flex-shrink-0"
+              className="relative h-10 px-3 rounded-xl bg-card flex items-center gap-1.5 flex-shrink-0"
             >
               {!isPremium && <Crown className="w-3 h-3 text-primary" />}
-              <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
               {activeFilterCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
                   {activeFilterCount}
@@ -601,185 +450,133 @@ export default function Schedule() {
               )}
             </motion.button>
           </div>
+        </motion.div>
 
-          {/* Advanced Filters Panel */}
-          <AnimatePresence>
-            {showFilters && isPremium && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                className="overflow-hidden"
-              >
-                <div className="mt-3 p-4 rounded-2xl bg-card border border-border/50 space-y-4">
-                  {/* Date range */}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Date Range</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        value={filterDateFrom}
-                        onChange={e => setFilterDateFrom(e.target.value)}
-                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground"
-                        placeholder="From"
-                      />
-                      <input
-                        type="date"
-                        value={filterDateTo}
-                        onChange={e => setFilterDateTo(e.target.value)}
-                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground"
-                        placeholder="To"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Amount range */}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Amount Range</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        value={filterAmountMin}
-                        onChange={e => setFilterAmountMin(e.target.value)}
-                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground placeholder:text-muted-foreground/40"
-                        placeholder="Min"
-                      />
-                      <input
-                        type="number"
-                        value={filterAmountMax}
-                        onChange={e => setFilterAmountMax(e.target.value)}
-                        className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground placeholder:text-muted-foreground/40"
-                        placeholder="Max"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Category chips */}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Categories</p>
-                    <div className="flex flex-wrap gap-2">
-                      {CATEGORIES.map(cat => {
-                        const Icon = cat.icon;
-                        const isActive = filterCategories.includes(cat.id);
-                        return (
-                          <motion.button
-                            key={cat.id}
-                            whileTap={{ scale: 0.93 }}
-                            onClick={() => {
-                              setFilterCategories(prev =>
-                                isActive ? prev.filter(c => c !== cat.id) : [...prev, cat.id]
-                              );
-                            }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                              isActive
-                                ? 'text-card-foreground'
-                                : 'bg-secondary/40 border border-border text-muted-foreground'
-                            }`}
-                            style={isActive ? { backgroundColor: `${cat.color}20`, color: cat.color } : undefined}
-                          >
-                            <Icon className="w-3 h-3" />
-                            {cat.label}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {activeFilterCount > 0 && (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={clearAdvancedFilters}
-                      className="text-xs text-destructive font-medium"
-                    >
-                      Clear all filters
-                    </motion.button>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.header>
-
-        {/* Tab Switcher - iOS segmented control */}
-        <div className="relative mb-4 rounded-[10px] p-[3px] flex bg-secondary/60" style={{ boxShadow: 'inset 0 1px 2px hsl(var(--border) / 0.5)' }}>
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const Icon = tab.icon;
-            const count = tab.id === 'upcoming' ? unpaid.length : tab.id === 'paid' ? paid.length : 0;
-            return (
-              <motion.button
-                key={tab.id}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => { setActiveTab(tab.id); haptic(15); }}
-                className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[8px] text-[13px] font-semibold transition-colors z-10 ${
-                  isActive ? 'text-foreground' : 'text-muted-foreground/70'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="scheduleTab"
-                    className="absolute inset-0 rounded-[8px] bg-card shadow-sm"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                  />
-                )}
-                <span className="relative flex items-center gap-1.5">
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.label}
-                  {tab.premium && !isPremium && (
-                    <Crown className="w-3 h-3 text-primary" />
-                  )}
-                  {count > 0 && (
-                    <span className={`text-[10px] min-w-[16px] text-center px-1 py-px rounded-full font-semibold ${
-                      isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground/60'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Category filter bar */}
-        {usedCategories.length > 1 && (
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ maskImage: 'linear-gradient(to right, black 90%, transparent)' }}>
-            <motion.button
-              whileTap={{ scale: 0.93 }}
-              onClick={() => setActiveFilter(null)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                !activeFilter
-                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
-                  : 'bg-transparent border border-border text-muted-foreground hover:border-primary/40'
-              }`}
+        {/* ━━━ ADVANCED FILTERS ━━━ */}
+        <AnimatePresence>
+          {showFilters && isPremium && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              className="overflow-hidden mb-5"
             >
-              All
-            </motion.button>
-            {usedCategories.map((cat) => {
-              const Icon = cat.icon;
-              const isActive = activeFilter === cat.id;
+              <div className="p-4 rounded-2xl bg-card space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Date Range</p>
+                  <div className="flex gap-2">
+                    <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground" />
+                    <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Amount Range</p>
+                  <div className="flex gap-2">
+                    <input type="number" value={filterAmountMin} onChange={e => setFilterAmountMin(e.target.value)} className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground placeholder:text-muted-foreground/30" placeholder="Min" />
+                    <input type="number" value={filterAmountMax} onChange={e => setFilterAmountMax(e.target.value)} className="flex-1 h-9 px-3 rounded-lg bg-secondary/60 border-0 text-xs text-foreground placeholder:text-muted-foreground/30" placeholder="Max" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Categories</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map(cat => {
+                      const Icon = cat.icon;
+                      const isActive = filterCategories.includes(cat.id);
+                      return (
+                        <motion.button key={cat.id} whileTap={{ scale: 0.93 }}
+                          onClick={() => setFilterCategories(prev => isActive ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isActive ? 'text-foreground' : 'bg-secondary/40 text-muted-foreground'}`}
+                          style={isActive ? { backgroundColor: `${cat.color}20`, color: cat.color } : undefined}
+                        >
+                          <Icon className="w-3 h-3" />{cat.label}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {activeFilterCount > 0 && (
+                  <motion.button whileTap={{ scale: 0.95 }} onClick={clearAdvancedFilters} className="text-xs text-destructive font-medium">
+                    Clear all filters
+                  </motion.button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ━━━ SEGMENTED CONTROL (iOS-native) ━━━ */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="mb-5"
+        >
+          <div className="relative flex rounded-xl p-[3px] bg-card">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              const count = tab.id === 'upcoming' ? unpaid.length : tab.id === 'paid' ? paid.length : 0;
               return (
                 <motion.button
-                  key={cat.id}
-                  whileTap={{ scale: 0.93 }}
-                  onClick={() => setActiveFilter(isActive ? null : cat.id)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    isActive
-                      ? 'text-card-foreground'
-                      : 'bg-transparent border border-border text-muted-foreground hover:border-primary/40'
-                  }`}
-                  style={isActive ? { backgroundColor: `${cat.color}20`, color: cat.color, boxShadow: `0 0 12px ${cat.color}15` } : undefined}
+                  key={tab.id}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => { setActiveTab(tab.id); haptic(15); }}
+                  className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-[13px] font-semibold transition-colors z-10 ${isActive ? 'text-foreground' : 'text-muted-foreground/50'}`}
                 >
-                  <Icon className="w-3 h-3" />
-                  {cat.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="scheduleTab"
+                      className="absolute inset-0 rounded-[10px] bg-secondary"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                  <span className="relative flex items-center gap-1.5">
+                    {tab.label}
+                    {tab.premium && !isPremium && <Crown className="w-3 h-3 text-primary" />}
+                    {count > 0 && (
+                      <span className={`text-[10px] min-w-[16px] text-center px-1 py-px rounded-full font-semibold ${isActive ? 'bg-primary/15 text-primary' : 'bg-muted/50 text-muted-foreground/40'}`}>
+                        {count}
+                      </span>
+                    )}
+                  </span>
                 </motion.button>
               );
             })}
           </div>
+        </motion.div>
+
+        {/* ━━━ CATEGORY FILTER (text-only scroll row) ━━━ */}
+        {usedCategories.length > 1 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="mb-5"
+          >
+            <div className="flex gap-5 overflow-x-auto pb-1 scrollbar-none" style={{ maskImage: 'linear-gradient(to right, black 92%, transparent)' }}>
+              <button
+                onClick={() => setActiveFilter(null)}
+                className={`flex-shrink-0 text-[13px] font-semibold pb-1.5 transition-all border-b-2 ${!activeFilter ? 'text-primary border-primary' : 'text-muted-foreground/40 border-transparent'}`}
+              >
+                All
+              </button>
+              {usedCategories.map(cat => {
+                const isActive = activeFilter === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveFilter(isActive ? null : cat.id)}
+                    className={`flex-shrink-0 text-[13px] font-semibold pb-1.5 transition-all border-b-2 ${isActive ? 'text-primary border-primary' : 'text-muted-foreground/40 border-transparent'}`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
         )}
 
-        {/* Tab content */}
+        {/* ━━━ CONTENT ━━━ */}
         <AnimatePresence mode="wait">
           {activeTab === 'calendar' ? (
             <motion.div
@@ -796,107 +593,91 @@ export default function Schedule() {
               />
             </motion.div>
           ) : (
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, x: activeTab === 'upcoming' ? -20 : 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: activeTab === 'upcoming' ? 20 : -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            {showSkeleton ? (
-              <PaymentCardSkeleton count={3} />
-            ) : currentList.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16"
-              >
-                <div className="relative inline-flex items-center justify-center w-20 h-20 mb-5">
-                  <div className="absolute inset-0 rounded-2xl bg-secondary" />
-                  <div className="absolute inset-1 rounded-xl bg-card border border-border/30" />
-                  <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  >
-                    <Sparkles className="w-7 h-7 text-muted-foreground relative z-10" />
-                  </motion.div>
-                </div>
-                <p className="text-card-foreground font-semibold text-base">
-                  {activeTab === 'upcoming' ? 'All clear' : 'Nothing here yet'}
-                </p>
-                <p className="text-muted-foreground text-sm mt-1.5 max-w-[240px] mx-auto">
-                  {activeTab === 'upcoming'
-                    ? 'Add your first payment to start tracking'
-                    : 'Payments you complete will appear here'}
-                </p>
-                {activeTab === 'upcoming' && (
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => { setEditing(null); setSheetOpen(true); }}
-                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/25"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Payment
-                  </motion.button>
-                )}
-              </motion.div>
-            ) : (
-              <>
-                {activeTab === 'paid' && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex justify-end mb-2"
-                  >
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: activeTab === 'upcoming' ? -20 : 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: activeTab === 'upcoming' ? 20 : -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {showSkeleton ? (
+                <PaymentCardSkeleton count={3} />
+              ) : currentList.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-20"
+                >
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-card mb-4">
+                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
+                      <Sparkles className="w-7 h-7 text-muted-foreground/40" />
+                    </motion.div>
+                  </div>
+                  <p className="text-foreground font-semibold text-base">
+                    {activeTab === 'upcoming' ? 'All clear' : 'Nothing here yet'}
+                  </p>
+                  <p className="text-muted-foreground/50 text-sm mt-1.5 max-w-[240px] mx-auto">
+                    {activeTab === 'upcoming' ? 'Add your first payment to start tracking' : 'Payments you complete will appear here'}
+                  </p>
+                  {activeTab === 'upcoming' && (
                     <motion.button
-                      whileTap={{ scale: 0.93 }}
-                      onClick={() => setShowClearConfirm(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-destructive bg-destructive/10 active:bg-destructive/20 transition-colors"
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => { setEditing(null); setSheetOpen(true); }}
+                      className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/25"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Clear All
+                      <Plus className="w-4 h-4" /> Add Payment
                     </motion.button>
-                  </motion.div>
-                )}
-
-                <AnimatePresence>
-                  {showLongPressHint && activeTab === 'upcoming' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                      onClick={() => { setShowLongPressHint(false); localStorage.setItem('paytrack_longpress_hint', '1'); }}
-                      className="flex items-center gap-2 px-4 py-2.5 mb-3 rounded-xl bg-primary/10 border border-primary/20 cursor-pointer"
-                    >
-                      <Hand className="w-4 h-4 text-primary flex-shrink-0" />
-                      <p className="text-xs text-primary font-medium">
-                        Swipe or long-press any card for options
-                      </p>
+                  )}
+                </motion.div>
+              ) : (
+                <>
+                  {activeTab === 'paid' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end mb-3">
+                      <motion.button
+                        whileTap={{ scale: 0.93 }}
+                        onClick={() => setShowClearConfirm(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-destructive bg-destructive/10"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Clear All
+                      </motion.button>
                     </motion.div>
                   )}
-                </AnimatePresence>
 
-                {renderPaymentList()}
-              </>
-            )}
-          </motion.div>
+                  <AnimatePresence>
+                    {showLongPressHint && activeTab === 'upcoming' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                        onClick={() => { setShowLongPressHint(false); localStorage.setItem('paytrack_longpress_hint', '1'); }}
+                        className="flex items-center gap-2 px-4 py-2.5 mb-3 rounded-xl bg-primary/10 border border-primary/20 cursor-pointer"
+                      >
+                        <Hand className="w-4 h-4 text-primary flex-shrink-0" />
+                        <p className="text-xs text-primary font-medium">Swipe or long-press any card for options</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {renderPaymentList()}
+                </>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
 
-        {/* FAB */}
+        {/* ━━━ FAB ━━━ */}
         {activeTab === 'upcoming' && !sheetOpen && (
           <motion.button
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
-            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.85, rotate: 90 }}
             transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             onClick={() => { setEditing(null); setSheetOpen(true); haptic(20); }}
-            className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center z-[60] glow-pulse"
+            className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center z-[60] shadow-xl shadow-primary/30"
           >
-            <Plus className="w-6 h-6" />
+            <Plus className="w-7 h-7" strokeWidth={2.5} />
           </motion.button>
         )}
 
@@ -913,10 +694,7 @@ export default function Schedule() {
           {showClearConfirm && (
             <>
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-background/80 backdrop-blur-md z-[70]"
                 onClick={() => setShowClearConfirm(false)}
               />
@@ -927,51 +705,27 @@ export default function Schedule() {
                 transition={{ type: 'spring', damping: 30, stiffness: 400 }}
                 className="fixed inset-x-4 top-[30%] z-[70] max-w-sm mx-auto"
               >
-                <div className="bg-card rounded-2xl border border-border/50 shadow-2xl p-6 text-center">
+                <div className="bg-card rounded-2xl shadow-2xl p-6 text-center">
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-destructive/10 mb-4">
                     <Trash2 className="w-7 h-7 text-destructive" />
                   </div>
-                  <h3 className="text-lg font-bold text-card-foreground mb-1">Clear Paid List?</h3>
-                   <p className="text-sm text-muted-foreground mb-5">
-                     This will delete {paid.length} paid payment{paid.length !== 1 ? 's' : ''}. You can undo this briefly after clearing.
-                   </p>
+                  <h3 className="text-lg font-bold text-foreground mb-1">Clear Paid List?</h3>
+                  <p className="text-sm text-muted-foreground mb-5">
+                    This will delete {paid.length} paid payment{paid.length !== 1 ? 's' : ''}.
+                  </p>
                   <div className="flex gap-3">
-                    <motion.button
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => setShowClearConfirm(false)}
-                      className="flex-1 h-11 rounded-xl bg-secondary text-card-foreground font-medium text-sm"
-                    >
-                      Cancel
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.96 }}
-                      onClick={async () => {
-                        try {
-                          const count = paid.length;
-                          const deleted = await clearPaid();
-                          setShowClearConfirm(false);
-                          toast.success(`${count} paid payment${count !== 1 ? 's' : ''} cleared`, {
-                            action: {
-                              label: 'Undo',
-                              onClick: async () => {
-                                try {
-                                  await restorePayments(deleted);
-                                  toast.success('Payments restored');
-                                } catch {
-                                  toast.error('Failed to restore');
-                                }
-                              },
-                            },
-                            duration: 6000,
-                          });
-                        } catch {
-                          toast.error('Failed to clear');
-                        }
-                      }}
-                      className="flex-1 h-11 rounded-xl bg-destructive text-destructive-foreground font-medium text-sm"
-                    >
-                      Clear All
-                    </motion.button>
+                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => setShowClearConfirm(false)} className="flex-1 h-11 rounded-xl bg-secondary text-foreground font-medium text-sm">Cancel</motion.button>
+                    <motion.button whileTap={{ scale: 0.96 }} onClick={async () => {
+                      try {
+                        const count = paid.length;
+                        const deleted = await clearPaid();
+                        setShowClearConfirm(false);
+                        toast.success(`${count} paid payment${count !== 1 ? 's' : ''} cleared`, {
+                          action: { label: 'Undo', onClick: async () => { try { await restorePayments(deleted); toast.success('Payments restored'); } catch { toast.error('Failed to restore'); } } },
+                          duration: 6000,
+                        });
+                      } catch { toast.error('Failed to clear'); }
+                    }} className="flex-1 h-11 rounded-xl bg-destructive text-destructive-foreground font-medium text-sm">Clear All</motion.button>
                   </div>
                 </div>
               </motion.div>
@@ -979,44 +733,29 @@ export default function Schedule() {
           )}
         </AnimatePresence>
 
-        {/* Receipt Detail Popover */}
+        {/* Receipt Detail */}
         <AnimatePresence>
           {receiptPopover && (() => {
             const rd = getReceipt(receiptPopover.paymentId);
             return (
               <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-background z-[70]" onClick={() => setReceiptPopover(null)} />
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.6 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="fixed inset-0 bg-black z-[70]"
-                  onClick={() => setReceiptPopover(null)}
-                />
-                <motion.div
-                  initial={{ y: '100%' }}
-                  animate={{ y: 0 }}
-                  exit={{ y: '100%' }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.8 }}
+                  initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 32 }}
                   className="fixed bottom-0 left-0 right-0 z-[70] max-w-md mx-auto"
                 >
-                  <div className="rounded-t-[22px] overflow-hidden shadow-2xl bg-popover border border-border/50 border-b-0">
-                    <div className="flex justify-center pt-3 pb-1">
-                      <div className="w-9 h-[4px] rounded-full bg-muted-foreground/30" />
-                    </div>
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
-                      <h2 className="text-[17px] font-bold text-foreground tracking-[-0.3px]">Payment Receipt</h2>
-                      <motion.button
-                        whileTap={{ scale: 0.85 }}
-                        onClick={() => setReceiptPopover(null)}
-                        className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
-                      >
+                  <div className="rounded-t-[22px] overflow-hidden shadow-2xl bg-card border-t border-border/20">
+                    <div className="flex justify-center pt-3 pb-1"><div className="w-9 h-[4px] rounded-full bg-muted-foreground/20" /></div>
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-border/20">
+                      <h2 className="text-[17px] font-bold text-foreground">Payment Receipt</h2>
+                      <motion.button whileTap={{ scale: 0.85 }} onClick={() => setReceiptPopover(null)} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
                         <X className="w-4 h-4 text-muted-foreground" />
                       </motion.button>
                     </div>
                     <div className="px-5 py-5 space-y-4">
                       <p className="text-sm text-muted-foreground text-center">
-                        Receipt for <span className="font-semibold text-card-foreground">{receiptPopover.paymentName}</span>
+                        Receipt for <span className="font-semibold text-foreground">{receiptPopover.paymentName}</span>
                       </p>
                       {rd?.confirmationNumber && (
                         <div className="rounded-xl bg-secondary/50 px-4 py-3 flex items-center gap-3">
@@ -1025,17 +764,13 @@ export default function Schedule() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Confirmation #</p>
-                            <p className="text-sm font-mono font-semibold text-card-foreground truncate">{rd.confirmationNumber}</p>
+                            <p className="text-sm font-mono font-semibold text-foreground truncate">{rd.confirmationNumber}</p>
                           </div>
                         </div>
                       )}
                       {rd?.receiptImage && (
-                        <div className="rounded-xl overflow-hidden border border-border/50">
-                          <img
-                            src={rd.receiptImage}
-                            alt="Receipt"
-                            className="w-full max-h-64 object-contain bg-secondary/30"
-                          />
+                        <div className="rounded-xl overflow-hidden border border-border/20">
+                          <img src={rd.receiptImage} alt="Receipt" className="w-full max-h-64 object-contain bg-secondary/30" />
                         </div>
                       )}
                       {!rd?.confirmationNumber && !rd?.receiptImage && (
