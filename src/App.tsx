@@ -33,13 +33,13 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
     >
-      {/* Ambient glow rings */}
+      {/* Subtle ambient glow — neutral */}
       <motion.div
         className="absolute rounded-full"
         style={{
           width: 500,
           height: 500,
-          background: "radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 65%)",
+          background: "radial-gradient(circle, hsl(var(--foreground) / 0.04) 0%, transparent 65%)",
         }}
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 2, opacity: 1 }}
@@ -73,12 +73,12 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         transition={{ delay: 0.55, duration: 0.5, type: "spring", stiffness: 200, damping: 24 }}
       >
         <span className="text-foreground">Pay</span>
-        <span className="text-primary">Track</span>
+        <span className="text-foreground/60">Track</span>
       </motion.h1>
 
       {/* Tagline */}
       <motion.p
-        className="relative z-10 text-muted-foreground text-xs mt-2 tracking-[0.15em] uppercase font-medium"
+        className="relative z-10 text-muted-foreground/60 text-xs mt-2 tracking-[0.15em] uppercase font-medium"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.85, duration: 0.5 }}
@@ -86,7 +86,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         Never miss a payment
       </motion.p>
 
-      {/* Loading bar */}
+      {/* Loading bar — neutral */}
       <motion.div
         className="relative z-10 mt-12 h-[2.5px] rounded-full bg-border overflow-hidden"
         initial={{ width: 0, opacity: 0 }}
@@ -94,7 +94,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         transition={{ delay: 1.1, duration: 0.3 }}
       >
         <motion.div
-          className="h-full rounded-full bg-primary"
+          className="h-full rounded-full bg-foreground/40"
           initial={{ width: "0%" }}
           animate={{ width: "100%" }}
           transition={{ delay: 1.2, duration: 1.8, ease: [0.22, 0.68, 0.36, 1] }}

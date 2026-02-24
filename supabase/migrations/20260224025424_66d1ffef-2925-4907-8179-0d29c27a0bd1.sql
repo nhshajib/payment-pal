@@ -1,0 +1,1 @@
+UPDATE users SET phone_hash = 'c51ace70afbd94b2e04a9ef2eb891a23a1fe9a84b559f5f25cda0d4c6470aba6' WHERE id = 'ca3a628c-79fb-4856-ab3e-e4c0fffa6fdb';

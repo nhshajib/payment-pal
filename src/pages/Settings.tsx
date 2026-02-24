@@ -15,7 +15,7 @@ import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
 import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
-  ChevronRight, ChevronLeft, X, Check, Smartphone, BellRing, AlertTriangle,
+  ChevronRight, ChevronLeft, ChevronDown, X, Check, Smartphone, BellRing, AlertTriangle,
   Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
   MessageSquare, Star, Crown, Sparkles, Palette, FileDown, Layers, TrendingUp,
   Target, Settings2, Eye, Database, Info, Users, Copy, UserPlus, Clock3, Lock, Shield,
@@ -25,6 +25,7 @@ import { usePaydays } from '@/hooks/usePaydays';
 import { hashPhone } from '@/lib/hash';
 import { useTheme } from '@/hooks/useTheme';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useCountryCode } from '@/hooks/useCountryCode';
 import {
   getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs,
   requestNotificationPermission, getNotificationStatus, sendTestNotification,
@@ -229,6 +230,9 @@ export default function Settings() {
   const [roommatePhone, setRoommatePhone] = useState('');
   const [roommateSearchResult, setRoommateSearchResult] = useState<{ found: boolean; userId?: string; name?: string; phoneHash?: string } | null>(null);
   const [roommateSearching, setRoommateSearching] = useState(false);
+  const { country: loginCountry, allCountries } = useCountryCode();
+  const [roommateCountry, setRoommateCountry] = useState(loginCountry);
+  const [showRoommateCountryPicker, setShowRoommateCountryPicker] = useState(false);
 
   const [currentView, setCurrentView] = useState<SettingsView>('main');
   const [slideDirection, setSlideDirection] = useState<'forward' | 'back'>('forward');
@@ -544,22 +548,22 @@ export default function Settings() {
   /* ─── SUB-PAGE: Roommates & Partners ─── */
   const handleRoommateSearch = async () => {
     const digits = roommatePhone.replace(/\D/g, '');
-    if (digits.length < 10) { toast.error('Enter a valid phone number'); return; }
+    if (digits.length < 7) { toast.error('Enter a valid phone number'); return; }
     setRoommateSearching(true);
     try {
-      // Try both with and without common country code prefixes to handle registration format differences
-      const hashRaw = await hashPhone(digits);
-      const hashWith1 = await hashPhone('1' + digits);
-      const { data } = await supabase.from('users').select('id, name, phone_hash').eq('phone_hash', hashRaw).maybeSingle();
+      const fullPhone = roommateCountry.dial + digits;
+      const fullHash = await hashPhone(fullPhone);
+      const rawHash = await hashPhone(digits);
+      // Search with full phone (country code + digits) first, then raw digits
+      const { data } = await supabase.from('users').select('id, name, phone_hash').eq('phone_hash', fullHash).maybeSingle();
       if (data) {
-        setRoommateSearchResult({ found: true, userId: data.id, name: (data as any).name || 'User', phoneHash: hashRaw });
+        setRoommateSearchResult({ found: true, userId: data.id, name: (data as any).name || 'User', phoneHash: fullHash });
       } else {
-        // Try with country code prefix
-        const { data: data2 } = await supabase.from('users').select('id, name, phone_hash').eq('phone_hash', hashWith1).maybeSingle();
+        const { data: data2 } = await supabase.from('users').select('id, name, phone_hash').eq('phone_hash', rawHash).maybeSingle();
         if (data2) {
-          setRoommateSearchResult({ found: true, userId: data2.id, name: (data2 as any).name || 'User', phoneHash: hashWith1 });
+          setRoommateSearchResult({ found: true, userId: data2.id, name: (data2 as any).name || 'User', phoneHash: rawHash });
         } else {
-          setRoommateSearchResult({ found: false, phoneHash: hashRaw });
+          setRoommateSearchResult({ found: false, phoneHash: fullHash });
         }
       }
     } catch { toast.error('Search failed'); }
@@ -585,6 +589,14 @@ export default function Settings() {
       <IOSSection label="ADD ROOMMATE" index={0}>
         <div className="px-4 py-3 space-y-3">
           <div className="flex gap-2">
+            <motion.button whileTap={{ scale: 0.95 }} type="button"
+              onClick={() => setShowRoommateCountryPicker(!showRoommateCountryPicker)}
+              className="h-11 px-2.5 rounded-xl bg-secondary/50 flex items-center gap-1 flex-shrink-0 text-foreground"
+            >
+              <span className="text-base">{roommateCountry.flag}</span>
+              <span className="text-xs font-medium">{roommateCountry.dial}</span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            </motion.button>
             <Input
               type="tel"
               placeholder="Phone number"
@@ -596,6 +608,27 @@ export default function Settings() {
               {roommateSearching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             </Button>
           </div>
+
+          {/* Country picker dropdown */}
+          <AnimatePresence>
+            {showRoommateCountryPicker && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }} className="overflow-hidden"
+              >
+                <div className="max-h-40 overflow-y-auto rounded-xl bg-secondary/30 divide-y divide-border/30">
+                  {allCountries.map(c => (
+                    <button key={c.code} onClick={() => { setRoommateCountry(c); setShowRoommateCountryPicker(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${c.code === roommateCountry.code ? 'bg-primary/10' : ''}`}
+                    >
+                      <span className="text-lg">{c.flag}</span>
+                      <span className="text-sm text-foreground font-medium">{c.dial}</span>
+                      <span className="text-xs text-muted-foreground">{c.code}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Search Result */}
           <AnimatePresence>
