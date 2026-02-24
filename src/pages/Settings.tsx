@@ -18,8 +18,10 @@ import {
   ChevronRight, ChevronLeft, X, Check, Smartphone, BellRing, AlertTriangle,
   Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
   MessageSquare, Star, Crown, Sparkles, Palette, FileDown, Layers, TrendingUp,
-  Target, Settings2, Eye, Database, Info,
+  Target, Settings2, Eye, Database, Info, Users, Copy, UserPlus, Clock3,
 } from 'lucide-react';
+import { useRoommates } from '@/hooks/useRoommates';
+import { hashPhone } from '@/lib/hash';
 import { useTheme } from '@/hooks/useTheme';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import {
@@ -27,7 +29,7 @@ import {
   requestNotificationPermission, getNotificationStatus, sendTestNotification,
 } from '@/lib/notifications';
 
-type SettingsView = 'main' | 'profile' | 'appearance' | 'notifications' | 'data';
+type SettingsView = 'main' | 'profile' | 'appearance' | 'notifications' | 'data' | 'roommates';
 
 /* ─── iOS-style bottom sheet modal ─── */
 function SettingsModal({
@@ -233,6 +235,10 @@ export default function Settings() {
   const { payments } = usePayments(userId);
   const { canInstall, isIOS, hasNativePrompt, promptInstall } = usePWAInstall();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const { roommates, loading: roommatesLoading, fetchRoommates, addRoommate, removeRoommate, getConfirmedRoommates } = useRoommates(userId);
+  const [roommatePhone, setRoommatePhone] = useState('');
+  const [roommateSearchResult, setRoommateSearchResult] = useState<{ found: boolean; userId?: string; name?: string; phoneHash?: string } | null>(null);
+  const [roommateSearching, setRoommateSearching] = useState(false);
 
   const [currentView, setCurrentView] = useState<SettingsView>('main');
   const [slideDirection, setSlideDirection] = useState<'forward' | 'back'>('forward');
@@ -538,6 +544,164 @@ export default function Settings() {
     </div>
   );
 
+  /* ─── SUB-PAGE: Roommates & Partners ─── */
+  const handleRoommateSearch = async () => {
+    const digits = roommatePhone.replace(/\D/g, '');
+    if (digits.length < 10) { toast.error('Enter a valid phone number'); return; }
+    setRoommateSearching(true);
+    try {
+      const hash = await hashPhone(digits);
+      const { data } = await supabase.from('users').select('id, name').eq('phone_hash', hash).maybeSingle();
+      if (data) {
+        setRoommateSearchResult({ found: true, userId: data.id, name: (data as any).name || 'User', phoneHash: hash });
+      } else {
+        setRoommateSearchResult({ found: false, phoneHash: hash });
+      }
+    } catch { toast.error('Search failed'); }
+    finally { setRoommateSearching(false); }
+  };
+
+  const handleInviteShare = async () => {
+    const msg = `Hi! ${userName || 'Someone'} invited you to track shared payments on PayTrack. Download the app to get started: https://trakpay.lovable.app`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'PayTrack Invite', text: msg }); }
+      catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(msg);
+      toast.success('Invite link copied!');
+    }
+  };
+
+  const renderRoommates = () => (
+    <div>
+      <SubPageHeader title="Roommates & Partners" onBack={navigateBack} />
+
+      {/* Search */}
+      <IOSSection label="ADD ROOMMATE" index={0}>
+        <div className="px-4 py-3 space-y-3">
+          <div className="flex gap-2">
+            <Input
+              type="tel"
+              placeholder="Phone number"
+              value={roommatePhone}
+              onChange={e => { setRoommatePhone(e.target.value); setRoommateSearchResult(null); }}
+              className="h-11 bg-secondary/50 border-0 rounded-xl text-sm flex-1"
+            />
+            <Button onClick={handleRoommateSearch} disabled={roommateSearching} className="rounded-xl h-11 px-4 text-sm">
+              {roommateSearching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            </Button>
+          </div>
+
+          {/* Search Result */}
+          <AnimatePresence>
+            {roommateSearchResult && (
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-xl p-3 bg-secondary/50">
+                {roommateSearchResult.found ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
+                        <User className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-card-foreground">{roommateSearchResult.name}</p>
+                        <p className="text-xs text-muted-foreground">Found on PayTrack</p>
+                      </div>
+                    </div>
+                    <Button size="sm" className="rounded-lg h-8 text-xs bg-primary" onClick={async () => {
+                      try {
+                        await addRoommate(roommateSearchResult.phoneHash!, roommateSearchResult.userId, roommateSearchResult.name);
+                        toast.success('Roommate added!');
+                        setRoommatePhone('');
+                        setRoommateSearchResult(null);
+                      } catch { toast.error('Already added or error'); }
+                    }}>
+                      <UserPlus className="w-3 h-3 mr-1" /> Add
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-card-foreground">Not on PayTrack yet</p>
+                      <p className="text-xs text-muted-foreground">Send them an invite</p>
+                    </div>
+                    <Button size="sm" variant="outline" className="rounded-lg h-8 text-xs border-primary/30 text-primary" onClick={async () => {
+                      try {
+                        await addRoommate(roommateSearchResult.phoneHash!);
+                        handleInviteShare();
+                        setRoommatePhone('');
+                        setRoommateSearchResult(null);
+                      } catch { toast.error('Already invited or error'); }
+                    }}>
+                      <Send className="w-3 h-3 mr-1" /> Invite
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </IOSSection>
+
+      {/* Confirmed Roommates */}
+      {roommates.filter(r => r.status === 'confirmed').length > 0 && (
+        <IOSSection label="CONFIRMED" index={1}>
+          {roommates.filter(r => r.status === 'confirmed').map((r, i, arr) => (
+            <IOSRow
+              key={r.id}
+              icon={<User className="w-[14px] h-[14px]" />}
+              iconColor="#10b981"
+              title={r.partner_name || r.nickname || 'Roommate'}
+              subtitle="Connected"
+              onClick={() => {
+                if (confirm('Remove this roommate?')) {
+                  removeRoommate(r.id);
+                  toast.success('Removed');
+                }
+              }}
+              rightElement={<div className="w-2 h-2 rounded-full bg-primary" />}
+              isLast={i === arr.length - 1}
+            />
+          ))}
+        </IOSSection>
+      )}
+
+      {/* Pending Invites */}
+      {roommates.filter(r => r.status === 'pending').length > 0 && (
+        <IOSSection label="PENDING" index={2}>
+          {roommates.filter(r => r.status === 'pending').map((r, i, arr) => (
+            <div key={r.id} className={`flex items-center justify-between px-4 py-3 ${i < arr.length - 1 ? 'border-b border-border/30' : ''}`}>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                <div>
+                  <p className="text-sm font-medium text-card-foreground">{r.nickname || `...${r.phone_hash.slice(-6)}`}</p>
+                  <p className="text-xs text-muted-foreground">Waiting to join</p>
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="ghost" className="h-7 text-xs rounded-lg" onClick={handleInviteShare}>
+                  <Share className="w-3 h-3 mr-1" /> Invite
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs rounded-lg text-destructive" onClick={() => { removeRoommate(r.id); toast.success('Removed'); }}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </IOSSection>
+      )}
+
+      {roommates.length === 0 && !roommatesLoading && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-secondary mb-3">
+            <Users className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-card-foreground">No roommates yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Search by phone number to add someone</p>
+        </motion.div>
+      )}
+    </div>
+  );
+
   /* ─── MAIN MENU ─── */
   const renderMain = () => (
     <div>
@@ -588,6 +752,17 @@ export default function Settings() {
           title="Appearance & Display"
           subtitle="Theme, accent color, currency"
           onClick={() => navigateTo('appearance')}
+        />
+        <IOSRow
+          icon={<Users className="w-[14px] h-[14px]" />}
+          iconColor="#14b8a6"
+          title="Roommates & Partners"
+          subtitle="Manage shared bill contacts"
+          onClick={() => {
+            if (!isPremium) { setActiveModal('premium'); return; }
+            fetchRoommates();
+            navigateTo('roommates');
+          }}
           isLast
         />
       </IOSSection>
@@ -677,6 +852,7 @@ export default function Settings() {
             {currentView === 'appearance' && renderAppearance()}
             {currentView === 'notifications' && renderNotifications()}
             {currentView === 'data' && renderData()}
+            {currentView === 'roommates' && renderRoommates()}
           </motion.div>
         </AnimatePresence>
 
