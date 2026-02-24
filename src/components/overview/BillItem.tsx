@@ -31,10 +31,10 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
 
   const isFreeTrial = payment.category === 'free_trial';
   const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
-  const isShared = payment.isShared && payment.userShareAmount != null;
+  const isShared = payment.is_shared && payment.user_share_amount != null;
 
   // Determine display amount
-  const displayAmount = isShared ? (payment.userShareAmount ?? payment.amount) : payment.amount;
+  const displayAmount = isShared ? (payment.user_share_amount ?? payment.amount) : payment.amount;
   const remaining = displayAmount - partialAmount;
   const isPartial = partialAmount > 0;
 
@@ -83,11 +83,11 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-semibold text-card-foreground truncate">{payment.name}</p>
             {/* Pay Portal Link */}
-            {payment.paymentUrl && (
+            {payment.payment_url && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(payment.paymentUrl, '_blank', 'noopener,noreferrer');
+                  window.open(payment.payment_url, '_blank', 'noopener,noreferrer');
                 }}
                 className="p-1 rounded-md hover:bg-secondary/60 transition-colors flex-shrink-0"
               >
@@ -97,9 +97,9 @@ export default function BillItem({ payment, onTap, onSwipePay, partialAmount = 0
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{getRelativeLabel(payment.due_date)}</p>
           {/* Shared bill secondary text */}
-          {isShared && payment.totalAmount != null && (
+          {isShared && payment.total_amount != null && (
             <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-              Total Bill: {formatCurrency(payment.totalAmount)}
+              Total Bill: {formatCurrency(payment.total_amount)}
             </p>
           )}
         </div>

@@ -1,11 +1,11 @@
-import { CalendarDays, Settings, BarChart3 } from 'lucide-react';
+import { CalendarDays, Settings, Lightbulb } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { haptic } from '@/lib/haptics';
 
 const tabs = [
   { path: '/schedule', icon: CalendarDays, label: 'Schedule' },
-  { path: '/overview', icon: BarChart3, label: 'Overview' },
+  { path: '/insights', icon: Lightbulb, label: 'Insights' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
