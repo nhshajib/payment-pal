@@ -359,7 +359,7 @@ export default function Settings() {
       const { data: createData, error: createError } = await supabase.functions.invoke('paypal-payment', { body: { action: 'create-order' } });
       if (createError || !createData?.id) throw new Error(createError?.message || 'Failed to create order');
       const orderId = createData.id;
-      const approvalUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${orderId}`;
+      const approvalUrl = `https://www.paypal.com/checkoutnow?token=${orderId}`;
       const popup = window.open(approvalUrl, 'paypal', 'width=500,height=700,left=200,top=100');
       const pollInterval = setInterval(async () => {
         try {
@@ -764,9 +764,13 @@ export default function Settings() {
           <div className="flex items-center gap-2">
             <p className="text-lg font-semibold text-foreground truncate">{userName || 'User'}</p>
             {isPremium && (
-              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setActiveModal('premium-features')}
+                className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              >
                 Premium
-              </span>
+              </motion.button>
             )}
           </div>
         </div>
@@ -861,7 +865,7 @@ export default function Settings() {
         onClick={() => setActiveModal('about')}
         className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground/50"
       >
-        PayTrack v2.5
+        PayTrack v2.7
       </motion.button>
     </div>
   );
@@ -953,6 +957,37 @@ export default function Settings() {
           </div>
         </SettingsModal>
 
+        {/* Premium Features Modal (for premium users) */}
+        <SettingsModal open={activeModal === 'premium-features'} onClose={close} title="Your Premium Features">
+          <div className="space-y-4">
+            <div className="text-center mb-2">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-3">
+                <Crown className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">You have access to all premium features</p>
+            </div>
+            <div className="rounded-xl border border-border/50 divide-y divide-border/30">
+              {[
+                { icon: TrendingUp, text: 'Price Hike Alerts' },
+                { icon: Eye, text: '30-Day Future Outlook' },
+                { icon: CalendarDays, text: 'Calendar view with payment dots' },
+                { icon: Target, text: 'Monthly budget goals & tracking' },
+                { icon: Sparkles, text: 'Spending predictions & forecasts' },
+                { icon: Search, text: 'Advanced search & filters' },
+                { icon: Palette, text: 'Custom accent colors (6 themes)' },
+                { icon: FileDown, text: 'Export payments as CSV' },
+                { icon: Users, text: 'Roommates & shared bills' },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-3 px-4 py-3">
+                  <Icon className="w-[18px] h-[18px] text-muted-foreground flex-shrink-0" />
+                  <span className="text-[15px] text-foreground flex-1">{text}</span>
+                  <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </SettingsModal>
+
         {/* Budget Modal */}
         <SettingsModal open={activeModal === 'budget'} onClose={close} title="Monthly Budget" onSave={async () => {
           const val = tempBudget.trim() ? Number(tempBudget) : null;
@@ -995,20 +1030,25 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.6</p>
+              <p className="text-sm text-muted-foreground">Version 2.7</p>
             </div>
             <div className="text-left space-y-3">
               <div>
-                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.6</span><span className="text-xs text-muted-foreground">Latest</span></div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.7</span><span className="text-xs text-muted-foreground">Latest</span></div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Redesigned login & signup flow (true-black iOS native)</li>
+                  <li>Clickable Premium badge with feature list</li>
+                  <li>Production PayPal payments</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.6</span></div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
                   <li>Price Hike Alerts — subscription creep detection</li>
                   <li>30-Day Future Outlook — upcoming bill forecast</li>
                   <li>Premium upgrade paywall page</li>
-                  <li>International country code picker for roommate search</li>
                   <li>Monochrome splash screen redesign</li>
                   <li>Tap-to-open payment card action menu</li>
-                  <li>Install App shortcut in Settings</li>
-                  <li>Phone hash login fix for cross-format compatibility</li>
                 </ul>
               </div>
               <div>
