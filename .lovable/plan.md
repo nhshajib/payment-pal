@@ -1,60 +1,77 @@
 
 
-# Free Trials as a Standalone Feature on Schedule Page
+## Plan: Fix Login/Signup Flow, Clickable Premium Badge, Real PayPal
 
-## What Changes
+### Issues Identified
 
-### 1. FAB becomes a "Type Picker" (Schedule page)
-When the user taps the "+" FAB on the Schedule page, instead of immediately opening the AddPaymentSheet, a small bottom action sheet appears with two options:
-- **Regular Payment** -- opens AddPaymentSheet as before
-- **Free Trial** (with a Crown icon for premium) -- if premium, opens the enhanced AddTrialSheet; if not premium, shows the premium upsell toast/popup
+**1. Login/Signup flow design mismatch:**
+- Background uses `bg-background` (dark gray 6%) instead of true black
+- Colorful radial gradients and floating icons clash with the monochrome iOS aesthetic used everywhere else
+- Signup screen has a cramped inline number pad that doesn't match the full-screen iOS passcode pattern used for login
+- The overall feel is "web app form" rather than "native iOS app"
 
-### 2. Replace "Calendar" tab with "Free Trials" tab
-The segmented control changes from `Upcoming | Paid | Calendar` to `Upcoming | Paid | Trials`. The Trials tab:
-- Shows a Crown icon next to "Trials" label (like Calendar did)
-- If not premium, tapping it shows a premium upsell
-- If premium, displays all active (non-cancelled) trials sorted by expiration, with countdown badges and swipe-to-cancel
+**2. Premium badge not clickable:**
+- In Settings main view (line 766-769), the "Premium" badge next to the user's name is a static `<span>` — not interactive
+- No way for premium users to see what features they've unlocked
 
-### 3. Enhanced AddTrialSheet
-The existing AddTrialSheet gets additional fields:
-- **Website/Service URL** (optional) -- the website the trial is from
-- **Reminder days before expiry** -- a selector (1 day, 3 days, 1 week) so users know when to cancel
-- **Category** -- reuse existing category picker or a simple "type" field
-
-### 4. Free Trial Cards in the Trials Tab
-Each trial card shows:
-- Trial name (bold)
-- "Expires in X days" badge (green if >7 days, orange if 3-7, red if <=3)
-- Cancel URL as a tappable link button
-- Swipe-left to delete, tap to mark cancelled
-- Cancelled trials shown dimmed at the bottom
-
-### 5. Free Trials also appear on Overview page
-The existing Free Trials section on Overview stays but becomes a compact summary (top 3 expiring-soonest trials with a "See All" link that navigates to Schedule > Trials tab).
+**3. Sandbox PayPal instead of production:**
+- Edge function (`supabase/functions/paypal-payment/index.ts` line 11) uses `api-m.sandbox.paypal.com`
+- Settings.tsx (line 362) opens checkout at `www.sandbox.paypal.com`
 
 ---
 
-## Technical Details
+### Changes
 
-### Files Modified
+#### A. Onboarding.tsx — Redesign to match true-black iOS aesthetic
 
-| File | Changes |
-|------|---------|
-| `src/pages/Schedule.tsx` | Replace Calendar tab with Trials tab; add "type picker" sheet state for FAB; import and render AddTrialSheet and trial cards; integrate `useFreeTrials` hook |
-| `src/components/AddTrialSheet.tsx` | Add reminder_days field, website URL field; enhance form layout to match AddPaymentSheet style |
-| `src/components/AddPaymentSheet.tsx` | No changes needed |
-| `src/hooks/useFreeTrials.ts` | No changes (existing hook covers all CRUD) |
+1. **Landing screen**: Replace `bg-background` with `bg-black`. Remove colorful radial gradients and SVG noise overlay. Remove floating icons. Use the same monochrome aesthetic as the splash screen — clean white text on true black, subtle `white/10` accents instead of `primary` color splashes.
 
-### No database changes needed
-The `free_trials` table already has all required columns (`name`, `expires_on`, `cancel_url`, `is_cancelled`, `notes`). The reminder days can be stored in the `notes` field as a prefix or we can add a `reminder_days` column via migration. Since the notification system already reads from `notes`, storing reminder preference in `notes` as JSON is simpler and avoids a migration.
+2. **Login phone screen**: True black background. Cleaner card styling using `mono-card` classes. Remove colored gradients.
 
-### Implementation Flow
+3. **Login PIN screen**: Already looks decent — just update background to true black.
 
-**FAB Type Picker**: A small `AnimatePresence` bottom sheet with two tappable rows. State: `fabPickerOpen: boolean`. Tapping "Regular Payment" sets `fabPickerOpen=false` and `sheetOpen=true`. Tapping "Free Trial" checks premium status first.
+4. **Signup screen**: True black background. Redesign the form to be more spacious and iOS-native. Keep the compact number pad but style it consistently with the login PIN pad (same sizing, same `bg-secondary/60` circles). Remove colored gradients.
 
-**Trials Tab Content**: Render trials from `useFreeTrials` hook grouped into "Active" and "Cancelled" sections. Each trial card uses the same minimalist iOS list-item style as PaymentCard (circular icon, name, countdown badge, swipe gesture).
+5. Overall: Replace `bg-background` root container with `bg-black`. Buttons use the existing primary color but without excessive glowing shadows. The "or" divider uses `white/10` lines. The country picker uses `mono-card` styling.
 
-**Premium Gating**: The "Trials" tab and "Free Trial" FAB option both check `isPremium`. Non-premium users see a toast: "Upgrade to Premium for Free Trial Tracking" with a Crown icon.
+#### B. Settings.tsx — Clickable Premium Badge
 
-**AddTrialSheet Enhancements**: Add a "Remind me" row with pill buttons (1 day, 3 days, 1 week before expiry) matching the existing reminder UI pattern in PaymentActionSheet. Add a website URL input field.
+1. Make the "Premium" badge next to the user's name a tappable button
+2. On tap, open a new modal (`activeModal === 'premium-features'`) that lists all the premium features the user currently has access to:
+   - Price Hike Alerts
+   - 30-Day Future Outlook
+   - Calendar view with payment dots
+   - Monthly budget goals & tracking
+   - Spending predictions & forecasts
+   - Advanced search & filters
+   - Custom accent colors (6 themes)
+   - Export payments as CSV
+   - Roommates & shared bills
+3. Each feature shown with a checkmark icon in a clean iOS list style
+4. Modal title: "Your Premium Features"
+
+#### C. Edge Function + Frontend — Switch to Production PayPal
+
+1. **`supabase/functions/paypal-payment/index.ts`**: Change `PAYPAL_API` from `https://api-m.sandbox.paypal.com` to `https://api-m.paypal.com`
+
+2. **`src/pages/Settings.tsx`** (line 362): Change the popup URL from `https://www.sandbox.paypal.com/checkoutnow?token=` to `https://www.paypal.com/checkoutnow?token=`
+
+3. **`src/pages/Premium.tsx`** (line 125): Update the "Secure payment via PayPal" text (already generic, no change needed)
+
+#### D. Settings version bump
+
+- Update "PayTrack v2.5" footer text to "PayTrack v2.7"
+- Add v2.7 changelog entry in the About modal:
+  - Redesigned login & signup flow (true-black iOS native)
+  - Clickable Premium badge with feature list
+  - Production PayPal payments
+
+---
+
+### Technical Details
+
+- No database changes required
+- Edge function redeploy needed for PayPal URL change
+- The existing PayPal secrets (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) must be production credentials — the user should verify these are live keys, not sandbox keys. I will flag this during implementation.
+- All styling changes use existing CSS utilities (`mono-card`, `mono-card-solid`, theme variables)
 
