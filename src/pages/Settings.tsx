@@ -18,8 +18,9 @@ import {
   ChevronRight, ChevronLeft, ChevronDown, X, Check, Smartphone, BellRing, AlertTriangle,
   Clock, CalendarCheck, Send, User, Sun, Moon, Monitor, Download, Share,
   MessageSquare, Star, Crown, Sparkles, Palette, FileDown, Layers, TrendingUp,
-  Target, Settings2, Eye, Database, Info, Users, Copy, UserPlus, Clock3, Lock, Shield,
+  Target, Settings2, Eye, Database, Info, Users, Copy, UserPlus, Clock3, Lock, Shield, Fingerprint,
 } from 'lucide-react';
+import { useBiometric } from '@/hooks/useBiometric';
 import { useRoommates } from '@/hooks/useRoommates';
 import { usePaydays } from '@/hooks/usePaydays';
 import { hashPhone } from '@/lib/hash';
@@ -261,6 +262,7 @@ export default function Settings() {
   const [changePinNew, setChangePinNew] = useState('');
   const [changePinConfirm, setChangePinConfirm] = useState('');
   const [changePinLoading, setChangePinLoading] = useState(false);
+  const { isAvailable: biometricAvailable, isEnabled: biometricEnabled, enableBiometric, disableBiometric } = useBiometric();
 
   useEffect(() => {
     if (!userId) return;
@@ -397,8 +399,33 @@ export default function Settings() {
           icon={<Lock className="w-[18px] h-[18px]" />}
           title="Change PIN"
           onClick={() => { setChangePinCurrent(''); setChangePinNew(''); setChangePinConfirm(''); setActiveModal('change-pin'); }}
-          isLast
+          isLast={!biometricAvailable}
         />
+        {biometricAvailable && (
+          <IOSRow
+            icon={<Fingerprint className="w-[18px] h-[18px]" />}
+            title="Face ID / Biometric"
+            rightElement={
+              <Switch
+                checked={biometricEnabled}
+                onCheckedChange={async (v) => {
+                  if (v) {
+                    const uId = userId || '';
+                    const uName = userName || '';
+                    const phone = localStorage.getItem('paytrack_phone_hash') || '';
+                    const success = await enableBiometric(phone, uId, uName);
+                    if (success) toast.success('Biometric login enabled');
+                    else toast.error('Could not enable biometric login');
+                  } else {
+                    disableBiometric();
+                    toast.success('Biometric login disabled');
+                  }
+                }}
+              />
+            }
+            isLast
+          />
+        )}
       </IOSSection>
       <IOSSection label="DEVICE" index={2}>
         <IOSRow
