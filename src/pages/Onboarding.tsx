@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { useCountryCode } from '@/hooks/useCountryCode';
+import { useBiometric } from '@/hooks/useBiometric';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield,
+  ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield, Fingerprint,
 } from 'lucide-react';
 import PinInput from '@/components/PinInput';
 import NumberPad from '@/components/NumberPad';
@@ -13,7 +14,9 @@ import NumberPad from '@/components/NumberPad';
 type Screen = 'landing' | 'login-phone' | 'login-pin' | 'signup-info' | 'signup-pin' | 'signup-confirm';
 
 const slideIn = { initial: { opacity: 0, x: 60 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -60 } };
+const fadeIn = { initial: { opacity: 0, scale: 0.98 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.98 } };
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
+const fadeTrans = { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] as const };
 
 export default function Onboarding() {
   const [name, setName] = useState('');
@@ -22,12 +25,14 @@ export default function Onboarding() {
   const [confirmPin, setConfirmPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [pinError, setPinError] = useState(false);
-  const { register, login } = useUser();
+  const { register, login, restore } = useUser();
   const { country, allCountries, setCountry } = useCountryCode();
+  const { isAvailable: biometricAvailable, isEnabled: biometricEnabled, authenticateWithBiometric, hasSavedCredential, enableBiometric } = useBiometric();
   const navigate = useNavigate();
   const [screen, setScreen] = useState<Screen>('landing');
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
 
   useEffect(() => {
     if (sessionStorage.getItem('paytrack_signed_out')) {
@@ -38,12 +43,38 @@ export default function Onboarding() {
     }
   }, []);
 
+  // Show biometric prompt on landing if credentials exist
+  useEffect(() => {
+    if (biometricAvailable && biometricEnabled && hasSavedCredential()) {
+      setShowBiometricPrompt(true);
+    }
+  }, [biometricAvailable, biometricEnabled, hasSavedCredential]);
+
   const formatPhone = (val: string) => val.replace(/\D/g, '').slice(0, 15);
 
   const resetForm = () => {
     setPhone(''); setName(''); setPin(''); setConfirmPin('');
     setLoading(false); setPinError(false);
   };
+
+  // ── Biometric login ──
+  const handleBiometricLogin = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await authenticateWithBiometric();
+      if (user) {
+        await restore(user.phone);
+        toast.success('Welcome back!');
+        navigate('/schedule');
+      } else {
+        toast.error('Biometric authentication failed');
+      }
+    } catch {
+      toast.error('Biometric authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [authenticateWithBiometric, restore, navigate]);
 
   // ── Login handlers ──
   const handleContinueToPin = () => {
@@ -55,6 +86,14 @@ export default function Onboarding() {
     setLoading(true); setPinError(false);
     try {
       await login(country.dial + phone.replace(/\D/g, ''), fullPin);
+      // After successful login, offer biometric enrollment if available and not enabled
+      if (biometricAvailable && !biometricEnabled) {
+        const userId = localStorage.getItem('paytrack_user_id');
+        const userName = localStorage.getItem('paytrack_user_name');
+        if (userId) {
+          await enableBiometric(country.dial + phone.replace(/\D/g, ''), userId, userName || '');
+        }
+      }
       toast.success('Welcome back!');
       navigate('/schedule');
     } catch (err: any) {
@@ -62,7 +101,7 @@ export default function Onboarding() {
       setTimeout(() => { setPinError(false); setPin(''); }, 600);
       toast.error(err?.message?.includes('No account') ? 'No account found' : 'Incorrect PIN');
     } finally { setLoading(false); }
-  }, [login, navigate, country.dial, phone]);
+  }, [login, navigate, country.dial, phone, biometricAvailable, biometricEnabled, enableBiometric]);
 
   const handleLoginPadPress = (digit: string) => {
     if (pin.length >= 4) return;
@@ -83,7 +122,7 @@ export default function Onboarding() {
     const newPin = pin + digit;
     setPin(newPin);
     if (newPin.length === 4) {
-      setTimeout(() => setScreen('signup-confirm'), 300);
+      setTimeout(() => { setConfirmPin(''); setScreen('signup-confirm'); }, 300);
     }
   };
 
@@ -100,7 +139,11 @@ export default function Onboarding() {
       }
       setLoading(true);
       try {
-        await register(country.dial + phone.replace(/\D/g, ''), name.trim(), pin);
+        const userId = await register(country.dial + phone.replace(/\D/g, ''), name.trim(), pin);
+        // Auto-enroll biometric after signup
+        if (biometricAvailable) {
+          await enableBiometric(country.dial + phone.replace(/\D/g, ''), userId, name.trim());
+        }
         toast.success('Welcome to PayTrack!');
         navigate('/schedule');
       } catch (err: any) {
@@ -109,9 +152,9 @@ export default function Onboarding() {
         setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
       } finally { setLoading(false); }
     }
-  }, [confirmPin, pin, register, country.dial, phone, name, navigate]);
+  }, [confirmPin, pin, register, country.dial, phone, name, navigate, biometricAvailable, enableBiometric]);
 
-  // ── Shared components ──
+  // ── Back button ──
   const BackButton = ({ onBack }: { onBack: () => void }) => (
     <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
       onClick={onBack} className="self-start flex items-center gap-1 text-white/50 mb-8"
@@ -121,7 +164,8 @@ export default function Onboarding() {
     </motion.button>
   );
 
-  const CountryPicker = () => (
+  // ── Inline country picker JSX (NOT a component — prevents remount) ──
+  const countryPickerJSX = (
     <>
       <motion.button whileTap={{ scale: 0.95 }} type="button"
         onClick={() => setShowCountryPicker(!showCountryPicker)}
@@ -153,11 +197,12 @@ export default function Onboarding() {
     </>
   );
 
-  const PhoneInput = () => (
+  // ── Inline phone input JSX (NOT a component — prevents remount) ──
+  const phoneInputJSX = (
     <div className="space-y-2">
       <label className="text-[11px] text-white/30 font-semibold uppercase tracking-[0.1em] block">Phone Number</label>
       <div className="flex gap-2">
-        <CountryPicker />
+        {countryPickerJSX}
         <input type="tel" placeholder="Phone number" value={phone}
           onChange={e => setPhone(formatPhone(e.target.value))}
           className="flex-1 h-[52px] rounded-xl bg-white/[0.04] border border-white/[0.08] text-[17px] tracking-wider text-white placeholder:text-white/20 px-4 outline-none focus:border-white/20 transition-colors"
@@ -211,12 +256,28 @@ export default function Onboarding() {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.4 }}
                 className="w-full space-y-3"
               >
+                {/* Biometric Login Button */}
+                {showBiometricPrompt && (
+                  <motion.button whileTap={{ scale: 0.97 }}
+                    onClick={handleBiometricLogin}
+                    disabled={loading}
+                    className="w-full h-[56px] text-[15px] font-semibold rounded-[14px] gap-2.5 bg-white text-black flex items-center justify-center active:bg-white/90 transition-colors disabled:opacity-50"
+                  >
+                    <Fingerprint className="w-5 h-5" />
+                    Sign in with Face ID
+                  </motion.button>
+                )}
+
                 <motion.button whileTap={{ scale: 0.97 }}
                   onClick={() => { resetForm(); setScreen('login-phone'); }}
-                  className="w-full h-[52px] text-[15px] font-semibold rounded-[14px] gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-colors"
+                  className={`w-full h-[52px] text-[15px] font-semibold rounded-[14px] gap-2 flex items-center justify-center transition-colors ${
+                    showBiometricPrompt
+                      ? 'border border-white/[0.1] bg-white/[0.04] text-white active:bg-white/[0.08]'
+                      : 'bg-white text-black active:bg-white/90'
+                  }`}
                 >
                   <Phone className="w-[18px] h-[18px]" />
-                  Sign In
+                  Sign In with PIN
                 </motion.button>
 
                 <div className="flex items-center gap-3 py-1.5">
@@ -237,7 +298,7 @@ export default function Onboarding() {
               <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8, duration: 0.5 }}
                 className="text-white/15 text-[11px] mt-10 text-center flex items-center gap-1.5">
                 <Shield className="w-3 h-3" />
-                Secured with a 4-digit PIN
+                Secured with {showBiometricPrompt ? 'Face ID & ' : ''}4-digit PIN
               </motion.p>
             </motion.div>
           )}
@@ -253,7 +314,7 @@ export default function Onboarding() {
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-5">
-                <PhoneInput />
+                {phoneInputJSX}
 
                 <motion.button whileTap={{ scale: 0.97 }}
                   onClick={handleContinueToPin}
@@ -306,7 +367,7 @@ export default function Onboarding() {
                   />
                 </div>
 
-                <PhoneInput />
+                {phoneInputJSX}
 
                 <motion.button whileTap={{ scale: 0.97 }}
                   onClick={handleSignupInfoContinue}
@@ -344,9 +405,9 @@ export default function Onboarding() {
             </motion.div>
           )}
 
-          {/* ─── SIGNUP STEP 3: CONFIRM PIN ─── */}
+          {/* ─── SIGNUP STEP 3: CONFIRM PIN (fade transition) ─── */}
           {screen === 'signup-confirm' && (
-            <motion.div key="signup-confirm" {...slideIn} transition={spring} className="flex flex-col items-center">
+            <motion.div key="signup-confirm" {...fadeIn} transition={fadeTrans} className="flex flex-col items-center">
               <BackButton onBack={() => { setConfirmPin(''); setScreen('signup-pin'); }} />
 
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-3">
