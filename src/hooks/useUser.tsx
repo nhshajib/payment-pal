@@ -18,6 +18,7 @@ interface UserContextType {
   restore: (phone: string) => Promise<string>;
   updateName: (name: string) => Promise<void>;
   changePin: (currentPin: string, newPin: string) => Promise<void>;
+  resetPin: (phone: string, newPin: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -135,6 +136,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, [userId]);
 
+  const resetPin = useCallback(async (phone: string, newPin: string) => {
+    const hash = await hashPhone(phone);
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('phone_hash', hash)
+      .maybeSingle();
+
+    if (!user) throw new Error('No account found with that phone number');
+
+    const newHash = await hashPin(newPin);
+    const { error } = await supabase
+      .from('users')
+      .update({ pin_hash: newHash } as any)
+      .eq('id', user.id);
+
+    if (error) throw error;
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(USER_ID_KEY);
@@ -155,6 +175,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     restore,
     updateName,
     changePin,
+    resetPin,
     logout,
   };
 

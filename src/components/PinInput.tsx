@@ -16,12 +16,12 @@ export default function PinInput({ length, filled, error }: PinInputProps) {
       {Array.from({ length }).map((_, i) => (
         <motion.div
           key={i}
-          className={`w-4 h-4 rounded-full transition-all duration-150 ${
+          className={`w-[14px] h-[14px] rounded-full transition-all duration-150 ${
             error
-              ? 'bg-primary'
+              ? 'bg-white'
               : i < filled
-              ? 'bg-foreground'
-              : 'border-2 border-muted-foreground/30'
+              ? 'bg-white'
+              : 'border-2 border-white/25'
           }`}
           animate={
             error
