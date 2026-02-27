@@ -1,77 +1,56 @@
 
 
-## Plan: Fix Login/Signup Flow, Clickable Premium Badge, Real PayPal
+## Plan: Redesign Onboarding + Add Forgot PIN
 
-### Issues Identified
+### Current State
+The onboarding screens are functional but feel flat — plain inputs floating on black with excessive dead space. Content sits centered-vertically which wastes screen real estate and doesn't feel like a native iOS app. There's no "Forgot PIN?" option.
 
-**1. Login/Signup flow design mismatch:**
-- Background uses `bg-background` (dark gray 6%) instead of true black
-- Colorful radial gradients and floating icons clash with the monochrome iOS aesthetic used everywhere else
-- Signup screen has a cramped inline number pad that doesn't match the full-screen iOS passcode pattern used for login
-- The overall feel is "web app form" rather than "native iOS app"
+### Design Changes
 
-**2. Premium badge not clickable:**
-- In Settings main view (line 766-769), the "Premium" badge next to the user's name is a static `<span>` — not interactive
-- No way for premium users to see what features they've unlocked
+**A. Landing Screen — More visual hierarchy**
+- Keep the PayTrack logo but push it higher (top 30% of screen)
+- Add a subtle animated gradient orb/glow behind the logo (very subtle, white/5 opacity) for depth
+- Push buttons to the bottom of the screen (iOS pattern: content top, actions bottom)
+- Larger touch targets (56px height)
 
-**3. Sandbox PayPal instead of production:**
-- Edge function (`supabase/functions/paypal-payment/index.ts` line 11) uses `api-m.sandbox.paypal.com`
-- Settings.tsx (line 362) opens checkout at `www.sandbox.paypal.com`
+**B. Login Phone Screen — iOS Settings-style grouped input**
+- Content anchored to top (not centered), with generous top padding
+- Phone input inside a grouped card (rounded-2xl, bg-white/[0.06]) like iOS Settings rows
+- Country picker and phone input inside the same card row with a subtle divider
+- Continue button pinned toward bottom area
+- Cleaner typography: SF-style system font sizing
 
----
+**C. Login PIN Screen — Full-screen iOS passcode**  
+- Avatar circle at top showing the user's phone number
+- PIN dots centered in the middle third
+- NumberPad occupying the bottom third (like iOS lock screen)
+- **Add "Forgot PIN?" link** below the PIN dots — tappable text
 
-### Changes
+**D. Signup Info Screen — iOS-style grouped form**
+- Same grouped card treatment as login: Name and Phone fields in a single card with dividers between rows
+- Content anchored to top
+- Continue button lower
 
-#### A. Onboarding.tsx — Redesign to match true-black iOS aesthetic
+**E. Signup PIN + Confirm PIN — Same as login PIN layout**
+- Consistent full-screen passcode pattern
 
-1. **Landing screen**: Replace `bg-background` with `bg-black`. Remove colorful radial gradients and SVG noise overlay. Remove floating icons. Use the same monochrome aesthetic as the splash screen — clean white text on true black, subtle `white/10` accents instead of `primary` color splashes.
+**F. Forgot PIN Flow — New screen `'forgot-pin'`**
+- User enters their phone number
+- System looks up the account and resets PIN to a new one they choose
+- Flow: forgot-pin → forgot-new-pin → forgot-confirm-pin
+- Verifies identity by requiring the registered phone number match
+- Then allows setting a new 4-digit PIN (reuses existing PIN pad screens)
 
-2. **Login phone screen**: True black background. Cleaner card styling using `mono-card` classes. Remove colored gradients.
+### Files Changed
 
-3. **Login PIN screen**: Already looks decent — just update background to true black.
-
-4. **Signup screen**: True black background. Redesign the form to be more spacious and iOS-native. Keep the compact number pad but style it consistently with the login PIN pad (same sizing, same `bg-secondary/60` circles). Remove colored gradients.
-
-5. Overall: Replace `bg-background` root container with `bg-black`. Buttons use the existing primary color but without excessive glowing shadows. The "or" divider uses `white/10` lines. The country picker uses `mono-card` styling.
-
-#### B. Settings.tsx — Clickable Premium Badge
-
-1. Make the "Premium" badge next to the user's name a tappable button
-2. On tap, open a new modal (`activeModal === 'premium-features'`) that lists all the premium features the user currently has access to:
-   - Price Hike Alerts
-   - 30-Day Future Outlook
-   - Calendar view with payment dots
-   - Monthly budget goals & tracking
-   - Spending predictions & forecasts
-   - Advanced search & filters
-   - Custom accent colors (6 themes)
-   - Export payments as CSV
-   - Roommates & shared bills
-3. Each feature shown with a checkmark icon in a clean iOS list style
-4. Modal title: "Your Premium Features"
-
-#### C. Edge Function + Frontend — Switch to Production PayPal
-
-1. **`supabase/functions/paypal-payment/index.ts`**: Change `PAYPAL_API` from `https://api-m.sandbox.paypal.com` to `https://api-m.paypal.com`
-
-2. **`src/pages/Settings.tsx`** (line 362): Change the popup URL from `https://www.sandbox.paypal.com/checkoutnow?token=` to `https://www.paypal.com/checkoutnow?token=`
-
-3. **`src/pages/Premium.tsx`** (line 125): Update the "Secure payment via PayPal" text (already generic, no change needed)
-
-#### D. Settings version bump
-
-- Update "PayTrack v2.5" footer text to "PayTrack v2.7"
-- Add v2.7 changelog entry in the About modal:
-  - Redesigned login & signup flow (true-black iOS native)
-  - Clickable Premium badge with feature list
-  - Production PayPal payments
-
----
+1. **`src/pages/Onboarding.tsx`** — Complete frontend redesign of all screens + add forgot PIN screens
+2. **`src/components/PinInput.tsx`** — Update dot colors to use white instead of `foreground` theme variable (true black context)
+3. **`src/components/NumberPad.tsx`** — Update text/bg colors for true black context (white text, white/[0.06] circles)
+4. **`src/hooks/useUser.tsx`** — Add `resetPin(phone, newPin)` method for forgot PIN flow
 
 ### Technical Details
-
-- No database changes required
-- Edge function redeploy needed for PayPal URL change
-- The existing PayPal secrets (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) must be production credentials — the user should verify these are live keys, not sandbox keys. I will flag this during implementation.
-- All styling changes use existing CSS utilities (`mono-card`, `mono-card-solid`, theme variables)
+- New screen types added: `'forgot-pin' | 'forgot-new-pin' | 'forgot-confirm-pin'`
+- `resetPin` in useUser: looks up user by phone hash, updates pin_hash directly (no current PIN required — identity verified by phone number ownership)
+- PinInput/NumberPad color changes use hardcoded white values instead of CSS variables since they only appear on true-black backgrounds
+- Layout uses `justify-between` with `min-h-screen` to push content top and buttons bottom (iOS pattern)
 
