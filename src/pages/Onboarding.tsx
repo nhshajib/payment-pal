@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { useCountryCode } from '@/hooks/useCountryCode';
+import type { CountryInfo } from '@/hooks/useCountryCode';
 import { useBiometric } from '@/hooks/useBiometric';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { haptic, hapticError, hapticSuccess } from '@/lib/haptics';
 import {
-  ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield, Fingerprint, KeyRound,
+  ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield, Fingerprint, KeyRound, Search,
 } from 'lucide-react';
 import PinInput from '@/components/PinInput';
 import NumberPad from '@/components/NumberPad';
@@ -20,6 +22,31 @@ const slideIn = { initial: { opacity: 0, x: 40 }, animate: { opacity: 1, x: 0 },
 const fadeIn = { initial: { opacity: 0, scale: 0.97 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.97 } };
 const spring = { type: 'spring' as const, stiffness: 320, damping: 32 };
 const fadeTrans = { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] as const };
+
+// Signup step indicator
+const SIGNUP_STEPS = ['Info', 'PIN', 'Confirm'];
+
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 mb-6">
+      {SIGNUP_STEPS.map((label, i) => (
+        <div key={label} className="flex items-center gap-2">
+          <div className="flex flex-col items-center gap-1">
+            <motion.div
+              animate={{
+                width: i === current ? 24 : 8,
+                backgroundColor: i <= current ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.15)',
+              }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="h-[6px] rounded-full"
+            />
+          </div>
+          {i < SIGNUP_STEPS.length - 1 && <div className="w-0" />}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Onboarding() {
   const [name, setName] = useState('');
@@ -36,6 +63,7 @@ export default function Onboarding() {
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   // Forgot PIN flow
   const [forgotPhone, setForgotPhone] = useState('');
   const [forgotPin, setForgotPin] = useState('');
@@ -56,14 +84,24 @@ export default function Onboarding() {
     }
   }, [biometricAvailable, biometricEnabled, hasSavedCredential]);
 
-  const formatPhone = (val: string) => val.replace(/\D/g, '').slice(0, 15);
+  const formatPhone = (val: string) => val.replace(/\D/g, '').slice(0, country.phoneLength);
   const fullPhone = country.dial + phone.replace(/\D/g, '');
+  const isPhoneValid = phone.replace(/\D/g, '').length >= Math.max(country.phoneLength - 1, 7);
 
   const resetForm = () => {
     setPhone(''); setName(''); setPin(''); setConfirmPin('');
     setForgotPhone(''); setForgotPin(''); setForgotConfirmPin('');
     setLoading(false); setPinError(false);
   };
+
+  // Filtered countries for search
+  const filteredCountries = countrySearch
+    ? allCountries.filter(c =>
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+        c.dial.includes(countrySearch) ||
+        c.code.toLowerCase().includes(countrySearch.toLowerCase())
+      )
+    : allCountries;
 
   // ── Biometric login ──
   const handleBiometricLogin = useCallback(async () => {
@@ -72,12 +110,15 @@ export default function Onboarding() {
       const user = await authenticateWithBiometric();
       if (user) {
         await restore(user.phone);
+        hapticSuccess();
         toast.success('Welcome back!');
         navigate('/schedule');
       } else {
+        hapticError();
         toast.error('Biometric authentication failed');
       }
     } catch {
+      hapticError();
       toast.error('Biometric authentication failed');
     } finally {
       setLoading(false);
@@ -86,7 +127,7 @@ export default function Onboarding() {
 
   // ── Login handlers ──
   const handleContinueToPin = () => {
-    if (phone.replace(/\D/g, '').length < 7) { toast.error('Enter a valid phone number'); return; }
+    if (!isPhoneValid) { toast.error(`Enter a valid ${country.phoneLength}-digit phone number`); return; }
     setPin(''); setPinError(false); setScreen('login-pin');
   };
 
@@ -101,9 +142,11 @@ export default function Onboarding() {
           await enableBiometric(fullPhone, userId, userName || '');
         }
       }
+      hapticSuccess();
       toast.success('Welcome back!');
       navigate('/schedule');
     } catch (err: any) {
+      hapticError();
       setPinError(true);
       setTimeout(() => { setPinError(false); setPin(''); }, 600);
       toast.error(err?.message?.includes('No account') ? 'No account found' : 'Incorrect PIN');
@@ -119,7 +162,7 @@ export default function Onboarding() {
 
   // ── Signup handlers ──
   const handleSignupInfoContinue = () => {
-    if (phone.replace(/\D/g, '').length < 7) { toast.error('Enter a valid phone number'); return; }
+    if (!isPhoneValid) { toast.error(`Enter a valid ${country.phoneLength}-digit phone number`); return; }
     if (!name.trim()) { toast.error('Please enter your name'); return; }
     setPin(''); setScreen('signup-pin');
   };
@@ -139,6 +182,7 @@ export default function Onboarding() {
     setConfirmPin(newConfirm);
     if (newConfirm.length === 4) {
       if (newConfirm !== pin) {
+        hapticError();
         setPinError(true);
         setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
         toast.error('PINs do not match');
@@ -150,9 +194,11 @@ export default function Onboarding() {
         if (biometricAvailable) {
           await enableBiometric(fullPhone, userId, name.trim());
         }
+        hapticSuccess();
         toast.success('Welcome to PayTrack!');
         navigate('/schedule');
       } catch (err: any) {
+        hapticError();
         toast.error(err?.message || 'Something went wrong');
         setPinError(true);
         setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
@@ -162,7 +208,11 @@ export default function Onboarding() {
 
   // ── Forgot PIN handlers ──
   const handleForgotPhoneContinue = () => {
-    if (forgotPhone.replace(/\D/g, '').length < 7) { toast.error('Enter a valid phone number'); return; }
+    const forgotDigits = forgotPhone.replace(/\D/g, '');
+    if (forgotDigits.length < Math.max(country.phoneLength - 1, 7)) {
+      toast.error(`Enter a valid ${country.phoneLength}-digit phone number`);
+      return;
+    }
     setForgotPin(''); setScreen('forgot-new-pin');
   };
 
@@ -181,6 +231,7 @@ export default function Onboarding() {
     setForgotConfirmPin(newConfirm);
     if (newConfirm.length === 4) {
       if (newConfirm !== forgotPin) {
+        hapticError();
         setPinError(true);
         setTimeout(() => { setPinError(false); setForgotConfirmPin(''); }, 600);
         toast.error('PINs do not match');
@@ -190,10 +241,12 @@ export default function Onboarding() {
       try {
         const phoneNum = country.dial + forgotPhone.replace(/\D/g, '');
         await resetPin(phoneNum, forgotPin);
+        hapticSuccess();
         toast.success('PIN reset successfully! Please sign in.');
         resetForm();
         setScreen('login-phone');
       } catch (err: any) {
+        hapticError();
         toast.error(err?.message || 'Something went wrong');
         setPinError(true);
         setTimeout(() => { setPinError(false); setForgotConfirmPin(''); }, 600);
@@ -212,38 +265,76 @@ export default function Onboarding() {
     </motion.button>
   );
 
-  // ── Country picker inline JSX ──
-  const countryPickerJSX = (forForgot = false) => (
+  // ── Country picker with search ──
+  const handleCountrySelect = (c: CountryInfo) => {
+    setCountry(c);
+    setShowCountryPicker(false);
+    setCountrySearch('');
+    // Reset phone when switching country
+    setPhone('');
+  };
+
+  const countryPickerJSX = () => (
     <>
       <motion.button whileTap={{ scale: 0.96 }} type="button"
-        onClick={() => setShowCountryPicker(!showCountryPicker)}
+        onClick={(e) => { e.stopPropagation(); setShowCountryPicker(!showCountryPicker); setCountrySearch(''); }}
         className="h-[50px] px-3 rounded-xl bg-white/[0.06] flex items-center gap-1.5 flex-shrink-0 text-white active:bg-white/[0.1] transition-colors"
       >
         <span className="text-lg">{country.flag}</span>
         <span className="text-[15px] font-medium text-white/70">{country.dial}</span>
-        <ChevronDown className="w-3 h-3 text-white/25" />
+        <ChevronDown className={`w-3 h-3 text-white/25 transition-transform ${showCountryPicker ? 'rotate-180' : ''}`} />
       </motion.button>
       <AnimatePresence>
         {showCountryPicker && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }} className="overflow-hidden absolute left-0 right-0 top-full mt-1 z-20"
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}
+            className="absolute left-0 right-0 top-full mt-2 z-30"
           >
-            <div className="max-h-40 overflow-y-auto rounded-2xl bg-[#1c1c1e] border border-white/[0.1] divide-y divide-white/[0.06]">
-              {allCountries.map(c => (
-                <button key={c.code} onClick={() => { setCountry(c); setShowCountryPicker(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors active:bg-white/[0.08] ${c.code === country.code ? 'bg-white/[0.06]' : ''}`}
-                >
-                  <span className="text-lg">{c.flag}</span>
-                  <span className="text-[15px] text-white/80 font-medium">{c.dial}</span>
-                  <span className="text-xs text-white/25 ml-auto">{c.code}</span>
-                </button>
-              ))}
+            <div className="rounded-2xl bg-[#1c1c1e] border border-white/[0.1] overflow-hidden shadow-2xl shadow-black/50">
+              {/* Search */}
+              <div className="px-3 py-2 border-b border-white/[0.06]">
+                <div className="flex items-center gap-2 bg-white/[0.06] rounded-lg px-3 py-2">
+                  <Search className="w-4 h-4 text-white/30 flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search country..."
+                    value={countrySearch}
+                    onChange={e => setCountrySearch(e.target.value)}
+                    className="flex-1 bg-transparent text-[14px] text-white placeholder:text-white/25 outline-none"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              {/* List */}
+              <div className="max-h-[200px] overflow-y-auto divide-y divide-white/[0.04]">
+                {filteredCountries.length === 0 ? (
+                  <div className="px-4 py-4 text-center text-white/25 text-[13px]">No results</div>
+                ) : (
+                  filteredCountries.map(c => (
+                    <button key={c.code} onClick={() => handleCountrySelect(c)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors active:bg-white/[0.08] ${c.code === country.code ? 'bg-white/[0.06]' : ''}`}
+                    >
+                      <span className="text-lg">{c.flag}</span>
+                      <span className="text-[14px] text-white/80 font-medium flex-1">{c.name}</span>
+                      <span className="text-[13px] text-white/35">{c.dial}</span>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </>
   );
+
+  // Close country picker on outside click
+  useEffect(() => {
+    if (!showCountryPicker) return;
+    const handler = () => setShowCountryPicker(false);
+    const timer = setTimeout(() => document.addEventListener('click', handler), 10);
+    return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
+  }, [showCountryPicker]);
 
   // ── Grouped iOS-style input card ──
   const iosCard = (children: React.ReactNode) => (
@@ -261,7 +352,10 @@ export default function Onboarding() {
     </div>
   );
 
-  // ── Passcode screen layout (iOS lock screen pattern) ──
+  // Phone input helper text
+  const phoneHint = `${country.phoneLength} digits`;
+
+  // ── Passcode screen layout ──
   const passcodeLayout = (
     icon: React.ReactNode,
     title: string,
@@ -274,14 +368,18 @@ export default function Onboarding() {
     onBack: () => void,
     extra?: React.ReactNode,
     isLoading = false,
+    stepIndicator?: React.ReactNode,
   ) => (
     <motion.div key={title} {...fadeIn} transition={fadeTrans}
       className="flex flex-col items-center min-h-[calc(100dvh-48px)] relative pt-2"
     >
       {backButton(onBack)}
 
+      {/* Step indicator */}
+      {stepIndicator && <div className="pt-10 w-full">{stepIndicator}</div>}
+
       {/* Top section */}
-      <div className="flex flex-col items-center pt-12 pb-4">
+      <div className={`flex flex-col items-center ${stepIndicator ? 'pb-4' : 'pt-12 pb-4'}`}>
         <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
           className="w-14 h-14 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center mb-4"
@@ -297,10 +395,8 @@ export default function Onboarding() {
         <PinInput length={pinLength} filled={pinFilled} error={error} />
       </div>
 
-      {/* Extra (forgot pin link etc) */}
       {extra}
 
-      {/* Number pad */}
       <div className="pb-8">
         <NumberPad onPress={onPadPress} onDelete={onPadDelete} disabled={isLoading} />
       </div>
@@ -324,9 +420,8 @@ export default function Onboarding() {
             <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.35 }} className="flex flex-col min-h-[100dvh]"
             >
-              {/* Logo area — top 35% */}
+              {/* Logo area */}
               <div className="flex-1 flex flex-col items-center justify-center pt-8 pb-4 min-h-[35dvh]">
-                {/* Subtle glow */}
                 <div className="relative">
                   <div className="absolute inset-0 blur-[80px] bg-white/[0.04] rounded-full scale-150" />
                   <motion.div initial={{ opacity: 0, scale: 0.7, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -339,14 +434,13 @@ export default function Onboarding() {
                     </h1>
                   </motion.div>
                 </div>
-
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
                   className="text-white/25 text-[13px] tracking-widest uppercase mt-3">
                   Never miss a payment
                 </motion.p>
               </div>
 
-              {/* Welcome back banner */}
+              {/* Welcome back */}
               <AnimatePresence>
                 {showWelcomeBack && (
                   <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -364,12 +458,11 @@ export default function Onboarding() {
                 )}
               </AnimatePresence>
 
-              {/* Actions — bottom */}
+              {/* Actions */}
               <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.45 }}
                 className="pb-12 space-y-3"
               >
-                {/* Biometric */}
                 {showBiometricPrompt && (
                   <motion.button whileTap={{ scale: 0.97 }}
                     onClick={handleBiometricLogin} disabled={loading}
@@ -428,14 +521,15 @@ export default function Onboarding() {
                     <div className="flex items-center h-[52px] gap-2 relative">
                       {countryPickerJSX()}
                       <div className="w-px h-6 bg-white/[0.08]" />
-                      <input type="tel" placeholder="Phone number" value={phone}
+                      <input type="tel" placeholder={`${country.phoneLength}-digit number`} value={phone}
                         onChange={e => setPhone(formatPhone(e.target.value))}
                         className="flex-1 bg-transparent text-[17px] tracking-wide text-white placeholder:text-white/20 outline-none"
-                        maxLength={15} autoFocus
+                        maxLength={country.phoneLength} autoFocus
                       />
                     </div>
                   </div>
                 )}
+                <p className="text-white/20 text-[11px] mt-2 px-1">{country.flag} {country.name} · {phoneHint}</p>
               </motion.div>
 
               <div className="flex-1" />
@@ -445,7 +539,8 @@ export default function Onboarding() {
               >
                 <motion.button whileTap={{ scale: 0.97 }}
                   onClick={handleContinueToPin}
-                  className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-colors"
+                  disabled={!isPhoneValid}
+                  className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-all disabled:opacity-30"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" />
@@ -479,6 +574,8 @@ export default function Onboarding() {
             >
               {backButton(() => setScreen('landing'))}
 
+              <StepIndicator current={0} />
+
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
                 className="mb-8"
               >
@@ -500,15 +597,16 @@ export default function Onboarding() {
                         <span className="text-[15px] text-white/40 w-[70px] flex-shrink-0">Phone</span>
                         {countryPickerJSX()}
                         <div className="w-px h-6 bg-white/[0.08]" />
-                        <input type="tel" placeholder="Number" value={phone}
+                        <input type="tel" placeholder={`${country.phoneLength} digits`} value={phone}
                           onChange={e => setPhone(formatPhone(e.target.value))}
                           className="flex-1 bg-transparent text-[17px] tracking-wide text-white placeholder:text-white/20 outline-none"
-                          maxLength={15}
+                          maxLength={country.phoneLength}
                         />
                       </div>
                     </div>
                   </>
                 )}
+                <p className="text-white/20 text-[11px] mt-2 px-1">{country.flag} {country.name} · {phoneHint}</p>
               </motion.div>
 
               <div className="flex-1" />
@@ -518,7 +616,8 @@ export default function Onboarding() {
               >
                 <motion.button whileTap={{ scale: 0.97 }}
                   onClick={handleSignupInfoContinue}
-                  className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-colors"
+                  disabled={!isPhoneValid || !name.trim()}
+                  className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-all disabled:opacity-30"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" />
@@ -539,6 +638,9 @@ export default function Onboarding() {
             handleSignupPinPress,
             () => setPin(p => p.slice(0, -1)),
             () => { setPin(''); setScreen('signup-info'); },
+            undefined,
+            false,
+            <StepIndicator current={1} />,
           )}
 
           {/* ─── SIGNUP STEP 3: CONFIRM PIN ─── */}
@@ -552,6 +654,7 @@ export default function Onboarding() {
             () => { setConfirmPin(''); setScreen('signup-pin'); },
             undefined,
             loading,
+            <StepIndicator current={2} />,
           )}
 
           {/* ─── FORGOT PIN: PHONE ─── */}
@@ -568,23 +671,24 @@ export default function Onboarding() {
                   <KeyRound className="w-6 h-6 text-white/70" />
                 </div>
                 <h2 className="text-[30px] font-bold text-white tracking-tight leading-tight">Reset PIN</h2>
-                <p className="text-white/35 text-[15px] mt-1.5">Enter your registered phone number to reset your PIN</p>
+                <p className="text-white/35 text-[15px] mt-1.5">Enter your registered phone number</p>
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                 {iosCard(
                   <div className="px-4">
                     <div className="flex items-center h-[52px] gap-2 relative">
-                      {countryPickerJSX(true)}
+                      {countryPickerJSX()}
                       <div className="w-px h-6 bg-white/[0.08]" />
-                      <input type="tel" placeholder="Phone number" value={forgotPhone}
-                        onChange={e => setForgotPhone(formatPhone(e.target.value))}
+                      <input type="tel" placeholder={`${country.phoneLength}-digit number`} value={forgotPhone}
+                        onChange={e => setForgotPhone(e.target.value.replace(/\D/g, '').slice(0, country.phoneLength))}
                         className="flex-1 bg-transparent text-[17px] tracking-wide text-white placeholder:text-white/20 outline-none"
-                        maxLength={15} autoFocus
+                        maxLength={country.phoneLength} autoFocus
                       />
                     </div>
                   </div>
                 )}
+                <p className="text-white/20 text-[11px] mt-2 px-1">{country.flag} {country.name} · {phoneHint}</p>
               </motion.div>
 
               <div className="flex-1" />
