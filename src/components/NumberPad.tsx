@@ -31,7 +31,7 @@ export default function NumberPad({ onPress, onDelete, disabled }: NumberPadProp
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             disabled={disabled}
             onClick={() => {
-              haptic(10);
+              haptic(8);
               if (isDel) onDelete();
               else onPress(key);
             }}
