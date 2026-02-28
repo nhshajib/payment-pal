@@ -234,6 +234,7 @@ export default function Settings() {
   const { country: loginCountry, allCountries } = useCountryCode();
   const [roommateCountry, setRoommateCountry] = useState(loginCountry);
   const [showRoommateCountryPicker, setShowRoommateCountryPicker] = useState(false);
+  const [roommateCountrySearch, setRoommateCountrySearch] = useState('');
 
   const [currentView, setCurrentView] = useState<SettingsView>('main');
   const [slideDirection, setSlideDirection] = useState<'forward' | 'back'>('forward');
@@ -617,7 +618,7 @@ export default function Settings() {
         <div className="px-4 py-3 space-y-3">
           <div className="flex gap-2">
             <motion.button whileTap={{ scale: 0.95 }} type="button"
-              onClick={() => setShowRoommateCountryPicker(!showRoommateCountryPicker)}
+              onClick={() => setShowRoommateCountryPicker(true)}
               className="h-11 px-2.5 rounded-xl bg-secondary/50 flex items-center gap-1 flex-shrink-0 text-foreground"
             >
               <span className="text-base">{roommateCountry.flag}</span>
@@ -635,27 +636,6 @@ export default function Settings() {
               {roommateSearching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             </Button>
           </div>
-
-          {/* Country picker dropdown */}
-          <AnimatePresence>
-            {showRoommateCountryPicker && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }} className="overflow-hidden"
-              >
-                <div className="max-h-40 overflow-y-auto rounded-xl bg-secondary/30 divide-y divide-border/30">
-                  {allCountries.map(c => (
-                    <button key={c.code} onClick={() => { setRoommateCountry(c); setShowRoommateCountryPicker(false); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${c.code === roommateCountry.code ? 'bg-primary/10' : ''}`}
-                    >
-                      <span className="text-lg">{c.flag}</span>
-                      <span className="text-sm text-foreground font-medium">{c.dial}</span>
-                      <span className="text-xs text-muted-foreground">{c.code}</span>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Search Result */}
           <AnimatePresence>
@@ -736,7 +716,7 @@ export default function Settings() {
           {roommates.filter(r => r.status === 'pending').map((r, i, arr) => (
             <div key={r.id} className={`flex items-center justify-between px-4 py-3 ${i < arr.length - 1 ? 'border-b border-border/30' : ''}`}>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                <div className="w-2 h-2 rounded-full bg-status-warning" />
                 <div>
                   <p className="text-sm font-medium text-card-foreground">{r.nickname || `...${r.phone_hash.slice(-6)}`}</p>
                   <p className="text-xs text-muted-foreground">Waiting to join</p>
@@ -772,7 +752,7 @@ export default function Settings() {
     <div>
       {/* iOS Large Title */}
       <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="font-bold text-white" style={{ fontSize: '34px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>Settings</h1>
+        <h1 className="font-bold text-foreground" style={{ fontSize: '34px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>Settings</h1>
       </motion.header>
 
       {/* Profile Block */}
@@ -805,7 +785,7 @@ export default function Settings() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setActiveModal('premium')}
-            className="flex-shrink-0 text-xs font-semibold text-[#E50914] px-3 py-1.5 rounded-full border border-neutral-800"
+            className="flex-shrink-0 text-xs font-semibold text-primary px-3 py-1.5 rounded-full border border-border"
           >
             Upgrade
           </motion.button>
@@ -879,7 +859,7 @@ export default function Settings() {
           onClick={() => setActiveModal('logout')}
           className="w-full py-3 flex items-center justify-center"
         >
-          <span className="text-lg font-semibold text-[#E50914]">Sign Out</span>
+          <span className="text-lg font-semibold text-primary">Sign Out</span>
         </motion.button>
       </motion.div>
 
@@ -892,7 +872,7 @@ export default function Settings() {
         onClick={() => setActiveModal('about')}
         className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground/50"
       >
-        PayTrack v2.7
+        PayTrack v2.8
       </motion.button>
     </div>
   );
@@ -1057,12 +1037,24 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.7</p>
+              <p className="text-sm text-muted-foreground">Version 2.8</p>
             </div>
             <div className="text-left space-y-3">
               <div>
-                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.7</span><span className="text-xs text-muted-foreground">Latest</span></div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.8</span><span className="text-xs text-muted-foreground">Latest</span></div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>iOS-native country picker sheet with search</li>
+                  <li>Forgot PIN recovery flow</li>
+                  <li>Haptic feedback on PIN entry</li>
+                  <li>Animated signup step indicators</li>
+                  <li>IP-based country auto-detection</li>
+                  <li>Full light/dark theme polish</li>
+                  <li>Security hardening & code cleanup</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.7</span></div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
                   <li>Redesigned login & signup flow (true-black iOS native)</li>
                   <li>Clickable Premium badge with feature list</li>
                   <li>Production PayPal payments</li>
@@ -1410,6 +1402,92 @@ export default function Settings() {
                     <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} className="flex-1"><Button variant="secondary" onClick={close} className="w-full rounded-[14px] h-12 text-sm font-semibold">Cancel</Button></motion.div>
                     <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} className="flex-1"><Button onClick={handleLogout} className="w-full rounded-[14px] h-12 text-sm font-semibold bg-destructive text-destructive-foreground shadow-lg shadow-destructive/25">Sign Out</Button></motion.div>
                   </motion.div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Roommate Country Picker Modal */}
+        <AnimatePresence>
+          {showRoommateCountryPicker && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black z-[100]"
+                onClick={() => setShowRoommateCountryPicker(false)}
+              />
+              <motion.div
+                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.8 }}
+                className="fixed bottom-0 left-0 right-0 z-[100] max-w-md mx-auto"
+              >
+                <div className="rounded-t-[22px] overflow-hidden bg-popover border-t border-border/50"
+                  style={{ maxHeight: '85dvh' }}
+                >
+                  <div className="flex justify-center pt-3 pb-1">
+                    <div className="w-9 h-[4px] rounded-full bg-muted-foreground/30" />
+                  </div>
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
+                    <h2 className="text-[17px] font-bold text-foreground tracking-tight">Select Country</h2>
+                    <motion.button whileTap={{ scale: 0.85 }} onClick={() => setShowRoommateCountryPicker(false)}
+                      className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </motion.button>
+                  </div>
+                  <div className="px-4 py-3 border-b border-border/30">
+                    <div className="flex items-center gap-2.5 bg-secondary/50 rounded-xl px-3.5 py-2.5">
+                      <Search className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search country or code..."
+                        value={roommateCountrySearch}
+                        onChange={e => setRoommateCountrySearch(e.target.value)}
+                        className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/40 outline-none"
+                        autoFocus
+                      />
+                      {roommateCountrySearch && (
+                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => setRoommateCountrySearch('')}>
+                          <X className="w-4 h-4 text-muted-foreground/40" />
+                        </motion.button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto" style={{ maxHeight: '60dvh' }}>
+                    {(() => {
+                      const filtered = roommateCountrySearch
+                        ? allCountries.filter(c =>
+                            c.name.toLowerCase().includes(roommateCountrySearch.toLowerCase()) ||
+                            c.dial.includes(roommateCountrySearch) ||
+                            c.code.toLowerCase().includes(roommateCountrySearch.toLowerCase())
+                          )
+                        : allCountries;
+                      return filtered.length === 0 ? (
+                        <div className="px-4 py-10 text-center text-muted-foreground/40 text-[14px]">No countries found</div>
+                      ) : (
+                        filtered.map((c, i) => (
+                          <motion.button
+                            key={c.code}
+                            whileTap={{ backgroundColor: 'rgba(128,128,128,0.1)' }}
+                            onClick={() => { setRoommateCountry(c); setShowRoommateCountryPicker(false); setRoommateCountrySearch(''); }}
+                            className={`w-full flex items-center gap-3.5 px-5 h-[52px] text-left transition-colors ${
+                              c.code === roommateCountry.code ? 'bg-primary/10' : ''
+                            } ${i < filtered.length - 1 ? 'border-b border-border/30' : ''}`}
+                          >
+                            <span className="text-[22px]">{c.flag}</span>
+                            <span className="text-[15px] text-foreground font-medium flex-1">{c.name}</span>
+                            <span className="text-[14px] text-muted-foreground font-medium">{c.dial}</span>
+                            {c.code === roommateCountry.code && (
+                              <Check className="w-4 h-4 text-primary ml-1" />
+                            )}
+                          </motion.button>
+                        ))
+                      );
+                    })()}
+                  </div>
+                  <div className="h-8" />
                 </div>
               </motion.div>
             </>

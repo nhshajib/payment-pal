@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { haptic, hapticError, hapticSuccess } from '@/lib/haptics';
 import {
-  ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield, Fingerprint, KeyRound, Search,
+  ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield, Fingerprint, KeyRound, Search, X, Check,
 } from 'lucide-react';
 import PinInput from '@/components/PinInput';
 import NumberPad from '@/components/NumberPad';
@@ -270,71 +270,111 @@ export default function Onboarding() {
     setCountry(c);
     setShowCountryPicker(false);
     setCountrySearch('');
-    // Reset phone when switching country
     setPhone('');
   };
 
   const countryPickerJSX = () => (
-    <>
-      <motion.button whileTap={{ scale: 0.96 }} type="button"
-        onClick={(e) => { e.stopPropagation(); setShowCountryPicker(!showCountryPicker); setCountrySearch(''); }}
-        className="h-[50px] px-3 rounded-xl bg-white/[0.06] flex items-center gap-1.5 flex-shrink-0 text-white active:bg-white/[0.1] transition-colors"
-      >
-        <span className="text-lg">{country.flag}</span>
-        <span className="text-[15px] font-medium text-white/70">{country.dial}</span>
-        <ChevronDown className={`w-3 h-3 text-white/25 transition-transform ${showCountryPicker ? 'rotate-180' : ''}`} />
-      </motion.button>
-      <AnimatePresence>
-        {showCountryPicker && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}
-            className="absolute left-0 right-0 top-full mt-2 z-30"
+    <motion.button whileTap={{ scale: 0.96 }} type="button"
+      onClick={(e) => { e.stopPropagation(); setShowCountryPicker(true); setCountrySearch(''); }}
+      className="h-[50px] px-3 rounded-xl bg-white/[0.06] flex items-center gap-1.5 flex-shrink-0 text-white active:bg-white/[0.1] transition-colors"
+    >
+      <span className="text-lg">{country.flag}</span>
+      <span className="text-[15px] font-medium text-white/70">{country.dial}</span>
+      <ChevronDown className="w-3 h-3 text-white/25" />
+    </motion.button>
+  );
+
+  // Full-screen iOS-style country picker modal
+  const countryPickerModal = () => (
+    <AnimatePresence>
+      {showCountryPicker && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black z-[100]"
+            onClick={() => setShowCountryPicker(false)}
+          />
+          <motion.div
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.8 }}
+            className="fixed bottom-0 left-0 right-0 z-[100] max-w-[420px] mx-auto"
           >
-            <div className="rounded-2xl bg-[#1c1c1e] border border-white/[0.1] overflow-hidden shadow-2xl shadow-black/50">
+            <div className="rounded-t-[22px] overflow-hidden bg-[#1c1c1e] border-t border-white/[0.08]"
+              style={{ maxHeight: '85dvh' }}
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-9 h-[4px] rounded-full bg-white/20" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+                <h2 className="text-[17px] font-bold text-white tracking-tight">Select Country</h2>
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
+                  onClick={() => setShowCountryPicker(false)}
+                  className="w-8 h-8 rounded-full bg-white/[0.08] flex items-center justify-center"
+                >
+                  <X className="w-4 h-4 text-white/60" />
+                </motion.button>
+              </div>
+
               {/* Search */}
-              <div className="px-3 py-2 border-b border-white/[0.06]">
-                <div className="flex items-center gap-2 bg-white/[0.06] rounded-lg px-3 py-2">
+              <div className="px-4 py-3 border-b border-white/[0.04]">
+                <div className="flex items-center gap-2.5 bg-white/[0.06] rounded-xl px-3.5 py-2.5">
                   <Search className="w-4 h-4 text-white/30 flex-shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search country..."
+                    placeholder="Search country or code..."
                     value={countrySearch}
                     onChange={e => setCountrySearch(e.target.value)}
-                    className="flex-1 bg-transparent text-[14px] text-white placeholder:text-white/25 outline-none"
+                    className="flex-1 bg-transparent text-[15px] text-white placeholder:text-white/25 outline-none"
                     autoFocus
                   />
+                  {countrySearch && (
+                    <motion.button whileTap={{ scale: 0.8 }} onClick={() => setCountrySearch('')}>
+                      <X className="w-4 h-4 text-white/30" />
+                    </motion.button>
+                  )}
                 </div>
               </div>
+
               {/* List */}
-              <div className="max-h-[200px] overflow-y-auto divide-y divide-white/[0.04]">
+              <div className="overflow-y-auto" style={{ maxHeight: '60dvh' }}>
                 {filteredCountries.length === 0 ? (
-                  <div className="px-4 py-4 text-center text-white/25 text-[13px]">No results</div>
+                  <div className="px-4 py-10 text-center text-white/25 text-[14px]">No countries found</div>
                 ) : (
-                  filteredCountries.map(c => (
-                    <button key={c.code} onClick={() => handleCountrySelect(c)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors active:bg-white/[0.08] ${c.code === country.code ? 'bg-white/[0.06]' : ''}`}
+                  filteredCountries.map((c, i) => (
+                    <motion.button
+                      key={c.code}
+                      whileTap={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                      onClick={() => handleCountrySelect(c)}
+                      className={`w-full flex items-center gap-3.5 px-5 h-[52px] text-left transition-colors ${
+                        c.code === country.code ? 'bg-white/[0.06]' : ''
+                      } ${i < filteredCountries.length - 1 ? 'border-b border-white/[0.04]' : ''}`}
                     >
-                      <span className="text-lg">{c.flag}</span>
-                      <span className="text-[14px] text-white/80 font-medium flex-1">{c.name}</span>
-                      <span className="text-[13px] text-white/35">{c.dial}</span>
-                    </button>
+                      <span className="text-[22px]">{c.flag}</span>
+                      <span className="text-[15px] text-white font-medium flex-1">{c.name}</span>
+                      <span className="text-[14px] text-white/35 font-medium">{c.dial}</span>
+                      {c.code === country.code && (
+                        <Check className="w-4 h-4 text-white ml-1" />
+                      )}
+                    </motion.button>
                   ))
                 )}
               </div>
+
+              {/* Safe area padding */}
+              <div className="h-8" />
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+        </>
+      )}
+    </AnimatePresence>
   );
 
-  // Close country picker on outside click
-  useEffect(() => {
-    if (!showCountryPicker) return;
-    const handler = () => setShowCountryPicker(false);
-    const timer = setTimeout(() => document.addEventListener('click', handler), 10);
-    return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
-  }, [showCountryPicker]);
+  // No outside click handler needed — modal overlay handles dismiss
 
   // ── Grouped iOS-style input card ──
   const iosCard = (children: React.ReactNode) => (
@@ -518,7 +558,7 @@ export default function Onboarding() {
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                 {iosCard(
                   <div className="px-4">
-                    <div className="flex items-center h-[52px] gap-2 relative">
+                    <div className="flex items-center h-[52px] gap-2">
                       {countryPickerJSX()}
                       <div className="w-px h-6 bg-white/[0.08]" />
                       <input type="tel" placeholder={`${country.phoneLength}-digit number`} value={phone}
@@ -593,7 +633,7 @@ export default function Onboarding() {
                       />
                     ))}
                     <div className="px-4">
-                      <div className="flex items-center h-[52px] gap-2 relative">
+                      <div className="flex items-center h-[52px] gap-2">
                         <span className="text-[15px] text-white/40 w-[70px] flex-shrink-0">Phone</span>
                         {countryPickerJSX()}
                         <div className="w-px h-6 bg-white/[0.08]" />
@@ -677,7 +717,7 @@ export default function Onboarding() {
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                 {iosCard(
                   <div className="px-4">
-                    <div className="flex items-center h-[52px] gap-2 relative">
+                    <div className="flex items-center h-[52px] gap-2">
                       {countryPickerJSX()}
                       <div className="w-px h-6 bg-white/[0.08]" />
                       <input type="tel" placeholder={`${country.phoneLength}-digit number`} value={forgotPhone}
@@ -733,6 +773,9 @@ export default function Onboarding() {
 
         </AnimatePresence>
       </div>
+
+      {/* Country picker modal - rendered outside scroll container */}
+      {countryPickerModal()}
     </div>
   );
 }
