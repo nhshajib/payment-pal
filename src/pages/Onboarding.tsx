@@ -135,13 +135,6 @@ export default function Onboarding() {
     setLoading(true); setPinError(false);
     try {
       await login(fullPhone, fullPin);
-      if (biometricAvailable && !biometricEnabled) {
-        const userId = localStorage.getItem('paytrack_user_id');
-        const userName = localStorage.getItem('paytrack_user_name');
-        if (userId) {
-          await enableBiometric(fullPhone, userId, userName || '');
-        }
-      }
       hapticSuccess();
       toast.success('Welcome back!');
       navigate('/schedule');
@@ -151,7 +144,7 @@ export default function Onboarding() {
       setTimeout(() => { setPinError(false); setPin(''); }, 600);
       toast.error(err?.message?.includes('No account') ? 'No account found' : 'Incorrect PIN');
     } finally { setLoading(false); }
-  }, [login, navigate, fullPhone, biometricAvailable, biometricEnabled, enableBiometric]);
+  }, [login, navigate, fullPhone]);
 
   const handleLoginPadPress = (digit: string) => {
     if (pin.length >= 4) return;
@@ -190,10 +183,7 @@ export default function Onboarding() {
       }
       setLoading(true);
       try {
-        const userId = await register(fullPhone, name.trim(), pin);
-        if (biometricAvailable) {
-          await enableBiometric(fullPhone, userId, name.trim());
-        }
+        await register(fullPhone, name.trim(), pin);
         hapticSuccess();
         toast.success('Welcome to PayTrack!');
         navigate('/schedule');
@@ -204,7 +194,7 @@ export default function Onboarding() {
         setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
       } finally { setLoading(false); }
     }
-  }, [confirmPin, pin, register, fullPhone, name, navigate, biometricAvailable, enableBiometric]);
+  }, [confirmPin, pin, register, fullPhone, name, navigate]);
 
   // ── Forgot PIN handlers ──
   const handleForgotPhoneContinue = () => {

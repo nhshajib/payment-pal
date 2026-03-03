@@ -173,6 +173,7 @@ export type Database = {
       }
       users: {
         Row: {
+          auth_id: string | null
           created_at: string
           default_reminder_days: number
           id: string
@@ -181,10 +182,10 @@ export type Database = {
           name: string
           paid_clear_day: number
           phone_hash: string
-          phone_number: string
           pin_hash: string
         }
         Insert: {
+          auth_id?: string | null
           created_at?: string
           default_reminder_days?: number
           id?: string
@@ -193,10 +194,10 @@ export type Database = {
           name?: string
           paid_clear_day?: number
           phone_hash: string
-          phone_number?: string
           pin_hash?: string
         }
         Update: {
+          auth_id?: string | null
           created_at?: string
           default_reminder_days?: number
           id?: string
@@ -205,7 +206,6 @@ export type Database = {
           name?: string
           paid_clear_day?: number
           phone_hash?: string
-          phone_number?: string
           pin_hash?: string
         }
         Relationships: []
@@ -215,7 +215,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_internal_user_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
