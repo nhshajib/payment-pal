@@ -3,8 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { hashPhone, hashPin } from '@/lib/hash';
 import type { ReactNode } from 'react';
 
-const STORAGE_KEY = 'paytrack_phone_hash';
-const USER_ID_KEY = 'paytrack_user_id';
 const USER_NAME_KEY = 'paytrack_user_name';
 
 interface UserContextType {
@@ -30,81 +28,131 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Listen for auth state changes and load user profile
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const storedId = localStorage.getItem(USER_ID_KEY);
-    const storedName = localStorage.getItem(USER_NAME_KEY);
-    if (stored && storedId) {
-      setPhoneHash(stored);
-      setUserId(storedId);
-      setUserName(storedName || '');
-    }
-    setLoading(false);
-  }, []);
+    const loadUserProfile = async (authUserId: string) => {
+      const { data } = await supabase
+        .from('users')
+        .select('id, name, phone_hash')
+        .eq('auth_id', authUserId)
+        .maybeSingle();
 
-  const setSession = (hash: string, id: string, name: string) => {
-    localStorage.setItem(STORAGE_KEY, hash);
-    localStorage.setItem(USER_ID_KEY, id);
-    localStorage.setItem(USER_NAME_KEY, name);
-    setPhoneHash(hash);
-    setUserId(id);
-    setUserName(name);
-  };
+      if (data) {
+        setUserId(data.id);
+        setPhoneHash((data as any).phone_hash);
+        setUserName((data as any).name || '');
+        localStorage.setItem(USER_NAME_KEY, (data as any).name || '');
+      }
+    };
+
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await loadUserProfile(session.user.id);
+      } else {
+        setPhoneHash(null);
+        setUserId(null);
+        setUserName('');
+      }
+      setLoading(false);
+    });
+
+    // THEN check existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        await loadUserProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const register = useCallback(async (phone: string, name: string, pin: string) => {
     const hash = await hashPhone(phone);
     const pinH = await hashPin(pin);
 
-    // Check if user already exists
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('phone_hash', hash)
-      .maybeSingle();
+    const { data, error } = await supabase.functions.invoke('auth-register', {
+      body: { phone_hash: hash, pin_hash: pinH, name },
+    });
 
-    if (existing) throw new Error('An account with this phone number already exists. Please sign in instead.');
+    if (error) throw new Error(error.message || 'Registration failed');
+    if (data?.error) throw new Error(data.error);
 
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert({ phone_hash: hash, name, pin_hash: pinH, phone_number: phone } as any)
-      .select('id')
-      .single();
+    // Set the session from the edge function response
+    if (data?.session) {
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+    }
 
-    if (error) throw error;
+    setPhoneHash(hash);
+    setUserId(data.user_id);
+    setUserName(data.name || name);
+    localStorage.setItem(USER_NAME_KEY, data.name || name);
 
-    setSession(hash, newUser.id, name);
-    return newUser.id;
+    return data.user_id;
   }, []);
 
   const login = useCallback(async (phone: string, pin: string) => {
     const hash = await hashPhone(phone);
     const pinH = await hashPin(pin);
 
-    const { data: user } = await supabase
+    // Use synthetic email for Supabase Auth login
+    const email = `${hash.slice(0, 40)}@paytrack.app`;
+
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: pinH,
+    });
+
+    if (signInError) {
+      if (signInError.message?.includes('Invalid login')) {
+        throw new Error('No account found or incorrect PIN');
+      }
+      throw signInError;
+    }
+
+    // Load user profile - auth state change listener will handle setting state
+    const { data: userData } = await supabase
       .from('users')
-      .select('id, name, pin_hash')
-      .eq('phone_hash', hash)
+      .select('id, name, phone_hash')
+      .eq('auth_id', signInData.user.id)
       .maybeSingle();
 
-    if (!user) throw new Error('No account found with that phone number');
-    if ((user as any).pin_hash !== pinH) throw new Error('Incorrect PIN');
+    if (!userData) throw new Error('User profile not found');
 
-    setSession(hash, user.id, (user as any).name || '');
-    return user.id;
+    setPhoneHash((userData as any).phone_hash);
+    setUserId(userData.id);
+    setUserName((userData as any).name || '');
+    localStorage.setItem(USER_NAME_KEY, (userData as any).name || '');
+
+    return userData.id;
   }, []);
 
   const restore = useCallback(async (phone: string) => {
+    // Restore is effectively a login - user needs to provide PIN
+    // This is kept for biometric auth which stores phone
     const hash = await hashPhone(phone);
-    const { data: user } = await supabase
+    setPhoneHash(hash);
+
+    // Check if we have an active session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No active session. Please sign in again.');
+
+    const { data: userData } = await supabase
       .from('users')
       .select('id, name')
-      .eq('phone_hash', hash)
+      .eq('auth_id', session.user.id)
       .maybeSingle();
 
-    if (!user) throw new Error('No account found with that phone number');
+    if (!userData) throw new Error('No account found');
 
-    setSession(hash, user.id, (user as any).name || '');
-    return user.id;
+    setUserId(userData.id);
+    setUserName((userData as any).name || '');
+    localStorage.setItem(USER_NAME_KEY, (userData as any).name || '');
+    return userData.id;
   }, []);
 
   const updateName = useCallback(async (name: string) => {
@@ -117,47 +165,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const changePin = useCallback(async (currentPin: string, newPin: string) => {
     if (!userId) throw new Error('Not logged in');
     const currentHash = await hashPin(currentPin);
-    const { data: user } = await supabase
-      .from('users')
-      .select('pin_hash')
-      .eq('id', userId)
-      .single();
-
-    if (!user || (user as any).pin_hash !== currentHash) {
-      throw new Error('Current PIN is incorrect');
-    }
-
     const newHash = await hashPin(newPin);
-    const { error } = await supabase
-      .from('users')
-      .update({ pin_hash: newHash } as any)
-      .eq('id', userId);
 
-    if (error) throw error;
+    const { data, error } = await supabase.functions.invoke('auth-change-pin', {
+      body: { current_pin_hash: currentHash, new_pin_hash: newHash },
+    });
+
+    if (error) throw new Error(error.message || 'Failed to change PIN');
+    if (data?.error) throw new Error(data.error);
   }, [userId]);
 
   const resetPin = useCallback(async (phone: string, newPin: string) => {
     const hash = await hashPhone(phone);
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('phone_hash', hash)
-      .maybeSingle();
-
-    if (!user) throw new Error('No account found with that phone number');
-
     const newHash = await hashPin(newPin);
-    const { error } = await supabase
-      .from('users')
-      .update({ pin_hash: newHash } as any)
-      .eq('id', user.id);
 
-    if (error) throw error;
+    const { data, error } = await supabase.functions.invoke('auth-reset-pin', {
+      body: { phone_hash: hash, new_pin_hash: newHash },
+    });
+
+    if (error) throw new Error(error.message || 'Failed to reset PIN');
+    if (data?.error) throw new Error(data.error);
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(USER_ID_KEY);
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem(USER_NAME_KEY);
     setPhoneHash(null);
     setUserId(null);
@@ -169,7 +200,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     userId,
     userName,
     loading,
-    isOnboarded: !!phoneHash,
+    isOnboarded: !!userId,
     register,
     login,
     restore,

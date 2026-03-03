@@ -336,7 +336,7 @@ export default function Settings() {
   const handleLogout = () => {
     setActiveModal(null);
     setSigningOut(true);
-    setTimeout(() => { sessionStorage.setItem('paytrack_signed_out', '1'); logout(); }, 1800);
+    setTimeout(async () => { sessionStorage.setItem('paytrack_signed_out', '1'); await logout(); }, 1800);
   };
 
   const ordinal = (n: number) => n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
@@ -872,7 +872,7 @@ export default function Settings() {
         onClick={() => setActiveModal('about')}
         className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground/50"
       >
-        PayTrack v2.8
+        PayTrack v3.0
       </motion.button>
     </div>
   );
@@ -1037,12 +1037,21 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 2.8</p>
+              <p className="text-sm text-muted-foreground">Version 3.0</p>
             </div>
             <div className="text-left space-y-3">
               <div>
-                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v2.8</span><span className="text-xs text-muted-foreground">Latest</span></div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v3.0</span><span className="text-xs text-muted-foreground">Latest</span></div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Migrated to Supabase Auth — proper RLS per user</li>
+                  <li>Removed raw phone number storage (privacy)</li>
+                  <li>Edge functions for auth-register, auth-reset-pin, auth-change-pin</li>
+                  <li>All data now scoped to authenticated user only</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.8</span></div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
                   <li>iOS-native country picker sheet with search</li>
                   <li>Forgot PIN recovery flow</li>
                   <li>Haptic feedback on PIN entry</li>
