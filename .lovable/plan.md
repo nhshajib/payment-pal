@@ -1,56 +1,79 @@
 
 
-## Plan: Redesign Onboarding + Add Forgot PIN
+## Plan: Production Polish, Security Fixes & Premium Grant
 
-### Current State
-The onboarding screens are functional but feel flat — plain inputs floating on black with excessive dead space. Content sits centered-vertically which wastes screen real estate and doesn't feel like a native iOS app. There's no "Forgot PIN?" option.
+### Issues Found
 
-### Design Changes
+**Security (Critical)**
+1. `auth-register` calls `listUsers()` which fetches ALL auth users — won't scale past 1000 users and is a performance bottleneck. Fix: use `listUsers({ filter: email })` or try creating and catch duplicate error.
+2. Edge functions `auth-register` and `auth-reset-pin` are not listed in `config.toml` with `verify_jwt = false` — they may fail for unauthenticated callers.
+3. CORS headers in all 3 auth edge functions are missing the extended Supabase client headers (`x-supabase-client-platform`, etc.) — could cause CORS failures on some browsers.
+4. `NotFound.tsx` logs routes to `console.error` in production — information leak.
+5. No database-level input validation constraints (negative amounts, oversized strings possible via direct API calls).
 
-**A. Landing Screen — More visual hierarchy**
-- Keep the PayTrack logo but push it higher (top 30% of screen)
-- Add a subtle animated gradient orb/glow behind the logo (very subtle, white/5 opacity) for depth
-- Push buttons to the bottom of the screen (iOS pattern: content top, actions bottom)
-- Larger touch targets (56px height)
+**Data Task**
+6. Grant premium to phone number `4794351971` — need to update `is_premium = true` for matching user.
 
-**B. Login Phone Screen — iOS Settings-style grouped input**
-- Content anchored to top (not centered), with generous top padding
-- Phone input inside a grouped card (rounded-2xl, bg-white/[0.06]) like iOS Settings rows
-- Country picker and phone input inside the same card row with a subtle divider
-- Continue button pinned toward bottom area
-- Cleaner typography: SF-style system font sizing
+**Security Finding Cleanup**
+7. Old security scan findings (`users_public_rls`, `client_side_user_filtering`, `phone_hash_localstorage`) are outdated since we migrated to Supabase Auth. Delete/update them.
 
-**C. Login PIN Screen — Full-screen iOS passcode**  
-- Avatar circle at top showing the user's phone number
-- PIN dots centered in the middle third
-- NumberPad occupying the bottom third (like iOS lock screen)
-- **Add "Forgot PIN?" link** below the PIN dots — tappable text
+### Changes
 
-**D. Signup Info Screen — iOS-style grouped form**
-- Same grouped card treatment as login: Name and Phone fields in a single card with dividers between rows
-- Content anchored to top
-- Continue button lower
+#### 1. Fix `auth-register` — remove `listUsers()` call
+**File:** `supabase/functions/auth-register/index.ts`
+- Remove the `listUsers()` check entirely
+- Instead, attempt `createUser()` and catch the "already exists" error (Supabase returns a specific error for duplicate emails)
+- This scales to millions of users
 
-**E. Signup PIN + Confirm PIN — Same as login PIN layout**
-- Consistent full-screen passcode pattern
+#### 2. Update `supabase/config.toml`
+Add JWT verification bypass for auth functions:
+```toml
+[functions.auth-register]
+verify_jwt = false
 
-**F. Forgot PIN Flow — New screen `'forgot-pin'`**
-- User enters their phone number
-- System looks up the account and resets PIN to a new one they choose
-- Flow: forgot-pin → forgot-new-pin → forgot-confirm-pin
-- Verifies identity by requiring the registered phone number match
-- Then allows setting a new 4-digit PIN (reuses existing PIN pad screens)
+[functions.auth-reset-pin]
+verify_jwt = false
+
+[functions.auth-change-pin]
+verify_jwt = false
+```
+
+#### 3. Fix CORS headers in all 3 edge functions
+**Files:** `auth-register/index.ts`, `auth-reset-pin/index.ts`, `auth-change-pin/index.ts`
+Add the full Supabase client header list to `Access-Control-Allow-Headers`.
+
+#### 4. Fix `NotFound.tsx` — dev-only logging
+**File:** `src/pages/NotFound.tsx`
+Wrap `console.error` in `import.meta.env.DEV` check.
+
+#### 5. Add database constraints via migration
+```sql
+ALTER TABLE payments ADD CONSTRAINT check_amount_positive CHECK (amount >= 0);
+ALTER TABLE payments ADD CONSTRAINT check_name_length CHECK (length(name) <= 500);
+ALTER TABLE payments ADD CONSTRAINT check_reminder_range CHECK (reminder_days >= 0 AND reminder_days <= 30);
+ALTER TABLE users ADD CONSTRAINT check_user_name_length CHECK (length(name) <= 100);
+ALTER TABLE users ADD CONSTRAINT check_user_reminder_range CHECK (default_reminder_days >= 0 AND default_reminder_days <= 30);
+```
+
+#### 6. Grant premium to user 4794351971
+Use the insert tool to update `is_premium = true` for the user whose `phone_hash` matches SHA-256 of `4794351971`. I'll compute the hash and run the update.
+
+#### 7. Update security findings
+- Delete `users_public_rls` and `client_side_user_filtering` (fixed by Supabase Auth migration)
+- Update `phone_hash_localstorage` (localStorage no longer stores phone hash — Supabase Auth handles sessions)
+- Delete `console_error_404` after fix
+- Update `no_server_validation` after adding DB constraints
+
+#### 8. Version bump to v3.1
+Update the version in `Settings.tsx` about section and add changelog entry for security hardening.
 
 ### Files Changed
-
-1. **`src/pages/Onboarding.tsx`** — Complete frontend redesign of all screens + add forgot PIN screens
-2. **`src/components/PinInput.tsx`** — Update dot colors to use white instead of `foreground` theme variable (true black context)
-3. **`src/components/NumberPad.tsx`** — Update text/bg colors for true black context (white text, white/[0.06] circles)
-4. **`src/hooks/useUser.tsx`** — Add `resetPin(phone, newPin)` method for forgot PIN flow
-
-### Technical Details
-- New screen types added: `'forgot-pin' | 'forgot-new-pin' | 'forgot-confirm-pin'`
-- `resetPin` in useUser: looks up user by phone hash, updates pin_hash directly (no current PIN required — identity verified by phone number ownership)
-- PinInput/NumberPad color changes use hardcoded white values instead of CSS variables since they only appear on true-black backgrounds
-- Layout uses `justify-between` with `min-h-screen` to push content top and buttons bottom (iOS pattern)
+1. `supabase/functions/auth-register/index.ts` — remove listUsers, catch duplicate on create
+2. `supabase/functions/auth-reset-pin/index.ts` — fix CORS headers
+3. `supabase/functions/auth-change-pin/index.ts` — fix CORS headers
+4. `supabase/config.toml` — add verify_jwt = false for all auth functions
+5. `src/pages/NotFound.tsx` — dev-only console.error
+6. `src/pages/Settings.tsx` — version bump + changelog
+7. New migration — DB constraints
+8. Data update — premium grant
 
