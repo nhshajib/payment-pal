@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -28,18 +28,7 @@ Deno.serve(async (req) => {
     // Use phone_hash as synthetic email
     const email = `${phone_hash.slice(0, 40)}@paytrack.app`;
 
-    // Check if auth user with this email already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingAuthUser = existingUsers?.users?.find((u) => u.email === email);
-
-    if (existingAuthUser) {
-      return new Response(
-        JSON.stringify({ error: "An account with this phone number already exists. Please sign in instead." }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Create Supabase Auth user (confirmed, no email verification needed)
+    // Try to create auth user directly — catch duplicate error instead of listing all users
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: pin_hash,
@@ -48,6 +37,13 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
+      // Supabase returns this message for duplicate emails
+      if (authError.message?.includes("already been registered") || authError.message?.includes("already exists")) {
+        return new Response(
+          JSON.stringify({ error: "An account with this phone number already exists. Please sign in instead." }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       console.error("Auth create error:", authError);
       return new Response(JSON.stringify({ error: authError.message }), {
         status: 500,
@@ -75,7 +71,6 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error("User update error:", updateError);
-        // Clean up auth user
         await supabaseAdmin.auth.admin.deleteUser(authId);
         return new Response(JSON.stringify({ error: "Failed to link account" }), {
           status: 500,
