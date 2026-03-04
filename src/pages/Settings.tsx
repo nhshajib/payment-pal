@@ -872,7 +872,7 @@ export default function Settings() {
         onClick={() => setActiveModal('about')}
         className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground/50"
       >
-        PayTrack v3.0
+        PayTrack v3.1
       </motion.button>
     </div>
   );
@@ -1037,12 +1037,21 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 3.0</p>
+              <p className="text-sm text-muted-foreground">Version 3.1</p>
             </div>
             <div className="text-left space-y-3">
               <div>
-                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v3.0</span><span className="text-xs text-muted-foreground">Latest</span></div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v3.1</span><span className="text-xs text-muted-foreground">Latest</span></div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Security hardening — DB input validation constraints</li>
+                  <li>Fixed auth-register scalability (removed listUsers)</li>
+                  <li>Improved CORS headers for all edge functions</li>
+                  <li>Production logging cleanup</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v3.0</span></div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1 list-disc list-inside">
                   <li>Migrated to Supabase Auth — proper RLS per user</li>
                   <li>Removed raw phone number storage (privacy)</li>
                   <li>Edge functions for auth-register, auth-reset-pin, auth-change-pin</li>
