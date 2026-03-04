@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { useCountryCode } from '@/hooks/useCountryCode';
@@ -11,7 +11,6 @@ import {
   ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield, Fingerprint, KeyRound, Search, X, Check,
 } from 'lucide-react';
 import PinInput from '@/components/PinInput';
-import NumberPad from '@/components/NumberPad';
 
 type Screen =
   | 'landing' | 'login-phone' | 'login-pin'
@@ -68,6 +67,9 @@ export default function Onboarding() {
   const [forgotPhone, setForgotPhone] = useState('');
   const [forgotPin, setForgotPin] = useState('');
   const [forgotConfirmPin, setForgotConfirmPin] = useState('');
+  
+  // Refs for hidden PIN inputs
+  const pinInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (sessionStorage.getItem('paytrack_signed_out')) {
@@ -146,11 +148,14 @@ export default function Onboarding() {
     } finally { setLoading(false); }
   }, [login, navigate, fullPhone]);
 
-  const handleLoginPadPress = (digit: string) => {
-    if (pin.length >= 4) return;
-    const newPin = pin + digit;
-    setPin(newPin);
-    if (newPin.length === 4) handleLoginPinEntry(newPin);
+  // Hidden input handler for PIN screens
+  const handlePinChange = (value: string, setter: (v: string) => void, onComplete?: (pin: string) => void) => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    setter(digits);
+    if (digits.length > 0) haptic(8);
+    if (digits.length === 4 && onComplete) {
+      onComplete(digits);
+    }
   };
 
   // ── Signup handlers ──
@@ -160,41 +165,31 @@ export default function Onboarding() {
     setPin(''); setScreen('signup-pin');
   };
 
-  const handleSignupPinPress = (digit: string) => {
-    if (pin.length >= 4) return;
-    const newPin = pin + digit;
-    setPin(newPin);
-    if (newPin.length === 4) {
-      setTimeout(() => { setConfirmPin(''); setScreen('signup-confirm'); }, 300);
-    }
+  const handleSignupPinComplete = (fullPin: string) => {
+    setTimeout(() => { setConfirmPin(''); setScreen('signup-confirm'); }, 300);
   };
 
-  const handleConfirmPinPress = useCallback(async (digit: string) => {
-    if (confirmPin.length >= 4) return;
-    const newConfirm = confirmPin + digit;
-    setConfirmPin(newConfirm);
-    if (newConfirm.length === 4) {
-      if (newConfirm !== pin) {
-        hapticError();
-        setPinError(true);
-        setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
-        toast.error('PINs do not match');
-        return;
-      }
-      setLoading(true);
-      try {
-        await register(fullPhone, name.trim(), pin);
-        hapticSuccess();
-        toast.success('Welcome to PayTrack!');
-        navigate('/schedule');
-      } catch (err: any) {
-        hapticError();
-        toast.error(err?.message || 'Something went wrong');
-        setPinError(true);
-        setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
-      } finally { setLoading(false); }
+  const handleConfirmPinComplete = useCallback(async (fullConfirm: string) => {
+    if (fullConfirm !== pin) {
+      hapticError();
+      setPinError(true);
+      setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
+      toast.error('PINs do not match');
+      return;
     }
-  }, [confirmPin, pin, register, fullPhone, name, navigate]);
+    setLoading(true);
+    try {
+      await register(fullPhone, name.trim(), pin);
+      hapticSuccess();
+      toast.success('Welcome to PayTrack!');
+      navigate('/schedule');
+    } catch (err: any) {
+      hapticError();
+      toast.error(err?.message || 'Something went wrong');
+      setPinError(true);
+      setTimeout(() => { setPinError(false); setConfirmPin(''); }, 600);
+    } finally { setLoading(false); }
+  }, [pin, register, fullPhone, name, navigate]);
 
   // ── Forgot PIN handlers ──
   const handleForgotPhoneContinue = () => {
@@ -206,43 +201,33 @@ export default function Onboarding() {
     setForgotPin(''); setScreen('forgot-new-pin');
   };
 
-  const handleForgotPinPress = (digit: string) => {
-    if (forgotPin.length >= 4) return;
-    const newPin = forgotPin + digit;
-    setForgotPin(newPin);
-    if (newPin.length === 4) {
-      setTimeout(() => { setForgotConfirmPin(''); setScreen('forgot-confirm-pin'); }, 300);
-    }
+  const handleForgotPinComplete = () => {
+    setTimeout(() => { setForgotConfirmPin(''); setScreen('forgot-confirm-pin'); }, 300);
   };
 
-  const handleForgotConfirmPress = useCallback(async (digit: string) => {
-    if (forgotConfirmPin.length >= 4) return;
-    const newConfirm = forgotConfirmPin + digit;
-    setForgotConfirmPin(newConfirm);
-    if (newConfirm.length === 4) {
-      if (newConfirm !== forgotPin) {
-        hapticError();
-        setPinError(true);
-        setTimeout(() => { setPinError(false); setForgotConfirmPin(''); }, 600);
-        toast.error('PINs do not match');
-        return;
-      }
-      setLoading(true);
-      try {
-        const phoneNum = country.dial + forgotPhone.replace(/\D/g, '');
-        await resetPin(phoneNum, forgotPin);
-        hapticSuccess();
-        toast.success('PIN reset successfully! Please sign in.');
-        resetForm();
-        setScreen('login-phone');
-      } catch (err: any) {
-        hapticError();
-        toast.error(err?.message || 'Something went wrong');
-        setPinError(true);
-        setTimeout(() => { setPinError(false); setForgotConfirmPin(''); }, 600);
-      } finally { setLoading(false); }
+  const handleForgotConfirmComplete = useCallback(async (fullConfirm: string) => {
+    if (fullConfirm !== forgotPin) {
+      hapticError();
+      setPinError(true);
+      setTimeout(() => { setPinError(false); setForgotConfirmPin(''); }, 600);
+      toast.error('PINs do not match');
+      return;
     }
-  }, [forgotConfirmPin, forgotPin, country.dial, forgotPhone, resetPin]);
+    setLoading(true);
+    try {
+      const phoneNum = country.dial + forgotPhone.replace(/\D/g, '');
+      await resetPin(phoneNum, forgotPin);
+      hapticSuccess();
+      toast.success('PIN reset successfully! Please sign in.');
+      resetForm();
+      setScreen('login-phone');
+    } catch (err: any) {
+      hapticError();
+      toast.error(err?.message || 'Something went wrong');
+      setPinError(true);
+      setTimeout(() => { setPinError(false); setForgotConfirmPin(''); }, 600);
+    } finally { setLoading(false); }
+  }, [forgotPin, country.dial, forgotPhone, resetPin]);
 
   // ── Shared UI pieces ──
 
@@ -364,8 +349,6 @@ export default function Onboarding() {
     </AnimatePresence>
   );
 
-  // No outside click handler needed — modal overlay handles dismiss
-
   // ── Grouped iOS-style input card ──
   const iosCard = (children: React.ReactNode) => (
     <div className="rounded-2xl bg-white/[0.06] overflow-hidden">
@@ -385,20 +368,21 @@ export default function Onboarding() {
   // Phone input helper text
   const phoneHint = `${country.phoneLength} digits`;
 
-  // ── Passcode screen layout ──
+  // ── Passcode screen layout (keyboard-based) ──
   const passcodeLayout = (
     icon: React.ReactNode,
     title: string,
     subtitle: string,
     pinLength: number,
-    pinFilled: number,
+    pinValue: string,
+    setPinValue: (v: string) => void,
     error: boolean,
-    onPadPress: (d: string) => void,
-    onPadDelete: () => void,
+    onComplete: (pin: string) => void,
     onBack: () => void,
     extra?: React.ReactNode,
     isLoading = false,
     stepIndicator?: React.ReactNode,
+    showBiometric = false,
   ) => (
     <motion.div key={title} {...fadeIn} transition={fadeTrans}
       className="flex flex-col items-center min-h-[calc(100dvh-48px)] relative pt-2"
@@ -409,26 +393,69 @@ export default function Onboarding() {
       {stepIndicator && <div className="pt-10 w-full">{stepIndicator}</div>}
 
       {/* Top section */}
-      <div className={`flex flex-col items-center ${stepIndicator ? 'pb-4' : 'pt-12 pb-4'}`}>
+      <div className={`flex flex-col items-center ${stepIndicator ? 'pb-4' : 'pt-16 pb-4'}`}>
         <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
           className="w-14 h-14 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center mb-4"
         >
           {icon}
         </motion.div>
-        <h2 className="text-[20px] font-semibold text-white tracking-tight">{title}</h2>
+        <h2 className="text-[22px] font-semibold text-white tracking-tight">{title}</h2>
         <p className="text-white/30 text-[13px] mt-1 text-center">{subtitle}</p>
       </div>
 
-      {/* PIN dots */}
-      <div className="flex-1 flex items-center justify-center">
-        <PinInput length={pinLength} filled={pinFilled} error={error} />
+      {/* PIN dots - tappable to open keyboard */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <motion.button
+          type="button"
+          onClick={() => pinInputRef.current?.focus()}
+          className="relative"
+        >
+          <PinInput length={pinLength} filled={pinValue.length} error={error} />
+        </motion.button>
+        
+        {/* Tap to enter hint */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="text-white/20 text-[13px]"
+        >
+          Tap dots to enter PIN
+        </motion.p>
+        
+        {/* Hidden input for native keyboard */}
+        <input
+          ref={pinInputRef}
+          type="tel"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={4}
+          value={pinValue}
+          onChange={e => handlePinChange(e.target.value, setPinValue, onComplete)}
+          className="absolute opacity-0 w-0 h-0"
+          autoFocus
+          autoComplete="one-time-code"
+        />
       </div>
 
-      {extra}
-
-      <div className="pb-8">
-        <NumberPad onPress={onPadPress} onDelete={onPadDelete} disabled={isLoading} />
+      {/* Biometric + extra buttons */}
+      <div className="pb-12 flex flex-col items-center gap-3">
+        {showBiometric && biometricAvailable && biometricEnabled && hasSavedCredential() && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleBiometricLogin}
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/70 active:bg-white/[0.1] transition-colors disabled:opacity-40"
+          >
+            <Fingerprint className="w-5 h-5" />
+            <span className="text-[15px] font-medium">Use Face ID</span>
+          </motion.button>
+        )}
+        {extra}
       </div>
 
       {isLoading && (
@@ -584,17 +611,18 @@ export default function Onboarding() {
             <Lock className="w-6 h-6 text-white/70" />,
             'Enter PIN',
             `${country.flag} ${country.dial} ${phone}`,
-            4, pin.length, pinError,
-            handleLoginPadPress,
-            () => setPin(p => p.slice(0, -1)),
+            4, pin, setPin, pinError,
+            handleLoginPinEntry,
             () => { setPin(''); setScreen('login-phone'); },
             <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
               onClick={() => { setForgotPhone(''); setForgotPin(''); setForgotConfirmPin(''); setScreen('forgot-pin'); }}
-              className="text-white/30 text-[14px] mb-4 active:text-white/50 transition-colors"
+              className="text-white/30 text-[14px] active:text-white/50 transition-colors"
             >
               Forgot PIN?
             </motion.button>,
             loading,
+            undefined,
+            true, // show biometric
           )}
 
           {/* ─── SIGNUP STEP 1: INFO ─── */}
@@ -664,9 +692,8 @@ export default function Onboarding() {
             <Lock className="w-6 h-6 text-white/70" />,
             'Create PIN',
             'Choose a 4-digit PIN to secure your account',
-            4, pin.length, false,
-            handleSignupPinPress,
-            () => setPin(p => p.slice(0, -1)),
+            4, pin, setPin, false,
+            handleSignupPinComplete,
             () => { setPin(''); setScreen('signup-info'); },
             undefined,
             false,
@@ -678,9 +705,8 @@ export default function Onboarding() {
             <Shield className="w-6 h-6 text-white/70" />,
             'Confirm PIN',
             'Re-enter your PIN to confirm',
-            4, confirmPin.length, pinError,
-            (d) => handleConfirmPinPress(d),
-            () => setConfirmPin(p => p.slice(0, -1)),
+            4, confirmPin, setConfirmPin, pinError,
+            handleConfirmPinComplete,
             () => { setConfirmPin(''); setScreen('signup-pin'); },
             undefined,
             loading,
@@ -742,9 +768,8 @@ export default function Onboarding() {
             <KeyRound className="w-6 h-6 text-white/70" />,
             'New PIN',
             'Choose your new 4-digit PIN',
-            4, forgotPin.length, false,
-            handleForgotPinPress,
-            () => setForgotPin(p => p.slice(0, -1)),
+            4, forgotPin, setForgotPin, false,
+            handleForgotPinComplete,
             () => { setForgotPin(''); setScreen('forgot-pin'); },
           )}
 
@@ -753,9 +778,8 @@ export default function Onboarding() {
             <Shield className="w-6 h-6 text-white/70" />,
             'Confirm New PIN',
             'Re-enter your new PIN to confirm',
-            4, forgotConfirmPin.length, pinError,
-            (d) => handleForgotConfirmPress(d),
-            () => setForgotConfirmPin(p => p.slice(0, -1)),
+            4, forgotConfirmPin, setForgotConfirmPin, pinError,
+            handleForgotConfirmComplete,
             () => { setForgotConfirmPin(''); setScreen('forgot-new-pin'); },
             undefined,
             loading,

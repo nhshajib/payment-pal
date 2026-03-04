@@ -1,0 +1,1 @@
+UPDATE public.users SET is_premium = true WHERE id = '94753a09-077a-4416-83c7-3e4d54acd18f';
