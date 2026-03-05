@@ -1,79 +1,65 @@
 
 
-## Plan: Production Polish, Security Fixes & Premium Grant
+## Plan: PIN Input Fix, Background Notifications, PWA Fix & Schedule Polish
 
-### Issues Found
+### Problems Identified
 
-**Security (Critical)**
-1. `auth-register` calls `listUsers()` which fetches ALL auth users — won't scale past 1000 users and is a performance bottleneck. Fix: use `listUsers({ filter: email })` or try creating and catch duplicate error.
-2. Edge functions `auth-register` and `auth-reset-pin` are not listed in `config.toml` with `verify_jwt = false` — they may fail for unauthenticated callers.
-3. CORS headers in all 3 auth edge functions are missing the extended Supabase client headers (`x-supabase-client-platform`, etc.) — could cause CORS failures on some browsers.
-4. `NotFound.tsx` logs routes to `console.error` in production — information leak.
-5. No database-level input validation constraints (negative amounts, oversized strings possible via direct API calls).
+1. **PIN Input UX** — Current implementation uses a hidden `<input>` that requires tapping to focus. Shows "Tap dots to enter PIN" hint which is confusing. The keyboard doesn't auto-appear reliably on mobile. Need to auto-focus aggressively and remove the confusing hint.
 
-**Data Task**
-6. Grant premium to phone number `4794351971` — need to update `is_premium = true` for matching user.
+2. **Notifications only fire on app open** — `checkAndNotifyPayments()` is called in a `useEffect` in Schedule.tsx (line 213), meaning it only runs when the user opens the app. There's no background push or periodic sync. Fix: Add a service worker with periodic background sync and/or Web Push API to send notifications even when the app is closed.
 
-**Security Finding Cleanup**
-7. Old security scan findings (`users_public_rls`, `client_side_user_filtering`, `phone_hash_localstorage`) are outdated since we migrated to Supabase Auth. Delete/update them.
+3. **PWA not opening the site** — The `start_url` is `/` which redirects to `/schedule` for logged-in users. The service worker's `navigateFallback` is set correctly. Issue likely: duplicate manifest (both `public/manifest.json` AND VitePWA generating one). Remove the static `manifest.json` to avoid conflicts. Also ensure the SW is properly registered.
+
+4. **Schedule/Home page polish** — The hero section is functional but could be more visually engaging. Add a greeting with time-of-day context, subtle card for the summary stats.
 
 ### Changes
 
-#### 1. Fix `auth-register` — remove `listUsers()` call
-**File:** `supabase/functions/auth-register/index.ts`
-- Remove the `listUsers()` check entirely
-- Instead, attempt `createUser()` and catch the "already exists" error (Supabase returns a specific error for duplicate emails)
-- This scales to millions of users
+#### 1. Fix PIN Input — Auto-focus & Remove Confusion
+**File:** `src/pages/Onboarding.tsx`
+- Remove the "Tap dots to enter PIN" hint text (lines 418-425)
+- Make the PIN dots area not a button — just a div. The hidden input should auto-focus immediately
+- Add `useEffect` to force-focus the hidden input whenever the PIN screen mounts
+- Set the hidden input to `position: fixed; top: -100px` instead of `opacity: 0; w-0; h-0` — some mobile browsers won't show keyboard for zero-size inputs
+- Add `autoFocus` and a `setTimeout(() => pinInputRef.current?.focus(), 100)` for reliability
 
-#### 2. Update `supabase/config.toml`
-Add JWT verification bypass for auth functions:
-```toml
-[functions.auth-register]
-verify_jwt = false
+#### 2. Background Notifications via Service Worker
+**File:** Create `public/sw-custom.js` — a custom service worker script
+- Register for `periodicSync` API (where supported — Chrome Android) with tag `payment-check`
+- On periodic sync event, fetch payments from Supabase and call notification logic
+- Fallback: Use `setInterval` in the SW for browsers without periodicSync
 
-[functions.auth-reset-pin]
-verify_jwt = false
+**File:** `vite.config.ts`
+- Add `importScripts` to VitePWA workbox config to include the custom SW
 
-[functions.auth-change-pin]
-verify_jwt = false
-```
+**File:** `src/lib/notifications.ts`
+- Extract payment check logic into a standalone function that can be called from SW context
+- Add a function to register periodic sync
 
-#### 3. Fix CORS headers in all 3 edge functions
-**Files:** `auth-register/index.ts`, `auth-reset-pin/index.ts`, `auth-change-pin/index.ts`
-Add the full Supabase client header list to `Access-Control-Allow-Headers`.
+**File:** `src/pages/Schedule.tsx`
+- After requesting notification permission, register the periodic sync
 
-#### 4. Fix `NotFound.tsx` — dev-only logging
-**File:** `src/pages/NotFound.tsx`
-Wrap `console.error` in `import.meta.env.DEV` check.
+#### 3. Fix PWA — Remove Duplicate Manifest
+**File:** Delete `public/manifest.json` — VitePWA already generates the manifest from `vite.config.ts`. Having both causes conflicts where the browser picks the wrong one.
 
-#### 5. Add database constraints via migration
-```sql
-ALTER TABLE payments ADD CONSTRAINT check_amount_positive CHECK (amount >= 0);
-ALTER TABLE payments ADD CONSTRAINT check_name_length CHECK (length(name) <= 500);
-ALTER TABLE payments ADD CONSTRAINT check_reminder_range CHECK (reminder_days >= 0 AND reminder_days <= 30);
-ALTER TABLE users ADD CONSTRAINT check_user_name_length CHECK (length(name) <= 100);
-ALTER TABLE users ADD CONSTRAINT check_user_reminder_range CHECK (default_reminder_days >= 0 AND default_reminder_days <= 30);
-```
+**File:** `index.html`
+- Remove `<link rel="manifest" href="/manifest.json" />` — VitePWA injects its own manifest link
 
-#### 6. Grant premium to user 4794351971
-Use the insert tool to update `is_premium = true` for the user whose `phone_hash` matches SHA-256 of `4794351971`. I'll compute the hash and run the update.
+#### 4. Schedule Page Polish
+**File:** `src/pages/Schedule.tsx`
+- Add time-of-day greeting ("Good morning, {name}" / "Good afternoon" / "Good evening")
+- Add a subtle summary card below the hero with overdue/today/upcoming counts as mini badges
+- Improve empty state with more engaging copy
 
-#### 7. Update security findings
-- Delete `users_public_rls` and `client_side_user_filtering` (fixed by Supabase Auth migration)
-- Update `phone_hash_localstorage` (localStorage no longer stores phone hash — Supabase Auth handles sessions)
-- Delete `console_error_404` after fix
-- Update `no_server_validation` after adding DB constraints
-
-#### 8. Version bump to v3.1
-Update the version in `Settings.tsx` about section and add changelog entry for security hardening.
+#### 5. PIN Input Component Theme Fix
+**File:** `src/components/PinInput.tsx`
+- The dots use hardcoded `bg-white` and `border-white/25`. Since the PIN screen is always on a dark background (the Onboarding page uses `bg-black`), this is fine — no change needed.
 
 ### Files Changed
-1. `supabase/functions/auth-register/index.ts` — remove listUsers, catch duplicate on create
-2. `supabase/functions/auth-reset-pin/index.ts` — fix CORS headers
-3. `supabase/functions/auth-change-pin/index.ts` — fix CORS headers
-4. `supabase/config.toml` — add verify_jwt = false for all auth functions
-5. `src/pages/NotFound.tsx` — dev-only console.error
-6. `src/pages/Settings.tsx` — version bump + changelog
-7. New migration — DB constraints
-8. Data update — premium grant
+1. `src/pages/Onboarding.tsx` — auto-focus PIN, remove tap hint
+2. `public/sw-custom.js` — new custom service worker for background notifications
+3. `vite.config.ts` — import custom SW script
+4. `src/lib/notifications.ts` — add periodic sync registration
+5. `src/pages/Schedule.tsx` — register periodic sync, add greeting, polish hero
+6. `index.html` — remove static manifest link
+7. Delete `public/manifest.json` — remove duplicate manifest
 
