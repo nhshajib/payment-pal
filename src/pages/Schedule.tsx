@@ -15,7 +15,7 @@ import AddTrialSheet from '@/components/AddTrialSheet';
 import Confetti from '@/components/Confetti';
 import PageTransition from '@/components/PageTransition';
 import { toast } from 'sonner';
-import { requestNotificationPermission, checkAndNotifyPayments } from '@/lib/notifications';
+import { requestNotificationPermission, checkAndNotifyPayments, registerPeriodicSync, cachePaymentsForSW } from '@/lib/notifications';
 import { haptic } from '@/lib/haptics';
 import { useReceiptStash } from '@/hooks/useReceiptStash';
 import { Receipt as ReceiptIcon } from 'lucide-react';
@@ -209,8 +209,15 @@ export default function Schedule() {
     return groups;
   }, [unpaid, sortMode]);
 
-  useEffect(() => { requestNotificationPermission(); }, []);
-  useEffect(() => { if (payments.length > 0) checkAndNotifyPayments(payments); }, [payments]);
+  useEffect(() => {
+    requestNotificationPermission().then(() => registerPeriodicSync());
+  }, []);
+  useEffect(() => {
+    if (payments.length > 0) {
+      checkAndNotifyPayments(payments);
+      cachePaymentsForSW(payments);
+    }
+  }, [payments]);
 
   const handleSubmit = async (data: Omit<Payment, 'id' | 'user_id' | 'created_at'>) => {
     try {
@@ -564,26 +571,41 @@ export default function Schedule() {
         <motion.header
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
-          <p className="text-[13px] font-medium text-muted-foreground/60 uppercase tracking-[1.5px] mb-1">
-            Total Upcoming
+          <p className="text-[15px] font-medium text-muted-foreground/70 mb-0.5">
+            {(() => {
+              const h = new Date().getHours();
+              const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+              return userName ? `${greeting}, ${userName.split(' ')[0]}` : greeting;
+            })()}
           </p>
           <motion.h1
             key={totalUpcoming}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="text-5xl font-extrabold tracking-tight text-foreground leading-none"
+            className="text-5xl font-extrabold tracking-tight text-foreground leading-none mt-1"
           >
             {formatCurrency(totalUpcoming)}
           </motion.h1>
-          <p className="text-[13px] text-muted-foreground/50 mt-2">
-            {summary.unpaidCount} bill{summary.unpaidCount !== 1 ? 's' : ''} remaining
-            {summary.overdueCount > 0 && (
-              <span className="text-primary font-medium"> · {summary.overdueCount} overdue</span>
-            )}
-          </p>
+          <p className="text-[13px] text-muted-foreground/50 mt-1.5">due across {summary.unpaidCount} bill{summary.unpaidCount !== 1 ? 's' : ''}</p>
+
+          {/* Summary badges */}
+          {(summary.overdueCount > 0 || summary.paidCount > 0) && (
+            <div className="flex items-center gap-2 mt-3">
+              {summary.overdueCount > 0 && (
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                  {summary.overdueCount} overdue
+                </span>
+              )}
+              {summary.paidCount > 0 && (
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                  {summary.paidCount} paid
+                </span>
+              )}
+            </div>
+          )}
         </motion.header>
 
         {/* ━━━ SEARCH BAR ━━━ */}

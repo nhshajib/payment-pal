@@ -174,3 +174,35 @@ export function sendTestNotification() {
     'paytrack-test'
   );
 }
+
+/** Cache payments in SW for background notifications */
+export function cachePaymentsForSW(payments: Array<{ name: string; amount: number; due_date: string; is_paid: boolean; reminder_days: number }>) {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'CACHE_PAYMENTS',
+      payments,
+    });
+  }
+}
+
+/** Register periodic background sync for payment checks */
+export async function registerPeriodicSync() {
+  if (!('serviceWorker' in navigator)) return;
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+
+    // Try Periodic Background Sync (Chrome Android 80+)
+    if ('periodicSync' in reg) {
+      const status = await navigator.permissions.query({ name: 'periodic-background-sync' as any });
+      if (status.state === 'granted') {
+        await (reg as any).periodicSync.register('payment-check', {
+          minInterval: 12 * 60 * 60 * 1000, // 12 hours
+        });
+        console.log('[PayTrack] Periodic sync registered');
+      }
+    }
+  } catch (err) {
+    console.log('[PayTrack] Periodic sync not available:', err);
+  }
+}

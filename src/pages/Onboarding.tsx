@@ -71,6 +71,20 @@ export default function Onboarding() {
   // Refs for hidden PIN inputs
   const pinInputRef = useRef<HTMLInputElement>(null);
 
+  // Aggressively auto-focus PIN input when on any PIN screen
+  useEffect(() => {
+    const isPinScreen = ['login-pin', 'signup-pin', 'signup-confirm', 'forgot-new-pin', 'forgot-confirm-pin'].includes(screen);
+    if (isPinScreen && pinInputRef.current) {
+      // Immediate focus
+      pinInputRef.current.focus();
+      // Retry after short delays for mobile reliability
+      const t1 = setTimeout(() => pinInputRef.current?.focus(), 100);
+      const t2 = setTimeout(() => pinInputRef.current?.focus(), 300);
+      const t3 = setTimeout(() => pinInputRef.current?.focus(), 600);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [screen]);
+
   useEffect(() => {
     if (sessionStorage.getItem('paytrack_signed_out')) {
       sessionStorage.removeItem('paytrack_signed_out');
@@ -404,40 +418,26 @@ export default function Onboarding() {
         <p className="text-white/30 text-[13px] mt-1 text-center">{subtitle}</p>
       </div>
 
-      {/* PIN dots - tappable to open keyboard */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-6">
-        <motion.button
-          type="button"
-          onClick={() => pinInputRef.current?.focus()}
-          className="relative"
-        >
-          <PinInput length={pinLength} filled={pinValue.length} error={error} />
-        </motion.button>
-        
-        {/* Tap to enter hint */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-white/20 text-[13px]"
-        >
-          Tap dots to enter PIN
-        </motion.p>
-        
-        {/* Hidden input for native keyboard */}
-        <input
-          ref={pinInputRef}
-          type="tel"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={4}
-          value={pinValue}
-          onChange={e => handlePinChange(e.target.value, setPinValue, onComplete)}
-          className="absolute opacity-0 w-0 h-0"
-          autoFocus
-          autoComplete="one-time-code"
-        />
-      </div>
+      {/* PIN dots */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+          <div className="relative" onClick={() => pinInputRef.current?.focus()}>
+            <PinInput length={pinLength} filled={pinValue.length} error={error} />
+          </div>
+          
+          {/* Hidden input for native keyboard — positioned off-screen for reliable focus */}
+          <input
+            ref={pinInputRef}
+            type="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={4}
+            value={pinValue}
+            onChange={e => handlePinChange(e.target.value, setPinValue, onComplete)}
+            style={{ position: 'fixed', top: -100, left: -100, opacity: 0 }}
+            autoFocus
+            autoComplete="one-time-code"
+          />
+        </div>
 
       {/* Biometric + extra buttons */}
       <div className="pb-12 flex flex-col items-center gap-3">
