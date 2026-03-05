@@ -19,6 +19,7 @@ import { requestNotificationPermission, checkAndNotifyPayments, registerPeriodic
 import { haptic } from '@/lib/haptics';
 import { useReceiptStash } from '@/hooks/useReceiptStash';
 import { Receipt as ReceiptIcon } from 'lucide-react';
+import OnboardingTutorial, { shouldShowTutorial, markTutorialDone } from '@/components/OnboardingTutorial';
 
 type TabId = 'upcoming' | 'paid' | 'trials';
 type SortMode = 'date' | 'amount' | 'name';
@@ -72,6 +73,7 @@ export default function Schedule() {
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const { receipts, getReceipt } = useReceiptStash();
   const [receiptPopover, setReceiptPopover] = useState<{ paymentId: string; paymentName: string } | null>(null);
+  const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial());
 
   // Fetch trials on mount
   useEffect(() => { fetchTrials(); }, [fetchTrials]);
@@ -558,6 +560,9 @@ export default function Schedule() {
   return (
     <PageTransition>
       <Confetti trigger={confettiTrigger} />
+      <AnimatePresence>
+        {showTutorial && <OnboardingTutorial onComplete={() => setShowTutorial(false)} />}
+      </AnimatePresence>
       <div
         ref={scrollRef}
         className="min-h-screen pb-24 px-5 pt-8 max-w-md mx-auto"
