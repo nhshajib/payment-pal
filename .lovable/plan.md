@@ -1,65 +1,81 @@
 
 
-## Plan: PIN Input Fix, Background Notifications, PWA Fix & Schedule Polish
+## Plan: Premium Grant, Category Fix, PIN UX, Animations & Polish
 
-### Problems Identified
+### 1. Grant Premium to All Current Users
+**Action:** SQL data update via insert tool
+```sql
+UPDATE public.users SET is_premium = true WHERE is_premium = false;
+```
+Only 1 user exists and is already premium. This is a safety net for any future users added before this deploys.
 
-1. **PIN Input UX** — Current implementation uses a hidden `<input>` that requires tapping to focus. Shows "Tap dots to enter PIN" hint which is confusing. The keyboard doesn't auto-appear reliably on mobile. Need to auto-focus aggressively and remove the confusing hint.
+### 2. Remove "Free Trial" from Payment Categories
+**File:** `src/lib/categories.ts`
+- Remove the `free_trial` category entry from the `CATEGORIES` array (line 32)
+- Free Trial tracking remains exclusively in the premium Trials tab
 
-2. **Notifications only fire on app open** — `checkAndNotifyPayments()` is called in a `useEffect` in Schedule.tsx (line 213), meaning it only runs when the user opens the app. There's no background push or periodic sync. Fix: Add a service worker with periodic background sync and/or Web Push API to send notifications even when the app is closed.
-
-3. **PWA not opening the site** — The `start_url` is `/` which redirects to `/schedule` for logged-in users. The service worker's `navigateFallback` is set correctly. Issue likely: duplicate manifest (both `public/manifest.json` AND VitePWA generating one). Remove the static `manifest.json` to avoid conflicts. Also ensure the SW is properly registered.
-
-4. **Schedule/Home page polish** — The hero section is functional but could be more visually engaging. Add a greeting with time-of-day context, subtle card for the summary stats.
-
-### Changes
-
-#### 1. Fix PIN Input — Auto-focus & Remove Confusion
+### 3. Fix PIN Input — Reliable Keyboard Trigger
 **File:** `src/pages/Onboarding.tsx`
-- Remove the "Tap dots to enter PIN" hint text (lines 418-425)
-- Make the PIN dots area not a button — just a div. The hidden input should auto-focus immediately
-- Add `useEffect` to force-focus the hidden input whenever the PIN screen mounts
-- Set the hidden input to `position: fixed; top: -100px` instead of `opacity: 0; w-0; h-0` — some mobile browsers won't show keyboard for zero-size inputs
-- Add `autoFocus` and a `setTimeout(() => pinInputRef.current?.focus(), 100)` for reliability
 
-#### 2. Background Notifications via Service Worker
-**File:** Create `public/sw-custom.js` — a custom service worker script
-- Register for `periodicSync` API (where supported — Chrome Android) with tag `payment-check`
-- On periodic sync event, fetch payments from Supabase and call notification logic
-- Fallback: Use `setInterval` in the SW for browsers without periodicSync
+The current hidden input approach (`position: fixed; top: -100; opacity: 0`) doesn't reliably trigger keyboards on iOS/Android. Fix:
 
-**File:** `vite.config.ts`
-- Add `importScripts` to VitePWA workbox config to include the custom SW
+- Replace the off-screen hidden input with a **visible but transparent** input overlaid on the PIN dots area using `absolute inset-0`, `caret-color: transparent`, `color: transparent`, `background: transparent`
+- This makes the input tappable and focusable within the dot area, so the keyboard appears naturally
+- Keep `autoFocus` and the staggered `setTimeout` focus calls as fallback
+- Remove the `onClick` handler on the dot wrapper (no longer needed since input covers the area)
 
-**File:** `src/lib/notifications.ts`
-- Extract payment check logic into a standalone function that can be called from SW context
-- Add a function to register periodic sync
+### 4. Fix Biometric Login
+**File:** `src/pages/Settings.tsx` (line 416-417)
 
+Bug: When enabling biometrics, the phone value passed is `localStorage.getItem('paytrack_phone_hash')` which may be empty/null since the app no longer stores phone hash in localStorage (it was removed in the Supabase Auth migration). 
+
+Fix: The `useBiometric.enableBiometric()` takes `phone` as a parameter for re-authentication via `restore()`. Since biometric login calls `restore(phone)` which needs the raw phone digits, we need to store the user's phone during login. But we can't — the phone is hashed.
+
+**Root cause:** `authenticateWithBiometric()` returns the stored `BiometricUser.phone` which is then passed to `restore()`. But `restore()` calls `hashPhone(phone)` and then tries to find the user — it actually just checks the active Supabase session. So the phone value doesn't matter for auth, it just sets `phoneHash` state.
+
+**Real fix in `src/hooks/useBiometric.ts` and `src/pages/Settings.tsx`:**
+- In Settings, when enabling biometric, pass the user's `phoneHash` (which is available from `useUser()`) instead of reading from localStorage
+- In `useBiometric.enableBiometric()`, store `phoneHash` as the phone identifier
+- In `Onboarding.tsx` `handleBiometricLogin`, the `restore(user.phone)` call should work since it just checks active session — but if session expired, it fails. Add a fallback: if `restore` fails, show the PIN screen instead of a generic error.
+
+### 5. Reduce Animations — Minimal & Fast
+**Files:** `src/pages/Onboarding.tsx`, `src/pages/Schedule.tsx`, `src/pages/Settings.tsx`, `src/App.tsx`
+
+Changes:
+- **Splash screen:** Reduce from 3.2s to 1.8s. Remove the loading bar animation.
+- **Onboarding transitions:** Change `spring` config from `stiffness: 320, damping: 32` to `duration: 0.2` ease transitions. Remove bouncy spring animations.
+- **Schedule page:** Remove `whileTap` scale animations from minor buttons. Reduce card entrance animations from spring to simple `duration: 0.15` fades.
+- **Settings:** Remove slide variants delay. Use instant transitions.
+- **Payment cards:** Reduce entrance animation delay multiplier from `0.03` per card to `0.01`.
+
+### 6. Home Page (Schedule) Polish
 **File:** `src/pages/Schedule.tsx`
-- After requesting notification permission, register the periodic sync
 
-#### 3. Fix PWA — Remove Duplicate Manifest
-**File:** Delete `public/manifest.json` — VitePWA already generates the manifest from `vite.config.ts`. Having both causes conflicts where the browser picks the wrong one.
+- Clean up the hero section: tighten spacing, make greeting more prominent
+- Make the FAB picker cleaner — when on "upcoming" tab, tap FAB directly opens Add Payment (skip the picker menu). Only show the picker when premium user has trial option.
+- Improve empty states with clearer CTAs
+- Remove the long-press hint (too noisy for users)
 
-**File:** `index.html`
-- Remove `<link rel="manifest" href="/manifest.json" />` — VitePWA injects its own manifest link
+### 7. Auth Flow Polish
+**File:** `src/pages/Onboarding.tsx`
 
-#### 4. Schedule Page Polish
-**File:** `src/pages/Schedule.tsx`
-- Add time-of-day greeting ("Good morning, {name}" / "Good afternoon" / "Good evening")
-- Add a subtle summary card below the hero with overdue/today/upcoming counts as mini badges
-- Improve empty state with more engaging copy
+- Reduce transition delays between screens
+- Make the landing page buttons larger and more inviting
+- Add subtle loading state feedback on PIN verification (show spinner immediately, not just at bottom)
 
-#### 5. PIN Input Component Theme Fix
-**File:** `src/components/PinInput.tsx`
-- The dots use hardcoded `bg-white` and `border-white/25`. Since the PIN screen is always on a dark background (the Onboarding page uses `bg-black`), this is fine — no change needed.
+### 8. Settings Clarity
+**File:** `src/pages/Settings.tsx`
+
+- Add descriptive subtitles to main menu items
+- Make "Account & Security" more prominent
 
 ### Files Changed
-1. `src/pages/Onboarding.tsx` — auto-focus PIN, remove tap hint
-2. `public/sw-custom.js` — new custom service worker for background notifications
-3. `vite.config.ts` — import custom SW script
-4. `src/lib/notifications.ts` — add periodic sync registration
-5. `src/pages/Schedule.tsx` — register periodic sync, add greeting, polish hero
-6. `index.html` — remove static manifest link
-7. Delete `public/manifest.json` — remove duplicate manifest
+1. `src/lib/categories.ts` — remove free_trial category
+2. `src/pages/Onboarding.tsx` — fix PIN input overlay, reduce animations, polish auth flow
+3. `src/hooks/useBiometric.ts` — no changes needed (logic is fine)
+4. `src/pages/Settings.tsx` — fix biometric enable phone param, add clarity
+5. `src/pages/Schedule.tsx` — simplify FAB, reduce animations, polish home
+6. `src/App.tsx` — reduce splash duration
+7. `src/components/PaymentCard.tsx` — reduce card animations (if applicable)
+8. SQL update — grant premium to all users
 
