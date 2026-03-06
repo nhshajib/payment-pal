@@ -62,7 +62,6 @@ export default function Schedule() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('upcoming');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showLongPressHint, setShowLongPressHint] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('date');
   const [showFilters, setShowFilters] = useState(false);
@@ -129,23 +128,7 @@ export default function Schedule() {
     }
   }, [pullY, refetch, fetchTrials]);
 
-  useEffect(() => {
-    const hintSeen = localStorage.getItem('paytrack_longpress_hint');
-    if (!hintSeen && payments.length > 0) {
-      const timer = setTimeout(() => setShowLongPressHint(true), 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [payments.length]);
-
-  useEffect(() => {
-    if (showLongPressHint) {
-      const dismiss = setTimeout(() => {
-        setShowLongPressHint(false);
-        localStorage.setItem('paytrack_longpress_hint', '1');
-      }, 4000);
-      return () => clearTimeout(dismiss);
-    }
-  }, [showLongPressHint]);
+  // Removed long-press hint — too noisy
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -398,10 +381,10 @@ export default function Schedule() {
       <motion.div
         key={trial.id}
         layout
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: trial.is_cancelled ? 0.5 : 1, y: 0 }}
         exit={{ opacity: 0, x: -120, scale: 0.92 }}
-        transition={{ delay: index * 0.03, type: 'spring', stiffness: 400, damping: 30 }}
+        transition={{ delay: index * 0.01, duration: 0.15 }}
         className="rounded-2xl mono-card px-4 py-4"
       >
         <div className="flex items-center gap-3.5">
@@ -873,21 +856,6 @@ export default function Schedule() {
                     </motion.div>
                   )}
 
-                  <AnimatePresence>
-                    {showLongPressHint && activeTab === 'upcoming' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                        onClick={() => { setShowLongPressHint(false); localStorage.setItem('paytrack_longpress_hint', '1'); }}
-                        className="flex items-center gap-2 px-4 py-2.5 mb-3 rounded-xl bg-primary/10 border border-primary/20 cursor-pointer"
-                      >
-                        <Hand className="w-4 h-4 text-primary flex-shrink-0" />
-                        <p className="text-xs text-primary font-medium">Swipe or long-press any card for options</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
 
                   {renderPaymentList()}
                 </>
@@ -902,18 +870,21 @@ export default function Schedule() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
-            whileTap={{ scale: 0.85, rotate: 90 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+            transition={{ duration: 0.15 }}
             onClick={() => {
               haptic(20);
               if (activeTab === 'trials') {
-                // Directly open trial sheet when on trials tab
                 setTrialSheetOpen(true);
-              } else {
+              } else if (isPremium) {
+                // Premium users get picker for payment vs trial
                 setFabPickerOpen(true);
+              } else {
+                // Non-premium: directly open add payment
+                setEditing(null);
+                setSheetOpen(true);
               }
             }}
-            className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center z-[60] shadow-xl shadow-primary/30"
+            className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center z-[60] shadow-xl shadow-primary/30 active:scale-90 transition-transform"
           >
             <Plus className="w-7 h-7" strokeWidth={2.5} />
           </motion.button>
