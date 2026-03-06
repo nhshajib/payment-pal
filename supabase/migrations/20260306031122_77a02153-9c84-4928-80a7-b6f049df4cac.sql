@@ -1,0 +1,1 @@
+UPDATE public.users SET is_premium = true WHERE is_premium = false;

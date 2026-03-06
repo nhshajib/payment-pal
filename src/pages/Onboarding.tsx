@@ -17,10 +17,9 @@ type Screen =
   | 'signup-info' | 'signup-pin' | 'signup-confirm'
   | 'forgot-pin' | 'forgot-new-pin' | 'forgot-confirm-pin';
 
-const slideIn = { initial: { opacity: 0, x: 40 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -40 } };
-const fadeIn = { initial: { opacity: 0, scale: 0.97 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.97 } };
-const spring = { type: 'spring' as const, stiffness: 320, damping: 32 };
-const fadeTrans = { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] as const };
+const slideIn = { initial: { opacity: 0, x: 30 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -30 } };
+const fadeIn = { initial: { opacity: 0, scale: 0.98 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.98 } };
+const quickTrans = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const };
 
 // Signup step indicator
 const SIGNUP_STEPS = ['Info', 'PIN', 'Confirm'];
@@ -36,7 +35,7 @@ function StepIndicator({ current }: { current: number }) {
                 width: i === current ? 24 : 8,
                 backgroundColor: i <= current ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.15)',
               }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              transition={{ duration: 0.2 }}
               className="h-[6px] rounded-full"
             />
           </div>
@@ -75,9 +74,7 @@ export default function Onboarding() {
   useEffect(() => {
     const isPinScreen = ['login-pin', 'signup-pin', 'signup-confirm', 'forgot-new-pin', 'forgot-confirm-pin'].includes(screen);
     if (isPinScreen && pinInputRef.current) {
-      // Immediate focus
       pinInputRef.current.focus();
-      // Retry after short delays for mobile reliability
       const t1 = setTimeout(() => pinInputRef.current?.focus(), 100);
       const t2 = setTimeout(() => pinInputRef.current?.focus(), 300);
       const t3 = setTimeout(() => pinInputRef.current?.focus(), 600);
@@ -125,10 +122,17 @@ export default function Onboarding() {
     try {
       const user = await authenticateWithBiometric();
       if (user) {
-        await restore(user.phone);
-        hapticSuccess();
-        toast.success('Welcome back!');
-        navigate('/schedule');
+        try {
+          await restore(user.phone);
+          hapticSuccess();
+          toast.success('Welcome back!');
+          navigate('/schedule');
+        } catch {
+          // Session expired — fall back to PIN screen
+          hapticError();
+          toast.error('Session expired. Please sign in with your PIN.');
+          setScreen('login-phone');
+        }
       } else {
         hapticError();
         toast.error('Biometric authentication failed');
@@ -180,7 +184,7 @@ export default function Onboarding() {
   };
 
   const handleSignupPinComplete = (fullPin: string) => {
-    setTimeout(() => { setConfirmPin(''); setScreen('signup-confirm'); }, 300);
+    setTimeout(() => { setConfirmPin(''); setScreen('signup-confirm'); }, 200);
   };
 
   const handleConfirmPinComplete = useCallback(async (fullConfirm: string) => {
@@ -216,7 +220,7 @@ export default function Onboarding() {
   };
 
   const handleForgotPinComplete = () => {
-    setTimeout(() => { setForgotConfirmPin(''); setScreen('forgot-confirm-pin'); }, 300);
+    setTimeout(() => { setForgotConfirmPin(''); setScreen('forgot-confirm-pin'); }, 200);
   };
 
   const handleForgotConfirmComplete = useCallback(async (fullConfirm: string) => {
@@ -246,7 +250,7 @@ export default function Onboarding() {
   // ── Shared UI pieces ──
 
   const backButton = (onBack: () => void) => (
-    <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}
+    <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.02 }}
       onClick={onBack} className="absolute top-0 left-0 flex items-center gap-0.5 text-white/40 active:text-white/60 transition-colors z-10"
     >
       <ChevronLeft className="w-5 h-5" />
@@ -280,13 +284,13 @@ export default function Onboarding() {
         <>
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             className="fixed inset-0 bg-black z-[100]"
             onClick={() => setShowCountryPicker(false)}
           />
           <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.8 }}
+            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
             className="fixed bottom-0 left-0 right-0 z-[100] max-w-[420px] mx-auto"
           >
             <div className="rounded-t-[22px] overflow-hidden bg-[#1c1c1e] border-t border-white/[0.08]"
@@ -335,11 +339,10 @@ export default function Onboarding() {
                   <div className="px-4 py-10 text-center text-white/25 text-[14px]">No countries found</div>
                 ) : (
                   filteredCountries.map((c, i) => (
-                    <motion.button
+                    <button
                       key={c.code}
-                      whileTap={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
                       onClick={() => handleCountrySelect(c)}
-                      className={`w-full flex items-center gap-3.5 px-5 h-[52px] text-left transition-colors ${
+                      className={`w-full flex items-center gap-3.5 px-5 h-[52px] text-left transition-colors active:bg-white/[0.06] ${
                         c.code === country.code ? 'bg-white/[0.06]' : ''
                       } ${i < filteredCountries.length - 1 ? 'border-b border-white/[0.04]' : ''}`}
                     >
@@ -349,7 +352,7 @@ export default function Onboarding() {
                       {c.code === country.code && (
                         <Check className="w-4 h-4 text-white ml-1" />
                       )}
-                    </motion.button>
+                    </button>
                   ))
                 )}
               </div>
@@ -398,7 +401,7 @@ export default function Onboarding() {
     stepIndicator?: React.ReactNode,
     showBiometric = false,
   ) => (
-    <motion.div key={title} {...fadeIn} transition={fadeTrans}
+    <motion.div key={title} {...fadeIn} transition={quickTrans}
       className="flex flex-col items-center min-h-[calc(100dvh-48px)] relative pt-2"
     >
       {backButton(onBack)}
@@ -408,8 +411,8 @@ export default function Onboarding() {
 
       {/* Top section */}
       <div className={`flex flex-col items-center ${stepIndicator ? 'pb-4' : 'pt-16 pb-4'}`}>
-        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
           className="w-14 h-14 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center mb-4"
         >
           {icon}
@@ -418,13 +421,11 @@ export default function Onboarding() {
         <p className="text-white/30 text-[13px] mt-1 text-center">{subtitle}</p>
       </div>
 
-      {/* PIN dots */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
-          <div className="relative" onClick={() => pinInputRef.current?.focus()}>
-            <PinInput length={pinLength} filled={pinValue.length} error={error} />
-          </div>
-          
-          {/* Hidden input for native keyboard — positioned off-screen for reliable focus */}
+      {/* PIN dots + transparent overlay input */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="relative">
+          <PinInput length={pinLength} filled={pinValue.length} error={error} />
+          {/* Transparent input overlaid on PIN dots for reliable keyboard trigger */}
           <input
             ref={pinInputRef}
             type="tel"
@@ -433,20 +434,21 @@ export default function Onboarding() {
             maxLength={4}
             value={pinValue}
             onChange={e => handlePinChange(e.target.value, setPinValue, onComplete)}
-            style={{ position: 'fixed', top: -100, left: -100, opacity: 0 }}
+            className="absolute inset-0 w-full h-full opacity-0 z-10"
+            style={{ caretColor: 'transparent', fontSize: '16px' }}
             autoFocus
             autoComplete="one-time-code"
           />
         </div>
+      </div>
 
       {/* Biometric + extra buttons */}
       <div className="pb-12 flex flex-col items-center gap-3">
         {showBiometric && biometricAvailable && biometricEnabled && hasSavedCredential() && (
           <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            whileTap={{ scale: 0.95 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
             onClick={handleBiometricLogin}
             disabled={loading}
             className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/70 active:bg-white/[0.1] transition-colors disabled:opacity-40"
@@ -459,8 +461,8 @@ export default function Onboarding() {
       </div>
 
       {isLoading && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute bottom-4">
-          <motion.div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full"
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <motion.div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full"
             animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
         </motion.div>
       )}
@@ -474,15 +476,15 @@ export default function Onboarding() {
 
           {/* ─── LANDING ─── */}
           {screen === 'landing' && (
-            <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.35 }} className="flex flex-col min-h-[100dvh]"
+            <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }} className="flex flex-col min-h-[100dvh]"
             >
               {/* Logo area */}
               <div className="flex-1 flex flex-col items-center justify-center pt-8 pb-4 min-h-[35dvh]">
                 <div className="relative">
                   <div className="absolute inset-0 blur-[80px] bg-white/[0.04] rounded-full scale-150" />
-                  <motion.div initial={{ opacity: 0, scale: 0.7, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.6, type: 'spring', stiffness: 200, damping: 20 }}
+                  <motion.div initial={{ opacity: 0, scale: 0.8, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
                     className="relative text-center"
                   >
                     <h1 className="text-[56px] font-extrabold tracking-tight leading-none">
@@ -491,7 +493,7 @@ export default function Onboarding() {
                     </h1>
                   </motion.div>
                 </div>
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
                   className="text-white/25 text-[13px] tracking-widest uppercase mt-3">
                   Never miss a payment
                 </motion.p>
@@ -500,8 +502,8 @@ export default function Onboarding() {
               {/* Welcome back */}
               <AnimatePresence>
                 {showWelcomeBack && (
-                  <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
                     className="mx-auto w-full mb-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 flex items-center gap-3"
                   >
                     <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
@@ -516,23 +518,23 @@ export default function Onboarding() {
               </AnimatePresence>
 
               {/* Actions */}
-              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.45 }}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, duration: 0.3 }}
                 className="pb-12 space-y-3"
               >
                 {showBiometricPrompt && (
-                  <motion.button whileTap={{ scale: 0.97 }}
+                  <button
                     onClick={handleBiometricLogin} disabled={loading}
-                    className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2.5 bg-white text-black flex items-center justify-center active:bg-white/90 transition-colors disabled:opacity-50"
+                    className="w-full h-[58px] text-[17px] font-semibold rounded-2xl gap-2.5 bg-white text-black flex items-center justify-center active:bg-white/90 transition-colors disabled:opacity-50"
                   >
                     <Fingerprint className="w-5 h-5" />
                     Sign in with Face ID
-                  </motion.button>
+                  </button>
                 )}
 
-                <motion.button whileTap={{ scale: 0.97 }}
+                <button
                   onClick={() => { resetForm(); setScreen('login-phone'); }}
-                  className={`w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 flex items-center justify-center transition-colors ${
+                  className={`w-full h-[58px] text-[17px] font-semibold rounded-2xl gap-2 flex items-center justify-center transition-colors ${
                     showBiometricPrompt
                       ? 'border border-white/[0.12] bg-transparent text-white active:bg-white/[0.06]'
                       : 'bg-white text-black active:bg-white/90'
@@ -540,15 +542,15 @@ export default function Onboarding() {
                 >
                   <Phone className="w-[18px] h-[18px]" />
                   Sign In
-                </motion.button>
+                </button>
 
-                <motion.button whileTap={{ scale: 0.97 }}
+                <button
                   onClick={() => { resetForm(); setScreen('signup-info'); }}
-                  className="w-full h-[56px] text-[16px] font-semibold rounded-2xl border border-white/[0.12] bg-transparent gap-2 text-white flex items-center justify-center active:bg-white/[0.06] transition-colors"
+                  className="w-full h-[58px] text-[17px] font-semibold rounded-2xl border border-white/[0.12] bg-transparent gap-2 text-white flex items-center justify-center active:bg-white/[0.06] transition-colors"
                 >
                   <User className="w-[18px] h-[18px]" />
                   Create Account
-                </motion.button>
+                </button>
 
                 <p className="text-white/15 text-[11px] text-center pt-2 flex items-center justify-center gap-1.5">
                   <Shield className="w-3 h-3" />
@@ -560,19 +562,19 @@ export default function Onboarding() {
 
           {/* ─── LOGIN: PHONE ─── */}
           {screen === 'login-phone' && (
-            <motion.div key="login-phone" {...slideIn} transition={spring}
+            <motion.div key="login-phone" {...slideIn} transition={quickTrans}
               className="flex flex-col min-h-[100dvh] relative pt-14"
             >
               {backButton(() => setScreen('landing'))}
 
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
                 className="mb-8"
               >
                 <h2 className="text-[30px] font-bold text-white tracking-tight leading-tight">Welcome back</h2>
                 <p className="text-white/35 text-[15px] mt-1.5">Enter your phone number to continue</p>
               </motion.div>
 
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                 {iosCard(
                   <div className="px-4">
                     <div className="flex items-center h-[52px] gap-2">
@@ -591,17 +593,17 @@ export default function Onboarding() {
 
               <div className="flex-1" />
 
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
                 className="pb-12"
               >
-                <motion.button whileTap={{ scale: 0.97 }}
+                <button
                   onClick={handleContinueToPin}
                   disabled={!isPhoneValid}
                   className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-all disabled:opacity-30"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" />
-                </motion.button>
+                </button>
               </motion.div>
             </motion.div>
           )}
@@ -614,7 +616,7 @@ export default function Onboarding() {
             4, pin, setPin, pinError,
             handleLoginPinEntry,
             () => { setPin(''); setScreen('login-phone'); },
-            <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+            <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
               onClick={() => { setForgotPhone(''); setForgotPin(''); setForgotConfirmPin(''); setScreen('forgot-pin'); }}
               className="text-white/30 text-[14px] active:text-white/50 transition-colors"
             >
@@ -627,21 +629,21 @@ export default function Onboarding() {
 
           {/* ─── SIGNUP STEP 1: INFO ─── */}
           {screen === 'signup-info' && (
-            <motion.div key="signup-info" {...slideIn} transition={spring}
+            <motion.div key="signup-info" {...slideIn} transition={quickTrans}
               className="flex flex-col min-h-[100dvh] relative pt-14"
             >
               {backButton(() => setScreen('landing'))}
 
               <StepIndicator current={0} />
 
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
                 className="mb-8"
               >
                 <h2 className="text-[30px] font-bold text-white tracking-tight leading-tight">Create account</h2>
                 <p className="text-white/35 text-[15px] mt-1.5">Set up your profile to get started</p>
               </motion.div>
 
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                 {iosCard(
                   <>
                     {iosRow('Name', (
@@ -669,17 +671,17 @@ export default function Onboarding() {
 
               <div className="flex-1" />
 
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
                 className="pb-12 space-y-2"
               >
-                <motion.button whileTap={{ scale: 0.97 }}
+                <button
                   onClick={handleSignupInfoContinue}
                   disabled={!isPhoneValid || !name.trim()}
                   className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-all disabled:opacity-30"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" />
-                </motion.button>
+                </button>
                 <p className="text-white/15 text-[11px] text-center">
                   You'll create a 4-digit PIN next
                 </p>
@@ -715,12 +717,12 @@ export default function Onboarding() {
 
           {/* ─── FORGOT PIN: PHONE ─── */}
           {screen === 'forgot-pin' && (
-            <motion.div key="forgot-pin" {...slideIn} transition={spring}
+            <motion.div key="forgot-pin" {...slideIn} transition={quickTrans}
               className="flex flex-col min-h-[100dvh] relative pt-14"
             >
               {backButton(() => { setScreen('login-pin'); })}
 
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
                 className="mb-8"
               >
                 <div className="w-14 h-14 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center mb-5">
@@ -730,7 +732,7 @@ export default function Onboarding() {
                 <p className="text-white/35 text-[15px] mt-1.5">Enter your registered phone number</p>
               </motion.div>
 
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                 {iosCard(
                   <div className="px-4">
                     <div className="flex items-center h-[52px] gap-2">
@@ -749,16 +751,16 @@ export default function Onboarding() {
 
               <div className="flex-1" />
 
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
                 className="pb-12"
               >
-                <motion.button whileTap={{ scale: 0.97 }}
+                <button
                   onClick={handleForgotPhoneContinue}
                   className="w-full h-[56px] text-[16px] font-semibold rounded-2xl gap-2 bg-white text-black flex items-center justify-center active:bg-white/90 transition-colors"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" />
-                </motion.button>
+                </button>
               </motion.div>
             </motion.div>
           )}

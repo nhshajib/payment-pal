@@ -32,7 +32,6 @@ function getRelativeDate(dateStr: string): string {
 const SWIPE_THRESHOLD = 100;
 const EDIT_THRESHOLD = -50;
 const DELETE_THRESHOLD = -140;
-const HINT_KEY = 'paytrack_swipe_hint_seen';
 
 export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab, receiptData, onReceiptTap }: Props) {
   const { format: formatCurrency } = useCurrency();
@@ -41,24 +40,12 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const [showMenu, setShowMenu] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
-  const [showHint, setShowHint] = useState(false);
   const [hapticFiredRight, setHapticFiredRight] = useState(false);
   const [hapticFiredLeft, setHapticFiredLeft] = useState(false);
 
   const daysLeft = differenceInDays(parseISO(payment.due_date), new Date());
   const isUrgent = !payment.is_paid && (daysLeft < 0 || daysLeft <= 3);
   const isOverdue = !payment.is_paid && daysLeft < 0;
-
-  useEffect(() => {
-    if (index === 0 && !localStorage.getItem(HINT_KEY)) {
-      setShowHint(true);
-      const t = setTimeout(() => {
-        setShowHint(false);
-        localStorage.setItem(HINT_KEY, '1');
-      }, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [index]);
 
   const rightIconScale = useTransform(rawX, [0, SWIPE_THRESHOLD * 0.6, SWIPE_THRESHOLD], [0.4, 0.9, 1.15]);
   const rightBgOpacity = useTransform(rawX, [0, 40, SWIPE_THRESHOLD], [0, 0.4, 1]);
@@ -90,8 +77,6 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const handleDragEnd = (_: any, info: PanInfo) => {
     isDragging.current = false;
     if (!payment.is_paid && info.offset.x >= SWIPE_THRESHOLD) {
-      if (!localStorage.getItem(HINT_KEY)) localStorage.setItem(HINT_KEY, '1');
-      setShowHint(false);
       haptic(30);
       onMarkPaid(payment);
     } else if (info.offset.x <= DELETE_THRESHOLD) {
@@ -105,20 +90,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
 
   const handleDragStart = () => {
     isDragging.current = true;
-    if (showHint) {
-      setShowHint(false);
-      localStorage.setItem(HINT_KEY, '1');
-    }
   };
-
-
-  const handlePointerDown = useCallback(() => {
-    // No-op: we no longer use long press
-  }, []);
-
-  const handlePointerUp = useCallback(() => {
-    // No-op: we no longer use long press
-  }, []);
 
   const handleCardTap = useCallback((e: React.MouseEvent) => {
     if (!isDragging.current && !showMenu) {
@@ -142,14 +114,11 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
     <motion.div
       ref={cardRef}
       layout
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: payment.is_paid ? 120 : -120, scale: 0.92, transition: { duration: 0.3 } }}
-      transition={{ delay: index * 0.03, type: 'spring', stiffness: 400, damping: 30 }}
+      exit={{ opacity: 0, x: payment.is_paid ? 120 : -120, scale: 0.92, transition: { duration: 0.25 } }}
+      transition={{ delay: index * 0.01, duration: 0.15 }}
       className="relative overflow-visible"
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
       onClick={handleCardTap}
     >
       {/* Swipe right — mark paid */}
@@ -185,29 +154,8 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         style={{ x: rawX }}
-        whileTap={{ scale: 0.98 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
         className="relative rounded-2xl mono-card px-4 py-4 cursor-grab active:cursor-grabbing"
       >
-        {/* Swipe hint */}
-        <AnimatePresence>
-          {showHint && !payment.is_paid && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none z-10"
-            >
-              <motion.div animate={{ x: [-2, -8, -2] }} transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }} className="w-6 h-6 rounded-full bg-destructive/15 flex items-center justify-center">
-                <ChevronLeft className="w-3.5 h-3.5 text-destructive" />
-              </motion.div>
-              <motion.div animate={{ x: [2, 8, 2] }} transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }} className="w-6 h-6 rounded-full bg-status-success/15 flex items-center justify-center">
-                <ChevronRight className="w-3.5 h-3.5 text-status-success" />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <div className="flex items-center gap-3.5">
           {/* Circular icon */}
           <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 mono-card-solid">
@@ -245,7 +193,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         </div>
       </motion.div>
 
-      {/* Long-press context menu */}
+      {/* Context menu */}
       <AnimatePresence>
         {showMenu && (
           <>
@@ -253,34 +201,31 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.1 }}
               className="fixed inset-0 z-[80] bg-background/60 backdrop-blur-sm"
               onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
               onPointerDown={(e) => { e.stopPropagation(); setShowMenu(false); }}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: -8 }}
+              initial={{ opacity: 0, scale: 0.85, y: -8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: -8 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+              exit={{ opacity: 0, scale: 0.85, y: -8 }}
+              transition={{ duration: 0.15 }}
               className="absolute z-[90] min-w-[170px] left-1/2 -translate-x-1/2"
               style={{ top: '50%' }}
             >
               <div className="bg-card border border-border/60 rounded-2xl shadow-2xl shadow-black/25 overflow-hidden py-1">
-                {menuItems.map((item, i) => {
+                {menuItems.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <motion.button
+                    <button
                       key={item.label}
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05, type: 'spring', stiffness: 400, damping: 25 }}
                       onClick={() => { setShowMenu(false); haptic(15); item.action(); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-card-foreground hover:bg-secondary/80 active:bg-secondary transition-colors"
                     >
                       <Icon className={`w-4 h-4 ${item.color}`} />
                       <span>{item.label}</span>
-                    </motion.button>
+                    </button>
                   );
                 })}
               </div>

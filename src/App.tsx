@@ -21,25 +21,24 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-/* ─── Cinematic Splash Screen ─── */
+/* ─── Splash Screen — fast & minimal ─── */
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 3200);
+    const timer = setTimeout(onComplete, 1800);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
   return (
     <motion.div
       className="fixed inset-0 z-[200] bg-black h-screen w-screen flex flex-col items-center justify-center overflow-hidden"
-      exit={{ opacity: 0, scale: 0.96 }}
-      transition={{ duration: 0.5, ease: "easeInOut" }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
     >
-      {/* Lottie Animation — centered, constrained */}
       <motion.div
         className="relative z-10 w-56 h-56 max-w-xs"
-        initial={{ opacity: 0, scale: 0.5 }}
+        initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1, duration: 0.7, type: "spring", stiffness: 180, damping: 20 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
       >
         <Lottie
           animationData={countingMoneyAnim}
@@ -48,43 +47,24 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         />
       </motion.div>
 
-      {/* Logo */}
       <motion.h1
         className="relative z-10 text-4xl font-extrabold tracking-tight mt-4"
-        initial={{ opacity: 0, y: 14 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.5, type: "spring", stiffness: 200, damping: 24 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
       >
         <span className="text-white">Pay</span>
         <span className="text-white/50">Track</span>
       </motion.h1>
 
-      {/* Tagline */}
       <motion.p
         className="relative z-10 text-white/30 text-[11px] mt-1.5 tracking-[0.18em] uppercase font-medium"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.8, duration: 0.5 }}
+        transition={{ delay: 0.4, duration: 0.3 }}
       >
         Never miss a payment
       </motion.p>
-
-      {/* Loading bar */}
-      <motion.div
-        className="relative z-10 mt-10 h-[2px] rounded-full overflow-hidden"
-        style={{ background: 'rgba(255,255,255,0.08)' }}
-        initial={{ width: 0, opacity: 0 }}
-        animate={{ width: 140, opacity: 1 }}
-        transition={{ delay: 1.0, duration: 0.3 }}
-      >
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: 'rgba(255,255,255,0.35)' }}
-          initial={{ width: "0%" }}
-          animate={{ width: "100%" }}
-          transition={{ delay: 1.1, duration: 1.8, ease: [0.22, 0.68, 0.36, 1] }}
-        />
-      </motion.div>
     </motion.div>
   );
 }
@@ -93,7 +73,6 @@ function AppRoutes() {
   const { isOnboarded, loading } = useUser();
   const [showSplash, setShowSplash] = useState(true);
 
-  // Only show splash for returning users
   if (loading) return null;
 
   if (isOnboarded && showSplash) {

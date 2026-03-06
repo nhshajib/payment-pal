@@ -1,7 +1,7 @@
 import {
   Repeat, Home, Zap, Wifi, CreditCard, ShoppingCart, Car, Heart,
   GraduationCap, Gamepad2, Phone, Tv, Droplets, Flame, Shield,
-  Dumbbell, Utensils, MoreHorizontal, Timer,
+  Dumbbell, Utensils, MoreHorizontal,
 } from 'lucide-react';
 
 export interface Category {
@@ -29,7 +29,6 @@ export const CATEGORIES: Category[] = [
   { id: 'insurance', label: 'Insurance', icon: Shield, color: 'hsl(210, 60%, 50%)' },
   { id: 'fitness', label: 'Fitness', icon: Dumbbell, color: 'hsl(140, 60%, 45%)' },
   { id: 'food', label: 'Food', icon: Utensils, color: 'hsl(30, 80%, 50%)' },
-  { id: 'free_trial', label: 'Free Trial', icon: Timer, color: 'hsl(25, 95%, 53%)' },
   { id: 'other', label: 'Other', icon: MoreHorizontal, color: 'hsl(0, 0%, 50%)' },
 ];
 

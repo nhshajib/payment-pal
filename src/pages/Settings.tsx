@@ -110,9 +110,9 @@ function SettingsModal({
 function IOSSection({ label, children, index = 0 }: { label: string; children: ReactNode; danger?: boolean; index?: number }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06, type: 'spring', stiffness: 300, damping: 28 }}
+      transition={{ delay: index * 0.02, duration: 0.15 }}
       className="mb-8"
     >
       <p className="text-[11px] font-semibold uppercase tracking-[0.8px] mb-2 ml-4 text-muted-foreground">{label}</p>
@@ -135,7 +135,10 @@ function IOSRow({
     <div className="flex items-center gap-3.5 px-4" style={{ minHeight: '48px' }}>
       <span className="flex-shrink-0 text-muted-foreground flex">{icon}</span>
       <div className="flex-1 flex items-center justify-between min-w-0 py-[13px]">
-        <p className={`text-[16px] font-medium tracking-[-0.2px] ${destructive ? 'text-[#E50914]' : 'text-foreground'}`}>{title}</p>
+        <div className="min-w-0 flex-1">
+          <p className={`text-[16px] font-medium tracking-[-0.2px] ${destructive ? 'text-[#E50914]' : 'text-foreground'}`}>{title}</p>
+          {subtitle && <p className="text-[12px] text-muted-foreground/60 mt-0.5 truncate">{subtitle}</p>}
+        </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
           {value && <span className="text-[15px] tracking-[-0.2px] text-muted-foreground">{value}</span>}
           {rightElement}
@@ -148,9 +151,9 @@ function IOSRow({
   return (
     <>
       {onClick ? (
-        <motion.button whileTap={{ scale: 0.98, backgroundColor: 'rgba(255,255,255,0.03)' }} transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }} onClick={onClick} className="w-full text-left">
+        <button onClick={onClick} className="w-full text-left active:bg-secondary/30 transition-colors">
           {content}
-        </motion.button>
+        </button>
       ) : (
         <div>{content}</div>
       )}
@@ -413,8 +416,9 @@ export default function Settings() {
                   if (v) {
                     const uId = userId || '';
                     const uName = userName || '';
-                    const phone = localStorage.getItem('paytrack_phone_hash') || '';
-                    const success = await enableBiometric(phone, uId, uName);
+                    // Use phoneHash from user context instead of localStorage
+                    const ph = (await supabase.from('users').select('phone_hash').eq('id', uId).single()).data?.phone_hash || '';
+                    const success = await enableBiometric(ph, uId, uName);
                     if (success) toast.success('Biometric login enabled');
                     else toast.error('Could not enable biometric login');
                   } else {
@@ -841,11 +845,13 @@ export default function Settings() {
         <IOSRow
           icon={<Shield className="w-[18px] h-[18px]" />}
           title="Account & Security"
+          subtitle="PIN, biometrics, device management"
           onClick={() => navigateTo('profile')}
         />
         <IOSRow
           icon={<Users className="w-[18px] h-[18px]" />}
           title="Roommates & Shared Bills"
+          subtitle="Split payments with housemates"
           onClick={() => {
             if (!isPremium) { setActiveModal('premium'); return; }
             fetchRoommates();
@@ -860,16 +866,19 @@ export default function Settings() {
         <IOSRow
           icon={<Eye className="w-[18px] h-[18px]" />}
           title="Appearance"
+          subtitle="Theme, accent color, currency"
           onClick={() => navigateTo('appearance')}
         />
         <IOSRow
           icon={<Bell className="w-[18px] h-[18px]" />}
           title="Notifications"
+          subtitle="Reminders, budget, paydays"
           onClick={() => navigateTo('notifications')}
         />
         <IOSRow
           icon={<Database className="w-[18px] h-[18px]" />}
           title="Export Data"
+          subtitle="CSV export, feedback, about"
           onClick={() => navigateTo('data')}
           isLast={!canInstall}
         />
@@ -947,7 +956,7 @@ export default function Settings() {
             initial={slideDirection === 'forward' ? slideVariants.enterFromRight : slideVariants.enterFromLeft}
             animate={slideVariants.center}
             exit={slideDirection === 'forward' ? slideVariants.exitToLeft : slideVariants.exitToRight}
-            transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }}
+            transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
           >
             {currentView === 'main' && renderMain()}
             {currentView === 'profile' && renderProfile()}
