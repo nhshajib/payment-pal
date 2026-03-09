@@ -803,16 +803,14 @@ export default function Settings() {
   );
 
   /* ─── SUB-PAGE: Financial Insights (moved from Insights tab) ─── */
-  const renderInsights = () => {
-    // Lazy-load Overview component inline
-    const Overview = require('@/pages/Overview').default;
-    return (
-      <div>
-        <SubPageHeader title="Financial Insights" onBack={navigateBack} />
+  const renderInsights = () => (
+    <div>
+      <SubPageHeader title="Financial Insights" onBack={navigateBack} />
+      <div className="-mx-4 -mt-2">
         <Overview />
       </div>
-    );
-  };
+    </div>
+  );
 
   /* ─── MAIN MENU ─── */
   const renderMain = () => (
