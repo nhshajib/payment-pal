@@ -19,7 +19,7 @@ interface Props {
   onSave: (expenseId: string, title: string, amount: number, paidBy: string, participants: string[], date: string, notes: string) => void;
 }
 
-export default function EditExpenseSheet({ open, onClose, members, expense, currentParticipantIds, onSave }: Props) {
+export default function EditExpenseSheet({ open, onClose, members, expense, currentParticipantIds, groupName, onSave }: Props) {
   const { format: formatCurrency } = useCurrency();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
