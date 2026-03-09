@@ -3,9 +3,7 @@ import App from "./App";
 import "./index.css";
 
 // PWA stale cache recovery for iOS Safari
-// Detects when the app renders blank due to stale cached JS bundles
 if ('serviceWorker' in navigator) {
-  // Force activate waiting service worker
   navigator.serviceWorker.ready.then((registration) => {
     if (registration.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -13,7 +11,6 @@ if ('serviceWorker' in navigator) {
     }
   });
 
-  // Listen for new service worker installations
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     window.location.reload();
   });
@@ -24,13 +21,13 @@ setTimeout(() => {
   const root = document.getElementById('root');
   if (root && root.children.length === 0) {
     if ('caches' in window) {
-      caches.keys().then((names: string[]) => {
-        Promise.all(names.map((name: string) => caches.delete(name))).then(() => {
-          window.location.reload();
+      caches.keys().then((names) => {
+        Promise.all(names.map((n) => caches.delete(n))).then(() => {
+          location.reload();
         });
       });
     } else {
-      window.location.reload();
+      location.reload();
     }
   }
 }, 5000);
