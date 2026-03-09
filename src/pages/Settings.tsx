@@ -12,6 +12,7 @@ import { usePremium, ACCENT_COLORS } from '@/hooks/usePremium';
 import { usePayments } from '@/hooks/usePayments';
 import { supabase } from '@/integrations/supabase/client';
 import PageTransition from '@/components/PageTransition';
+import Overview from '@/pages/Overview';
 import { toast } from 'sonner';
 import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
