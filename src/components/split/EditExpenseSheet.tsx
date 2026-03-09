@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check } from 'lucide-react';
+import { X, Check, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { haptic } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
+import { shareExpenseUpdate } from '@/lib/notifications';
+import { toast } from 'sonner';
 import type { SplitMember, SplitExpense } from '@/hooks/useSplitGroups';
 
 interface Props {
@@ -13,6 +15,7 @@ interface Props {
   members: SplitMember[];
   expense: SplitExpense | null;
   currentParticipantIds: string[];
+  groupName?: string;
   onSave: (expenseId: string, title: string, amount: number, paidBy: string, participants: string[], date: string, notes: string) => void;
 }
 
