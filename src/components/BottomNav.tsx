@@ -1,4 +1,4 @@
-import { CalendarDays, Settings, Lightbulb } from 'lucide-react';
+import { CalendarDays, Settings, Scissors } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { haptic } from '@/lib/haptics';
