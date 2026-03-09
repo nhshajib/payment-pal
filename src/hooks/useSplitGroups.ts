@@ -261,7 +261,7 @@ export function useSplitGroupDetail(groupId: string | null) {
   return {
     members, expenses, shares, loading,
     fetchAll, addMember, removeMember,
-    addExpense, deleteExpense, settleShare,
+    addExpense, deleteExpense, updateExpense, settleShare,
     balances, settlements, totalExpenses,
   };
 }
