@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { haptic } from '@/lib/haptics';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { SplitMember } from '@/hooks/useSplitGroups';
 
 interface Props {
@@ -14,12 +15,25 @@ interface Props {
 }
 
 export default function AddExpenseSheet({ open, onClose, members, onAdd }: Props) {
+  const { format: formatCurrency } = useCurrency();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState(members[0]?.id || '');
-  const [participants, setParticipants] = useState<string[]>(members.map(m => m.id));
+  const [paidBy, setPaidBy] = useState('');
+  const [participants, setParticipants] = useState<string[]>([]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
+
+  // Reset state when sheet opens or members change
+  useEffect(() => {
+    if (open && members.length > 0) {
+      setPaidBy(members[0].id);
+      setParticipants(members.map(m => m.id));
+      setTitle('');
+      setAmount('');
+      setDate(new Date().toISOString().slice(0, 10));
+      setNotes('');
+    }
+  }, [open, members]);
 
   const toggleParticipant = (id: string) => {
     setParticipants(prev =>
@@ -148,7 +162,7 @@ export default function AddExpenseSheet({ open, onClose, members, onAdd }: Props
                   </div>
                   {participants.length > 0 && amount && (
                     <p className="text-[12px] text-muted-foreground/50 mt-2 ml-1">
-                      Each pays: {(parseFloat(amount || '0') / participants.length).toFixed(2)}
+                      Each pays: {formatCurrency(parseFloat(amount || '0') / participants.length)}
                     </p>
                   )}
                 </div>

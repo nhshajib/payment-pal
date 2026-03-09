@@ -295,7 +295,11 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
                     <Receipt className="w-6 h-6 text-muted-foreground/30" />
                   </div>
                   <p className="text-sm text-muted-foreground/50">No expenses yet</p>
-                  <p className="text-xs text-muted-foreground/30 mt-1">Add your first bill</p>
+                  {members.length < 2 ? (
+                    <p className="text-xs text-muted-foreground/30 mt-1">Add at least 2 members to split expenses</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/30 mt-1">Add your first bill</p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
