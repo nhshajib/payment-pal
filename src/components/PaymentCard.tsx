@@ -6,6 +6,7 @@ import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getCategoryById } from '@/lib/categories';
 import { haptic } from '@/lib/haptics';
+import SwipeTutorialOverlay, { shouldShowSwipeTutorial, markSwipeTutorialDone } from './SwipeTutorialOverlay';
 
 interface Props {
   payment: Payment;
@@ -15,6 +16,7 @@ interface Props {
   onEdit: (payment: Payment) => void;
   onDelete: (id: string) => void;
   isPaidTab?: boolean;
+  showSwipeTutorial?: boolean;
   receiptData?: { confirmationNumber?: string; receiptImage?: string };
   onReceiptTap?: (paymentId: string) => void;
 }
