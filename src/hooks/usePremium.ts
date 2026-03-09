@@ -56,9 +56,23 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     applyAccent(colorId);
   }, []);
 
-  // Check Stripe subscription status
+  // Check premium status: DB flag OR active Stripe subscription
   const checkSubscription = useCallback(async () => {
     try {
+      // First check DB is_premium flag (for manually granted premium)
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('is_premium')
+          .single();
+        if (userData?.is_premium) {
+          setPremium(true);
+          return; // DB says premium, no need to check Stripe
+        }
+      }
+
+      // Then check Stripe subscription
       const { data, error } = await supabase.functions.invoke('check-subscription');
       if (error) return;
       if (data?.subscribed) {
