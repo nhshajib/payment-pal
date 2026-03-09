@@ -158,6 +158,8 @@ export default function Split() {
 function GroupCard({ group, index, onSelect, onDelete }: {
   group: any; index: number; onSelect: () => void; onDelete: () => void;
 }) {
+  const [dragX, setDragX] = useState(0);
+
   return (
     <motion.div
       layout
@@ -165,25 +167,48 @@ function GroupCard({ group, index, onSelect, onDelete }: {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
       transition={{ delay: index * 0.04 }}
-      className="rounded-2xl mono-card overflow-hidden"
+      className="rounded-2xl mono-card overflow-hidden relative"
     >
-      <button
-        onClick={onSelect}
-        className="w-full text-left px-5 py-4 flex items-center gap-4 active:bg-secondary/30 transition-colors"
+      {/* Delete background */}
+      <div 
+        className="absolute inset-y-0 right-0 w-20 bg-destructive flex items-center justify-center rounded-r-2xl"
+        style={{ opacity: Math.min(1, Math.abs(dragX) / 60) }}
       >
-        <div className="w-12 h-12 rounded-2xl mono-card-solid flex items-center justify-center flex-shrink-0 text-2xl">
-          {group.emoji}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-[16px] font-semibold text-foreground truncate tracking-tight">
-            {group.name}
-          </h3>
-          <p className="text-[13px] text-muted-foreground/50 mt-0.5">
-            Tap to view details
-          </p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground/30 flex-shrink-0" />
-      </button>
+        <Trash2 className="w-5 h-5 text-destructive-foreground" />
+      </div>
+
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -80, right: 0 }}
+        dragElastic={0.1}
+        onDrag={(_, info) => setDragX(info.offset.x)}
+        onDragEnd={(_, info) => {
+          if (info.offset.x < -60) {
+            haptic(20);
+            onDelete();
+          }
+          setDragX(0);
+        }}
+        className="relative bg-popover rounded-2xl"
+      >
+        <button
+          onClick={onSelect}
+          className="w-full text-left px-5 py-4 flex items-center gap-4 active:bg-secondary/30 transition-colors"
+        >
+          <div className="w-12 h-12 rounded-2xl mono-card-solid flex items-center justify-center flex-shrink-0 text-2xl">
+            {group.emoji}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-[16px] font-semibold text-foreground truncate tracking-tight">
+              {group.name}
+            </h3>
+            <p className="text-[13px] text-muted-foreground/50 mt-0.5">
+              Swipe left to delete
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground/30 flex-shrink-0" />
+        </button>
+      </motion.div>
     </motion.div>
   );
 }
