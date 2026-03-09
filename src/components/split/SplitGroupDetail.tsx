@@ -260,6 +260,35 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
         <AnimatePresence mode="wait">
           {activeTab === 'expenses' ? (
             <motion.div key="expenses" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+              {/* Expense limit banner for free users */}
+              {!isPremium && atExpenseLimit && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20 p-5 mb-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                      <Lock className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-[15px] font-bold text-foreground mb-1">Expense Limit Reached</h4>
+                      <p className="text-[13px] text-muted-foreground/70 leading-relaxed">
+                        You've added {FREE_EXPENSE_LIMIT} expenses in this group. Upgrade to Premium for unlimited expense tracking.
+                      </p>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => navigate('/premium')}
+                        className="mt-3 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center gap-1.5"
+                      >
+                        <Crown className="w-3.5 h-3.5" />
+                        Upgrade to Premium
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               {expenses.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mono-card mb-3">
