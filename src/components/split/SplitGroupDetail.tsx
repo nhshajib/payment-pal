@@ -54,6 +54,18 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const expenseToEdit = editingExpense ? expenses.find(e => e.id === editingExpense) : null;
   const editParticipantIds = editingExpense ? shares.filter(s => s.expense_id === editingExpense).map(s => s.member_id) : [];
 
+  // Cache settlements for background SW notifications
+  useEffect(() => {
+    if (settlements.length > 0) {
+      cacheSettlementsForSW(settlements.map(s => ({
+        fromName: s.fromName,
+        toName: s.toName,
+        amount: s.amount,
+        amountFormatted: formatCurrency(s.amount),
+      })));
+    }
+  }, [settlements, formatCurrency]);
+
   const handleAddMember = async () => {
     if (!newMemberName.trim()) return;
     if (atMemberLimit) {
