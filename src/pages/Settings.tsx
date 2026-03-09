@@ -1066,6 +1066,16 @@ export default function Settings() {
                 </div>
               ))}
             </div>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button
+                variant="secondary"
+                className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold"
+                onClick={handleManageSubscription}
+                disabled={manageLoading}
+              >
+                {manageLoading ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Opening...</>) : (<><Settings2 className="w-5 h-5 mr-2" />Manage Subscription</>)}
+              </Button>
+            </motion.div>
           </div>
         </SettingsModal>
 
