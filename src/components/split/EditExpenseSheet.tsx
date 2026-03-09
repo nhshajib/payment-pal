@@ -196,21 +196,31 @@ export default function EditExpenseSheet({ open, onClose, members, expense, curr
                 </div>
               </div>
 
-              <div className="flex gap-3 px-5 py-4 border-t border-border/50 pb-safe">
-                <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
-                  <Button variant="secondary" onClick={onClose} className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold">
-                    Cancel
-                  </Button>
-                </motion.div>
-                <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
-                  <Button
-                    onClick={handleSave}
-                    disabled={!title.trim() || !amount || participants.length === 0}
-                    className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                  >
-                    Save Changes
-                  </Button>
-                </motion.div>
+              <div className="px-5 py-4 border-t border-border/50 pb-safe space-y-3">
+                <div className="flex gap-3">
+                  <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
+                    <Button variant="secondary" onClick={onClose} className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold">
+                      Cancel
+                    </Button>
+                  </motion.div>
+                  <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
+                    <Button
+                      onClick={handleSave}
+                      disabled={!title.trim() || !amount || participants.length === 0}
+                      className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                    >
+                      Save Changes
+                    </Button>
+                  </motion.div>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={handleShareUpdate}
+                  className="w-full flex items-center justify-center gap-2 h-[44px] rounded-[14px] bg-secondary text-foreground text-[15px] font-semibold"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share update with group
+                </motion.button>
               </div>
             </div>
           </motion.div>
