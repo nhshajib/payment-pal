@@ -171,6 +171,160 @@ export type Database = {
           },
         ]
       }
+      split_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          group_id: string
+          id: string
+          notes: string
+          paid_by: string
+          title: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date?: string
+          group_id: string
+          id?: string
+          notes?: string
+          paid_by: string
+          title: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          group_id?: string
+          id?: string
+          notes?: string
+          paid_by?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_expenses_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "split_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "split_expenses_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "split_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_groups: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_split_groups_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_members: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          is_owner: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          is_owner?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          is_owner?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "split_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_shares: {
+        Row: {
+          amount: number
+          created_at: string
+          expense_id: string
+          id: string
+          is_settled: boolean
+          member_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          expense_id: string
+          id?: string
+          is_settled?: boolean
+          member_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expense_id?: string
+          id?: string
+          is_settled?: boolean
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_shares_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "split_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "split_shares_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "split_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           auth_id: string | null
@@ -216,6 +370,8 @@ export type Database = {
     }
     Functions: {
       get_internal_user_id: { Args: never; Returns: string }
+      owns_split_expense: { Args: { _expense_id: string }; Returns: boolean }
+      owns_split_group: { Args: { _group_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
