@@ -69,11 +69,49 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
   );
 }
 
+function OfflineFallback() {
+  return (
+    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-8 text-center gap-5">
+      <div className="w-16 h-16 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+          <line x1="2" x2="22" y1="2" y2="22" />
+          <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+          <path d="M2 8.82a15 15 0 0 1 4.17-2.65" />
+          <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" />
+          <path d="M16.85 11.25a10 10 0 0 1 2.22 1.68" />
+          <path d="M5 12.86a10 10 0 0 1 5.17-2.89" />
+          <line x1="12" x2="12.01" y1="20" y2="20" />
+        </svg>
+      </div>
+      <div>
+        <h2 className="text-[20px] font-semibold text-white tracking-tight">No Connection</h2>
+        <p className="text-white/30 text-[14px] mt-1.5 leading-relaxed">
+          Check your internet connection and try again
+        </p>
+      </div>
+      <button
+        onClick={() => window.location.reload()}
+        className="mt-2 px-6 h-[44px] text-[15px] font-medium rounded-xl bg-white/[0.08] border border-white/[0.1] text-white active:bg-white/[0.14] transition-colors"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { isOnboarded, loading } = useUser();
   const [showSplash, setShowSplash] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   if (loading) {
+    if (timedOut) return <OfflineFallback />;
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
