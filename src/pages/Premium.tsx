@@ -36,7 +36,7 @@ const PLANS = [
     price: '$4.99',
     period: '',
     badge: 'Ultimate',
-    icon: Infinity,
+    icon: Gem,
     description: 'One-time purchase, forever',
     savings: 'Pay once',
   },
