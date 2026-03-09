@@ -57,7 +57,6 @@ export default function OnboardingTutorial({ onComplete }: { onComplete: () => v
 
   const handleNext = () => {
     if (isLast) {
-      markTutorialDone();
       onComplete();
     } else {
       setStep(s => s + 1);
@@ -65,7 +64,6 @@ export default function OnboardingTutorial({ onComplete }: { onComplete: () => v
   };
 
   const handleSkip = () => {
-    markTutorialDone();
     onComplete();
   };
 
