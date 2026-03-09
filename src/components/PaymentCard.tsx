@@ -40,6 +40,7 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
   const rawX = useMotionValue(0);
   const x = useSpring(rawX, { stiffness: 500, damping: 35 });
   const [showMenu, setShowMenu] = useState(false);
+  const [tutorialVisible, setTutorialVisible] = useState(() => !!showSwipeTutorial && shouldShowSwipeTutorial());
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const [hapticFiredRight, setHapticFiredRight] = useState(false);
