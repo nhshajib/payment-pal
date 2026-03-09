@@ -185,6 +185,61 @@ export function cachePaymentsForSW(payments: Array<{ name: string; amount: numbe
   }
 }
 
+/** Cache split settlement data in SW for background notifications */
+export function cacheSettlementsForSW(settlements: Array<{ fromName: string; toName: string; amount: number; amountFormatted?: string }>) {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'CACHE_SETTLEMENTS',
+      data: { settlements },
+    });
+  }
+}
+
+/** Share an expense update via native share sheet */
+export async function shareExpenseUpdate(opts: {
+  groupName: string;
+  expenseTitle: string;
+  amount: string;
+  paidBy: string;
+  participants: string[];
+  changes?: string[];
+}) {
+  const lines = [
+    `💰 ${opts.groupName} — Expense Updated`,
+    '',
+    `📝 ${opts.expenseTitle}`,
+    `💵 Amount: ${opts.amount}`,
+    `🙋 Paid by: ${opts.paidBy}`,
+    `👥 Split among: ${opts.participants.join(', ')}`,
+  ];
+
+  if (opts.changes && opts.changes.length > 0) {
+    lines.push('', '📋 Changes:', ...opts.changes.map(c => `  • ${c}`));
+  }
+
+  lines.push('', '— Sent from PayTrack');
+
+  const text = lines.join('\n');
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: `${opts.groupName} — Expense Update`, text });
+      return true;
+    } catch {
+      // User cancelled or share failed
+      return false;
+    }
+  } else {
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(text);
+      return 'copied';
+    } catch {
+      return false;
+    }
+  }
+}
+
 /** Register periodic background sync for payment checks */
 export async function registerPeriodicSync() {
   if (!('serviceWorker' in navigator)) return;

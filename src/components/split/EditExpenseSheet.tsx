@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check } from 'lucide-react';
+import { X, Check, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { haptic } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
+import { shareExpenseUpdate } from '@/lib/notifications';
+import { toast } from 'sonner';
 import type { SplitMember, SplitExpense } from '@/hooks/useSplitGroups';
 
 interface Props {
@@ -13,10 +15,11 @@ interface Props {
   members: SplitMember[];
   expense: SplitExpense | null;
   currentParticipantIds: string[];
+  groupName?: string;
   onSave: (expenseId: string, title: string, amount: number, paidBy: string, participants: string[], date: string, notes: string) => void;
 }
 
-export default function EditExpenseSheet({ open, onClose, members, expense, currentParticipantIds, onSave }: Props) {
+export default function EditExpenseSheet({ open, onClose, members, expense, currentParticipantIds, groupName, onSave }: Props) {
   const { format: formatCurrency } = useCurrency();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -47,6 +50,28 @@ export default function EditExpenseSheet({ open, onClose, members, expense, curr
     const amt = parseFloat(amount);
     if (!expense || !title.trim() || isNaN(amt) || amt <= 0 || !paidBy || participants.length === 0) return;
     onSave(expense.id, title.trim(), amt, paidBy, participants, date, notes);
+  };
+
+  const handleShareUpdate = async () => {
+    const amt = parseFloat(amount);
+    if (!expense) return;
+    const payer = members.find(m => m.id === paidBy);
+    const participantNames = participants.map(pid => members.find(m => m.id === pid)?.name || 'Unknown');
+    const changes: string[] = [];
+    if (expense.amount !== amt) changes.push(`Amount changed to ${formatCurrency(amt)}`);
+    if (expense.title !== title.trim()) changes.push(`Renamed to "${title.trim()}"`);
+    if (expense.paid_by !== paidBy) changes.push(`Now paid by ${payer?.name}`);
+
+    const result = await shareExpenseUpdate({
+      groupName: groupName || 'Split Group',
+      expenseTitle: title.trim() || expense.title,
+      amount: formatCurrency(amt || expense.amount),
+      paidBy: payer?.name || 'Unknown',
+      participants: participantNames,
+      changes: changes.length > 0 ? changes : undefined,
+    });
+    haptic(10);
+    if (result === 'copied') toast.success('Summary copied to clipboard');
   };
 
   return (
@@ -171,21 +196,31 @@ export default function EditExpenseSheet({ open, onClose, members, expense, curr
                 </div>
               </div>
 
-              <div className="flex gap-3 px-5 py-4 border-t border-border/50 pb-safe">
-                <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
-                  <Button variant="secondary" onClick={onClose} className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold">
-                    Cancel
-                  </Button>
-                </motion.div>
-                <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
-                  <Button
-                    onClick={handleSave}
-                    disabled={!title.trim() || !amount || participants.length === 0}
-                    className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                  >
-                    Save Changes
-                  </Button>
-                </motion.div>
+              <div className="px-5 py-4 border-t border-border/50 pb-safe space-y-3">
+                <div className="flex gap-3">
+                  <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
+                    <Button variant="secondary" onClick={onClose} className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold">
+                      Cancel
+                    </Button>
+                  </motion.div>
+                  <motion.div whileTap={{ scale: 0.96 }} className="flex-1">
+                    <Button
+                      onClick={handleSave}
+                      disabled={!title.trim() || !amount || participants.length === 0}
+                      className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                    >
+                      Save Changes
+                    </Button>
+                  </motion.div>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={handleShareUpdate}
+                  className="w-full flex items-center justify-center gap-2 h-[44px] rounded-[14px] bg-secondary text-foreground text-[15px] font-semibold"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share update with group
+                </motion.button>
               </div>
             </div>
           </motion.div>

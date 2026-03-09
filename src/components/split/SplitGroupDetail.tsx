@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users, Lock, Pencil, Bell } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -16,6 +16,7 @@ import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { getGroupActivity, addGroupActivity, markGroupSeen, getUnseenCount } from '@/lib/groupActivity';
+import { cacheSettlementsForSW } from '@/lib/notifications';
 
 const FREE_EXPENSE_LIMIT = 15;
 
@@ -52,6 +53,18 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const activities = getGroupActivity(group.id);
   const expenseToEdit = editingExpense ? expenses.find(e => e.id === editingExpense) : null;
   const editParticipantIds = editingExpense ? shares.filter(s => s.expense_id === editingExpense).map(s => s.member_id) : [];
+
+  // Cache settlements for background SW notifications
+  useEffect(() => {
+    if (settlements.length > 0) {
+      cacheSettlementsForSW(settlements.map(s => ({
+        fromName: s.fromName,
+        toName: s.toName,
+        amount: s.amount,
+        amountFormatted: formatCurrency(s.amount),
+      })));
+    }
+  }, [settlements, formatCurrency]);
 
   const handleAddMember = async () => {
     if (!newMemberName.trim()) return;
@@ -513,6 +526,7 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
           members={members}
           expense={expenseToEdit || null}
           currentParticipantIds={editParticipantIds}
+          groupName={group.name}
           onSave={handleEditExpense}
         />
       </div>
