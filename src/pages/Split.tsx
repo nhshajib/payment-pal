@@ -11,6 +11,7 @@ import AddGroupSheet from '@/components/split/AddGroupSheet';
 import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { getUnseenCount } from '@/lib/groupActivity';
 
 const FREE_GROUP_LIMIT = 3;
 
