@@ -55,11 +55,28 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
+    // Fallback: if onAuthStateChange hasn't fired within 3s, check session directly
+    const sessionTimeout = setTimeout(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await loadUserProfile(session.user.id);
+        }
+      } catch {
+        // Supabase unreachable — will be caught by timeout in App
+      } finally {
+        setLoading(false);
+      }
+    }, 3000);
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(sessionTimeout);
       if (session?.user) {
         await loadUserProfile(session.user.id);
       }
       setLoading(false);
+    }).catch(() => {
+      // Network error — let the 3s fallback handle it
     });
 
     return () => subscription.unsubscribe();

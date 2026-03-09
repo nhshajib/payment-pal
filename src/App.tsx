@@ -123,8 +123,24 @@ function AppRoutes() {
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => setTimedOut(true), 8000);
+    if (!loading) { setTimedOut(false); return; }
+    const timer = setTimeout(() => {
+      // Only show offline if actually offline or fetch fails
+      if (!navigator.onLine) {
+        setTimedOut(true);
+      } else {
+        // Try a lightweight fetch to confirm connectivity
+        fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://ubekgmqoqheqaqihnowl.supabase.co'}/rest/v1/`, {
+          method: 'HEAD',
+          mode: 'no-cors',
+        }).then(() => {
+          // Network works but auth is slow — keep showing spinner, extend timeout
+          setTimeout(() => setTimedOut(true), 8000);
+        }).catch(() => {
+          setTimedOut(true);
+        });
+      }
+    }, 8000);
     return () => clearTimeout(timer);
   }, [loading]);
 
