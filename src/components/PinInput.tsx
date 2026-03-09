@@ -9,16 +9,16 @@ interface PinInputProps {
 export default function PinInput({ length, filled, error }: PinInputProps) {
   return (
     <motion.div
-      className="flex items-center justify-center gap-5"
+      className="flex items-center justify-center gap-6"
       animate={error ? { x: [0, -12, 12, -8, 8, -4, 4, 0] } : {}}
       transition={{ duration: 0.5, ease: 'easeInOut' }}
     >
       {Array.from({ length }).map((_, i) => (
         <motion.div
           key={i}
-          className={`w-[14px] h-[14px] rounded-full transition-all duration-150 ${
+          className={`w-[15px] h-[15px] rounded-full transition-all duration-150 ${
             error
-              ? 'bg-white'
+              ? 'bg-red-500'
               : i < filled
               ? 'bg-white'
               : 'border-2 border-white/25'
@@ -27,7 +27,7 @@ export default function PinInput({ length, filled, error }: PinInputProps) {
             error
               ? { scale: [1, 1.3, 1] }
               : i < filled
-              ? { scale: [0.8, 1.15, 1] }
+              ? { scale: [0.7, 1.2, 1] }
               : {}
           }
           transition={{ duration: 0.15 }}

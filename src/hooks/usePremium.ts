@@ -25,7 +25,6 @@ export const ACCENT_COLORS = [
 function applyAccent(colorId: string) {
   const color = ACCENT_COLORS.find(c => c.id === colorId) || ACCENT_COLORS[0];
   const root = document.documentElement;
-  // Check if light mode
   const isLight = root.classList.contains('light');
   root.style.setProperty('--primary', isLight ? color.hslLight : color.hsl);
   root.style.setProperty('--ring', isLight ? color.hslLight : color.hsl);
@@ -57,7 +56,6 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       applyAccent(accentColor);
     }
 
-    // Observe theme class changes to reapply accent
     const observer = new MutationObserver(() => {
       if (isPremium && accentColor !== 'red') {
         applyAccent(accentColor);
@@ -67,21 +65,41 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     return () => observer.disconnect();
   }, [isPremium, accentColor]);
 
-  // Sync with database on mount
+  // Sync with database using auth session (not localStorage)
   useEffect(() => {
-    const userId = localStorage.getItem('paytrack_user_id');
-    if (!userId) return;
+    const syncPremium = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
 
-    (async () => {
       const { data } = await supabase
         .from('users')
         .select('is_premium')
-        .eq('id', userId)
-        .single();
+        .eq('auth_id', session.user.id)
+        .maybeSingle();
+
       if (data && (data as any).is_premium) {
         setPremium(true);
       }
-    })();
+    };
+
+    syncPremium();
+
+    // Also sync when auth state changes (login)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        const { data } = await supabase
+          .from('users')
+          .select('is_premium')
+          .eq('auth_id', session.user.id)
+          .maybeSingle();
+
+        if (data && (data as any).is_premium) {
+          setPremium(true);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [setPremium]);
 
   return createElement(
