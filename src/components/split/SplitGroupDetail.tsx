@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X } from 'lucide-react';
+import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useSplitGroupDetail, type SplitGroup } from '@/hooks/useSplitGroups';
 import { useCurrency } from '@/hooks/useCurrency';
+import { usePremium } from '@/hooks/usePremium';
+import { useRoommates } from '@/hooks/useRoommates';
+import { useUser } from '@/hooks/useUser';
 import { Input } from '@/components/ui/input';
 import AddExpenseSheet from '@/components/split/AddExpenseSheet';
 import BalanceSummary from '@/components/split/BalanceSummary';
 import PageTransition from '@/components/PageTransition';
 import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface Props {
   group: SplitGroup;
@@ -23,21 +27,44 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
     balances, settlements, totalExpenses,
   } = useSplitGroupDetail(group.id);
   const { format: formatCurrency } = useCurrency();
+  const { isPremium } = usePremium();
+  const { userId } = useUser();
+  const { roommates } = useRoommates(userId);
+  const navigate = useNavigate();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [showRoommatesPicker, setShowRoommatesPicker] = useState(false);
   const [newMemberName, setNewMemberName] = useState('');
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
 
+  const maxMembers = isPremium ? 999 : 5;
+  const atMemberLimit = members.length >= maxMembers;
+  const confirmedRoommates = roommates.filter(r => r.status === 'confirmed' || r.nickname);
+
   const handleAddMember = async () => {
     if (!newMemberName.trim()) return;
-    if (members.length >= 5) {
-      toast.error('Maximum 5 members per group');
+    if (atMemberLimit) {
+      toast.error(isPremium ? 'Member limit reached' : 'Free limit: 5 members. Upgrade for unlimited.');
       return;
     }
     await addMember(newMemberName.trim());
     setNewMemberName('');
     setShowAddMember(false);
     toast.success('Member added');
+  };
+
+  const handleAddRoommate = async (name: string) => {
+    if (members.find(m => m.name === name)) {
+      toast('Already in group');
+      return;
+    }
+    if (atMemberLimit) {
+      toast.error(isPremium ? 'Member limit reached' : 'Upgrade to add more members');
+      return;
+    }
+    await addMember(name);
+    toast.success(`${name} added`);
+    haptic(10);
   };
 
   return (
