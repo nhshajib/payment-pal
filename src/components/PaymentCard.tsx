@@ -35,7 +35,7 @@ const SWIPE_THRESHOLD = 100;
 const EDIT_THRESHOLD = -50;
 const DELETE_THRESHOLD = -140;
 
-export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab, receiptData, onReceiptTap }: Props) {
+export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab, showSwipeTutorial, receiptData, onReceiptTap }: Props) {
   const { format: formatCurrency } = useCurrency();
   const rawX = useMotionValue(0);
   const x = useSpring(rawX, { stiffness: 500, damping: 35 });
