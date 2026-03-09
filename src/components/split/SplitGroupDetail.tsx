@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users } from 'lucide-react';
+import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users, Lock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useSplitGroupDetail, type SplitGroup } from '@/hooks/useSplitGroups';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -14,6 +14,8 @@ import PageTransition from '@/components/PageTransition';
 import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+
+const FREE_EXPENSE_LIMIT = 15;
 
 interface Props {
   group: SplitGroup;
