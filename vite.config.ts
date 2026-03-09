@@ -42,10 +42,13 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/~oauth/],
         importScripts: ['/sw-custom.js'],
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/ubekgmqoqheqaqihnowl\.supabase\.co\/.*/i,
