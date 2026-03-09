@@ -21,8 +21,15 @@ Deno.serve(async (req) => {
 
     const { current_pin_hash, new_pin_hash } = await req.json();
 
-    if (!current_pin_hash || !new_pin_hash) {
-      return new Response(JSON.stringify({ error: "Missing current or new PIN hash" }), {
+    // Input validation
+    if (!current_pin_hash || typeof current_pin_hash !== "string" || current_pin_hash.length < 10 || current_pin_hash.length > 128) {
+      return new Response(JSON.stringify({ error: "Invalid request" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!new_pin_hash || typeof new_pin_hash !== "string" || new_pin_hash.length < 10 || new_pin_hash.length > 128) {
+      return new Response(JSON.stringify({ error: "Invalid request" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -85,8 +92,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    console.error("Unexpected error:", err);
+  } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

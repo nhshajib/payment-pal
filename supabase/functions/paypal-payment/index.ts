@@ -23,8 +23,7 @@ async function getAccessToken(): Promise<string> {
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`PayPal auth failed: ${text}`);
+    throw new Error("PayPal auth failed");
   }
 
   const data = await res.json();
@@ -53,14 +52,18 @@ async function createOrder(accessToken: string) {
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Create order failed: ${text}`);
+    throw new Error("Create order failed");
   }
 
   return await res.json();
 }
 
 async function captureOrder(accessToken: string, orderId: string) {
+  // Validate orderId format to prevent injection
+  if (!orderId || typeof orderId !== "string" || orderId.length > 50 || !/^[A-Z0-9]+$/.test(orderId)) {
+    throw new Error("Invalid order ID");
+  }
+
   const res = await fetch(
     `${PAYPAL_API}/v2/checkout/orders/${orderId}/capture`,
     {
@@ -73,8 +76,7 @@ async function captureOrder(accessToken: string, orderId: string) {
   );
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Capture order failed: ${text}`);
+    throw new Error("Capture order failed");
   }
 
   return await res.json();
@@ -86,7 +88,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, order_id, user_id } = await req.json();
+    const { action, order_id } = await req.json();
+
+    // Validate action
+    if (!action || !["create-order", "capture-order"].includes(action)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid action" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (action === "create-order") {
       const accessToken = await getAccessToken();
@@ -104,20 +114,46 @@ Deno.serve(async (req) => {
         );
       }
 
+      // SECURITY FIX: Get user_id from auth token instead of client request body
+      const authHeader = req.headers.get("Authorization");
+      let authenticatedUserId: string | null = null;
+
+      if (authHeader) {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          // Get internal user_id from auth_id
+          const supabaseAdmin = createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+          );
+          const { data: userData } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("auth_id", data.user.id)
+            .single();
+          if (userData) authenticatedUserId = userData.id;
+        }
+      }
+
       const accessToken = await getAccessToken();
       const capture = await captureOrder(accessToken, order_id);
 
       if (capture.status === "COMPLETED") {
-        // Update user's premium status in the database
-        if (user_id) {
-          const supabase = createClient(
+        // Update user's premium status using authenticated user_id
+        if (authenticatedUserId) {
+          const supabaseAdmin = createClient(
             Deno.env.get("SUPABASE_URL")!,
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
           );
-          await supabase
+          await supabaseAdmin
             .from("users")
             .update({ is_premium: true })
-            .eq("id", user_id);
+            .eq("id", authenticatedUserId);
         }
 
         return new Response(
@@ -136,9 +172,9 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "Invalid action" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (_error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -13,12 +13,21 @@ Deno.serve(async (req) => {
   try {
     const { phone_hash, pin_hash, name } = await req.json();
 
-    if (!phone_hash || !pin_hash) {
-      return new Response(JSON.stringify({ error: "Missing phone_hash or pin_hash" }), {
+    // Input validation
+    if (!phone_hash || typeof phone_hash !== "string" || phone_hash.length < 10 || phone_hash.length > 128) {
+      return new Response(JSON.stringify({ error: "Invalid request" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (!pin_hash || typeof pin_hash !== "string" || pin_hash.length < 10 || pin_hash.length > 128) {
+      return new Response(JSON.stringify({ error: "Invalid request" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Sanitize name
+    const sanitizedName = typeof name === "string" ? name.trim().slice(0, 50) : "";
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -28,24 +37,22 @@ Deno.serve(async (req) => {
     // Use phone_hash as synthetic email
     const email = `${phone_hash.slice(0, 40)}@paytrack.app`;
 
-    // Try to create auth user directly — catch duplicate error instead of listing all users
+    // Try to create auth user directly
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: pin_hash,
       email_confirm: true,
-      user_metadata: { name },
+      user_metadata: { name: sanitizedName },
     });
 
     if (authError) {
-      // Supabase returns this message for duplicate emails
       if (authError.message?.includes("already been registered") || authError.message?.includes("already exists")) {
         return new Response(
           JSON.stringify({ error: "An account with this phone number already exists. Please sign in instead." }),
           { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      console.error("Auth create error:", authError);
-      return new Response(JSON.stringify({ error: authError.message }), {
+      return new Response(JSON.stringify({ error: "Registration failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -63,14 +70,12 @@ Deno.serve(async (req) => {
     let userId: string;
 
     if (existingUser) {
-      // Re-link existing user to new auth account
       const { error: updateError } = await supabaseAdmin
         .from("users")
-        .update({ auth_id: authId, name: name || "", pin_hash })
+        .update({ auth_id: authId, name: sanitizedName, pin_hash })
         .eq("id", existingUser.id);
 
       if (updateError) {
-        console.error("User update error:", updateError);
         await supabaseAdmin.auth.admin.deleteUser(authId);
         return new Response(JSON.stringify({ error: "Failed to link account" }), {
           status: 500,
@@ -79,15 +84,13 @@ Deno.serve(async (req) => {
       }
       userId = existingUser.id;
     } else {
-      // Create new users row
       const { data: newUser, error: insertError } = await supabaseAdmin
         .from("users")
-        .insert({ phone_hash, name: name || "", pin_hash, auth_id: authId })
+        .insert({ phone_hash, name: sanitizedName, pin_hash, auth_id: authId })
         .select("id")
         .single();
 
       if (insertError) {
-        console.error("User insert error:", insertError);
         await supabaseAdmin.auth.admin.deleteUser(authId);
         return new Response(JSON.stringify({ error: "Failed to create user profile" }), {
           status: 500,
@@ -104,7 +107,6 @@ Deno.serve(async (req) => {
     });
 
     if (signInError) {
-      console.error("Sign in error:", signInError);
       return new Response(JSON.stringify({ error: "Account created but sign-in failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -115,13 +117,12 @@ Deno.serve(async (req) => {
       JSON.stringify({
         user_id: userId,
         auth_id: authId,
-        name: name || "",
+        name: sanitizedName,
         session: signInData.session,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err) {
-    console.error("Unexpected error:", err);
+  } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
