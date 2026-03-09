@@ -107,18 +107,58 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2 ml-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.8px] text-muted-foreground">Members</p>
-            {members.length < 5 && (
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => { setShowAddMember(!showAddMember); haptic(10); }}
-                className="text-[12px] font-semibold text-primary flex items-center gap-1"
-              >
-                <UserPlus className="w-3.5 h-3.5" /> Add
-              </motion.button>
+            {!atMemberLimit && (
+              <div className="flex items-center gap-2">
+                {confirmedRoommates.length > 0 && (
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => { setShowRoommatesPicker(!showRoommatesPicker); haptic(10); }}
+                    className="text-[12px] font-semibold text-primary flex items-center gap-1"
+                  >
+                    <Users className="w-3.5 h-3.5" /> Roommates
+                  </motion.button>
+                )}
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => { setShowAddMember(!showAddMember); haptic(10); }}
+                  className="text-[12px] font-semibold text-primary flex items-center gap-1"
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Add
+                </motion.button>
+              </div>
             )}
           </div>
 
           <AnimatePresence>
+            {showRoommatesPicker && confirmedRoommates.length > 0 && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mb-2"
+              >
+                <div className="rounded-xl mono-card p-2 flex flex-wrap gap-2">
+                  {confirmedRoommates.map(r => {
+                    const displayName = r.partner_name || r.nickname || 'Roommate';
+                    const exists = members.some(m => m.name === displayName);
+                    return (
+                      <motion.button
+                        key={r.id}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleAddRoommate(displayName)}
+                        disabled={exists || atMemberLimit}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                          exists ? 'bg-primary/10 text-primary' : 'mono-card-solid text-foreground'
+                        } disabled:opacity-50`}
+                      >
+                        {displayName} {exists ? '✓' : ''}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
             {showAddMember && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
@@ -146,6 +186,22 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {!isPremium && atMemberLimit && (
+            <div className="rounded-xl bg-primary/10 border border-primary/20 p-3 mb-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Free limit reached</p>
+                <p className="text-[11px] text-muted-foreground/60">5 members max per event</p>
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/premium')}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold"
+              >
+                Upgrade
+              </motion.button>
+            </div>
+          )}
 
           <div className="flex gap-2 flex-wrap">
             {members.map(m => (
