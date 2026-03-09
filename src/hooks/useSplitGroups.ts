@@ -171,6 +171,32 @@ export function useSplitGroupDetail(groupId: string | null) {
     await fetchAll();
   }, [fetchAll]);
 
+  const updateExpense = useCallback(async (
+    expenseId: string,
+    title: string,
+    amount: number,
+    paidById: string,
+    participantIds: string[],
+    date: string,
+    notes: string = ''
+  ) => {
+    if (!groupId || participantIds.length === 0) return;
+    await supabase
+      .from('split_expenses')
+      .update({ title, amount, paid_by: paidById, date, notes } as any)
+      .eq('id', expenseId);
+    // Delete old shares and recreate
+    await supabase.from('split_shares').delete().eq('expense_id', expenseId);
+    const shareAmount = amount / participantIds.length;
+    const shareRows = participantIds.map(mid => ({
+      expense_id: expenseId,
+      member_id: mid,
+      amount: Math.round(shareAmount * 100) / 100,
+    }));
+    await supabase.from('split_shares').insert(shareRows as any);
+    await fetchAll();
+  }, [groupId, fetchAll]);
+
   const settleShare = useCallback(async (shareId: string, settled: boolean) => {
     await supabase.from('split_shares').update({ is_settled: settled } as any).eq('id', shareId);
     setShares(prev => prev.map(s => s.id === shareId ? { ...s, is_settled: settled } : s));
@@ -235,7 +261,7 @@ export function useSplitGroupDetail(groupId: string | null) {
   return {
     members, expenses, shares, loading,
     fetchAll, addMember, removeMember,
-    addExpense, deleteExpense, settleShare,
+    addExpense, deleteExpense, updateExpense, settleShare,
     balances, settlements, totalExpenses,
   };
 }

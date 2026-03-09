@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Users, ChevronRight, Crown, Trash2 } from 'lucide-react';
+import { Plus, Users, ChevronRight, Crown, Trash2, Bell } from 'lucide-react';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
 import { usePremium } from '@/hooks/usePremium';
@@ -11,6 +11,7 @@ import AddGroupSheet from '@/components/split/AddGroupSheet';
 import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { getUnseenCount } from '@/lib/groupActivity';
 
 const FREE_GROUP_LIMIT = 3;
 
@@ -159,6 +160,7 @@ function GroupCard({ group, index, onSelect, onDelete }: {
   group: any; index: number; onSelect: () => void; onDelete: () => void;
 }) {
   const [dragX, setDragX] = useState(0);
+  const unseenCount = getUnseenCount(group.id);
 
   return (
     <motion.div
@@ -195,15 +197,20 @@ function GroupCard({ group, index, onSelect, onDelete }: {
           onClick={onSelect}
           className="w-full text-left px-5 py-4 flex items-center gap-4 active:bg-secondary/30 transition-colors"
         >
-          <div className="w-12 h-12 rounded-2xl mono-card-solid flex items-center justify-center flex-shrink-0 text-2xl">
+          <div className="w-12 h-12 rounded-2xl mono-card-solid flex items-center justify-center flex-shrink-0 text-2xl relative">
             {group.emoji}
+            {unseenCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                {unseenCount > 9 ? '9+' : unseenCount}
+              </span>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[16px] font-semibold text-foreground truncate tracking-tight">
               {group.name}
             </h3>
             <p className="text-[13px] text-muted-foreground/50 mt-0.5">
-              Swipe left to delete
+              {unseenCount > 0 ? `${unseenCount} new update${unseenCount > 1 ? 's' : ''}` : 'Swipe left to delete'}
             </p>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground/30 flex-shrink-0" />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -225,6 +226,7 @@ const slideVariants = {
 /* ─── Main Settings Page ─── */
 export default function Settings() {
   const { userId, userName, updateName, logout, changePin } = useUser();
+  const navigate = useNavigate();
   const { currency, setCurrency } = useCurrency();
   const { mode, theme, setMode } = useTheme();
   const { isPremium, setPremium, accentColor, setAccentColor } = usePremium();
@@ -256,7 +258,7 @@ export default function Settings() {
   const [currencySearch, setCurrencySearch] = useState('');
   const [tempCurrency, setTempCurrency] = useState(currency);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(getNotificationPrefs());
-  const [paypalLoading, setPaypalLoading] = useState(false);
+  const [manageLoading, setManageLoading] = useState(false);
   const [tempNotifPrefs, setTempNotifPrefs] = useState<NotificationPrefs>(notifPrefs);
   const [notifStatus, setNotifStatus] = useState(getNotificationStatus());
   const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
@@ -359,29 +361,18 @@ export default function Settings() {
     toast.success('Payments exported!');
   }, [isPremium, payments]);
 
-  const handlePayPalPurchase = useCallback(async () => {
-    setPaypalLoading(true);
+  const handleManageSubscription = useCallback(async () => {
+    setManageLoading(true);
     try {
-      const { data: createData, error: createError } = await supabase.functions.invoke('paypal-payment', { body: { action: 'create-order' } });
-      if (createError || !createData?.id) throw new Error(createError?.message || 'Failed to create order');
-      const orderId = createData.id;
-      const approvalUrl = `https://www.paypal.com/checkoutnow?token=${orderId}`;
-      const popup = window.open(approvalUrl, 'paypal', 'width=500,height=700,left=200,top=100');
-      const pollInterval = setInterval(async () => {
-        try {
-          if (popup?.closed) {
-            clearInterval(pollInterval);
-            const { data: captureData, error: captureError } = await supabase.functions.invoke('paypal-payment', { body: { action: 'capture-order', order_id: orderId, user_id: userId } });
-            if (captureError) throw new Error(captureError.message);
-            if (captureData?.success) { setPremium(true); setActiveModal(null); toast.success('Welcome to Premium! 🎉'); }
-            else { toast.error('Payment was not completed. Please try again.'); }
-            setPaypalLoading(false);
-          }
-        } catch { clearInterval(pollInterval); setPaypalLoading(false); toast.error('Payment verification failed'); }
-      }, 1000);
-      setTimeout(() => { clearInterval(pollInterval); if (paypalLoading) setPaypalLoading(false); }, 300000);
-    } catch (err: any) { toast.error(err?.message || 'Payment failed'); setPaypalLoading(false); }
-  }, [userId, setPremium, paypalLoading]);
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+      if (error || !data?.url) throw new Error(error?.message || 'Failed to open portal');
+      window.open(data.url, '_blank');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not open subscription management');
+    } finally {
+      setManageLoading(false);
+    }
+  }, []);
 
   const notifSubtitle = notifStatus === 'denied' ? 'Blocked by browser' : notifStatus === 'granted' ? (notifPrefs.enabled ? 'Enabled' : 'Off') : 'Not set up';
 
@@ -954,7 +945,7 @@ export default function Settings() {
         onClick={() => setActiveModal('about')}
         className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground/50"
       >
-        PayTrack v3.1
+        PayTrack v3.2
       </motion.button>
     </div>
   );
@@ -1005,7 +996,7 @@ export default function Settings() {
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-3"><Crown className="w-8 h-8 text-primary" /></div>
               <h3 className="text-lg font-bold text-card-foreground">Unlock Premium</h3>
-              <p className="text-sm text-muted-foreground mt-1">One-time purchase · $0.99</p>
+              <p className="text-sm text-muted-foreground mt-1">Choose a plan that works for you</p>
             </div>
             <div className="rounded-xl border border-border/50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Free</p>
@@ -1039,11 +1030,11 @@ export default function Settings() {
               </div>
             </div>
             <motion.div whileTap={{ scale: 0.97 }}>
-              <Button className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25" onClick={handlePayPalPurchase} disabled={paypalLoading}>
-                {paypalLoading ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Processing...</>) : (<><Crown className="w-5 h-5 mr-2" />Pay $0.99 with PayPal</>)}
+              <Button className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25" onClick={() => { close(); navigate('/premium'); }}>
+                <Crown className="w-5 h-5 mr-2" />View Plans & Subscribe
               </Button>
             </motion.div>
-            <p className="text-[11px] text-center text-muted-foreground">Secure payment via PayPal · One-time charge</p>
+            <p className="text-[11px] text-center text-muted-foreground">Secure payment via Stripe</p>
           </div>
         </SettingsModal>
 
@@ -1075,6 +1066,16 @@ export default function Settings() {
                 </div>
               ))}
             </div>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button
+                variant="secondary"
+                className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold"
+                onClick={handleManageSubscription}
+                disabled={manageLoading}
+              >
+                {manageLoading ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Opening...</>) : (<><Settings2 className="w-5 h-5 mr-2" />Manage Subscription</>)}
+              </Button>
+            </motion.div>
           </div>
         </SettingsModal>
 
@@ -1120,12 +1121,23 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 3.1</p>
+              <p className="text-sm text-muted-foreground">Version 3.2</p>
             </div>
             <div className="text-left space-y-3">
               <div>
-                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v3.1</span><span className="text-xs text-muted-foreground">Latest</span></div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v3.2</span><span className="text-xs text-muted-foreground">Latest</span></div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Stripe subscription system — 3-tier Premium (Monthly, Yearly, Lifetime)</li>
+                  <li>Manage Subscription via Stripe Customer Portal</li>
+                  <li>Removed legacy PayPal integration</li>
+                  <li>Split: Edit expenses (amount, participants) after creation</li>
+                  <li>Split: "What's New" activity log in groups for recent changes</li>
+                  <li>Glassmorphism Premium upgrade page redesign</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v3.1</span></div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1.5 list-disc list-inside">
                   <li>Security hardening — DB input validation constraints</li>
                   <li>Fixed auth-register scalability (removed listUsers)</li>
                   <li>Improved CORS headers for all edge functions</li>
