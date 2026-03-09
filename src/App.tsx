@@ -73,7 +73,13 @@ function AppRoutes() {
   const { isOnboarded, loading } = useUser();
   const [showSplash, setShowSplash] = useState(true);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (isOnboarded && showSplash) {
     return (
@@ -85,35 +91,33 @@ function AppRoutes() {
 
   return (
     <>
-      <AnimatePresence mode="wait">
-        <Routes>
-          <Route
-            path="/"
-            element={isOnboarded ? <Navigate to="/schedule" replace /> : <Onboarding />}
-          />
-          <Route
-            path="/schedule"
-            element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/insights"
-            element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/overview"
-            element={<Navigate to="/insights" replace />}
-          />
-          <Route
-            path="/settings"
-            element={isOnboarded ? <Settings /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/premium"
-            element={isOnboarded ? <Premium /> : <Navigate to="/" replace />}
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AnimatePresence>
+      <Routes>
+        <Route
+          path="/"
+          element={isOnboarded ? <Navigate to="/schedule" replace /> : <Onboarding />}
+        />
+        <Route
+          path="/schedule"
+          element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/insights"
+          element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/overview"
+          element={<Navigate to="/insights" replace />}
+        />
+        <Route
+          path="/settings"
+          element={isOnboarded ? <Settings /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/premium"
+          element={isOnboarded ? <Premium /> : <Navigate to="/" replace />}
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       {isOnboarded && <BottomNav />}
     </>
   );
