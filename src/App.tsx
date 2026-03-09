@@ -13,7 +13,7 @@ import { ThemeProvider } from "@/hooks/useTheme";
 import { PremiumProvider } from "@/hooks/usePremium";
 import Onboarding from "./pages/Onboarding";
 import Schedule from "./pages/Schedule";
-import Overview from "./pages/Overview";
+import Split from "./pages/Split";
 import Settings from "./pages/Settings";
 import Premium from "./pages/Premium";
 import BottomNav from "./components/BottomNav";
