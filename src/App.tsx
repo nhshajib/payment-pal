@@ -91,35 +91,33 @@ function AppRoutes() {
 
   return (
     <>
-      <AnimatePresence mode="wait">
-        <Routes>
-          <Route
-            path="/"
-            element={isOnboarded ? <Navigate to="/schedule" replace /> : <Onboarding />}
-          />
-          <Route
-            path="/schedule"
-            element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/insights"
-            element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/overview"
-            element={<Navigate to="/insights" replace />}
-          />
-          <Route
-            path="/settings"
-            element={isOnboarded ? <Settings /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/premium"
-            element={isOnboarded ? <Premium /> : <Navigate to="/" replace />}
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AnimatePresence>
+      <Routes>
+        <Route
+          path="/"
+          element={isOnboarded ? <Navigate to="/schedule" replace /> : <Onboarding />}
+        />
+        <Route
+          path="/schedule"
+          element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/insights"
+          element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/overview"
+          element={<Navigate to="/insights" replace />}
+        />
+        <Route
+          path="/settings"
+          element={isOnboarded ? <Settings /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/premium"
+          element={isOnboarded ? <Premium /> : <Navigate to="/" replace />}
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       {isOnboarded && <BottomNav />}
     </>
   );
