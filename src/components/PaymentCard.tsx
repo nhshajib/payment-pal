@@ -6,6 +6,7 @@ import type { Payment } from '@/hooks/usePayments';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getCategoryById } from '@/lib/categories';
 import { haptic } from '@/lib/haptics';
+import SwipeTutorialOverlay, { shouldShowSwipeTutorial, markSwipeTutorialDone } from './SwipeTutorialOverlay';
 
 interface Props {
   payment: Payment;
@@ -15,6 +16,7 @@ interface Props {
   onEdit: (payment: Payment) => void;
   onDelete: (id: string) => void;
   isPaidTab?: boolean;
+  showSwipeTutorial?: boolean;
   receiptData?: { confirmationNumber?: string; receiptImage?: string };
   onReceiptTap?: (paymentId: string) => void;
 }
@@ -33,11 +35,12 @@ const SWIPE_THRESHOLD = 100;
 const EDIT_THRESHOLD = -50;
 const DELETE_THRESHOLD = -140;
 
-export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab, receiptData, onReceiptTap }: Props) {
+export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, onEdit, onDelete, isPaidTab, showSwipeTutorial, receiptData, onReceiptTap }: Props) {
   const { format: formatCurrency } = useCurrency();
   const rawX = useMotionValue(0);
   const x = useSpring(rawX, { stiffness: 500, damping: 35 });
   const [showMenu, setShowMenu] = useState(false);
+  const [tutorialVisible, setTutorialVisible] = useState(() => !!showSwipeTutorial && shouldShowSwipeTutorial());
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const [hapticFiredRight, setHapticFiredRight] = useState(false);
@@ -192,6 +195,11 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
           </div>
         </div>
       </motion.div>
+
+      {/* Swipe tutorial overlay for first card */}
+      {tutorialVisible && (
+        <SwipeTutorialOverlay onDismiss={() => setTutorialVisible(false)} />
+      )}
 
       {/* Context menu */}
       <AnimatePresence>
