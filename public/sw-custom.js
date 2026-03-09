@@ -1,8 +1,5 @@
 // PayTrack Custom Service Worker — Background Notifications
 
-const SUPABASE_URL = 'https://ubekgmqoqheqaqihnowl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InViZWtnbXFvcWhlcWFxaWhub3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNzM4MTUsImV4cCI6MjA4Njk0OTgxNX0.ZBr2Qqfsv-TBcTHGtzNYm4HhRkuPzfrHlI8Li51QhCQ';
-
 // ── Payment notification message pools ──
 const OVERDUE_TITLES = [
   'Your wallet is crying',
