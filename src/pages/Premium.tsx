@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Check, ChevronLeft, Sparkles, Shield, Zap, Star, Infinity } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
