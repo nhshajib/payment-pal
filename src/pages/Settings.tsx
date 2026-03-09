@@ -868,6 +868,17 @@ export default function Settings() {
         />
       </IOSSection>
 
+      {/* Block 2: Analytics */}
+      <IOSSection label="ANALYTICS" index={1}>
+        <IOSRow
+          icon={<TrendingUp className="w-[18px] h-[18px]" />}
+          title="Financial Insights"
+          subtitle="Paycheck, trials, shared bills"
+          onClick={() => navigateTo('insights')}
+          isLast
+        />
+      </IOSSection>
+
       {/* Block 2: Preferences */}
       <IOSSection label="PREFERENCES" index={1}>
         <IOSRow
