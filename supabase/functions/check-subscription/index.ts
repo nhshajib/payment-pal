@@ -8,11 +8,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
-  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
-};
-
 // Map product IDs to plan types
 const PRODUCT_PLAN_MAP: Record<string, string> = {
   prod_U79oMbj6jFycgN: "monthly",
@@ -31,8 +26,6 @@ serve(async (req) => {
   );
 
   try {
-    logStep("Function started");
-
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
@@ -44,13 +37,11 @@ serve(async (req) => {
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
     const user = userData.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
     if (customers.data.length === 0) {
-      logStep("No Stripe customer found");
       return new Response(JSON.stringify({ subscribed: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -58,7 +49,6 @@ serve(async (req) => {
     }
 
     const customerId = customers.data[0].id;
-    logStep("Found customer", { customerId });
 
     // Check active subscriptions (monthly/yearly)
     const subscriptions = await stripe.subscriptions.list({
@@ -72,7 +62,6 @@ serve(async (req) => {
       const productId = sub.items.data[0].price.product as string;
       const planType = PRODUCT_PLAN_MAP[productId] || "unknown";
       const subscriptionEnd = new Date(sub.current_period_end * 1000).toISOString();
-      logStep("Active subscription found", { planType, subscriptionEnd });
 
       // Sync premium status to DB
       await supabaseClient
@@ -101,7 +90,6 @@ serve(async (req) => {
     );
 
     if (lifetimePurchase) {
-      logStep("Lifetime purchase found");
       await supabaseClient
         .from("users")
         .update({ is_premium: true })
@@ -117,7 +105,6 @@ serve(async (req) => {
       });
     }
 
-    logStep("No active subscription or lifetime purchase");
     await supabaseClient
       .from("users")
       .update({ is_premium: false })
@@ -129,7 +116,6 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
