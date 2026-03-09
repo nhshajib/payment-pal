@@ -1,22 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Users, ChevronRight, Trash2 } from 'lucide-react';
+import { Plus, Users, ChevronRight, Crown } from 'lucide-react';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
+import { usePremium } from '@/hooks/usePremium';
 import { useSplitGroups } from '@/hooks/useSplitGroups';
-import { useSplitGroupDetail } from '@/hooks/useSplitGroups';
 import PageTransition from '@/components/PageTransition';
 import SplitGroupDetail from '@/components/split/SplitGroupDetail';
 import AddGroupSheet from '@/components/split/AddGroupSheet';
 import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+
+const FREE_GROUP_LIMIT = 3;
 
 export default function Split() {
   const { userId, userName } = useUser();
+  const { isPremium } = usePremium();
   const { format: formatCurrency } = useCurrency();
   const { groups, loading, createGroup, deleteGroup, fetchGroups } = useSplitGroups(userId);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const selectedGroup = groups.find(g => g.id === selectedGroupId);
 
@@ -29,6 +34,8 @@ export default function Split() {
     );
   }
 
+  const canCreateGroup = isPremium || groups.length < FREE_GROUP_LIMIT;
+
   return (
     <PageTransition>
       <div className="min-h-screen pb-28 px-5 pt-8 max-w-md mx-auto">
@@ -40,9 +47,16 @@ export default function Split() {
           <p className="text-[13px] font-medium text-muted-foreground/50 uppercase tracking-[1.5px] mb-1">
             Bill Splitting
           </p>
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground leading-none">
-            Split
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground leading-none">
+              Split
+            </h1>
+            {!isPremium && groups.length > 0 && (
+              <span className="text-[11px] font-semibold text-muted-foreground/50 bg-muted px-2.5 py-1 rounded-full">
+                {groups.length}/{FREE_GROUP_LIMIT} groups
+              </span>
+            )}
+          </div>
         </motion.header>
 
         {/* Groups List */}
@@ -86,6 +100,34 @@ export default function Split() {
                 />
               ))}
             </AnimatePresence>
+
+            {/* Premium upsell banner when at limit */}
+            {!isPremium && groups.length >= FREE_GROUP_LIMIT && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl mono-card p-4 mt-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Crown className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-foreground">Want more groups?</p>
+                    <p className="text-[12px] text-muted-foreground/50 mt-0.5">
+                      Upgrade to Premium for unlimited groups & members
+                    </p>
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/premium')}
+                    className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex-shrink-0"
+                  >
+                    Upgrade
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
           </div>
         )}
 
@@ -101,6 +143,7 @@ export default function Split() {
         <AddGroupSheet
           open={showAddGroup}
           onClose={() => setShowAddGroup(false)}
+          groupCount={groups.length}
           onCreate={async (name, emoji, members) => {
             await createGroup(name, emoji, members, userName || 'Me');
             setShowAddGroup(false);
