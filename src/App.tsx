@@ -125,22 +125,27 @@ function AppRoutes() {
   useEffect(() => {
     if (!loading) { setTimedOut(false); return; }
     const timer = setTimeout(() => {
-      // Only show offline if actually offline or fetch fails
       if (!navigator.onLine) {
         setTimedOut(true);
       } else {
-        // Try a lightweight fetch to confirm connectivity
+        // Use cors mode for a reliable connectivity check
         fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://ubekgmqoqheqaqihnowl.supabase.co'}/rest/v1/`, {
           method: 'HEAD',
-          mode: 'no-cors',
-        }).then(() => {
-          // Network works but auth is slow — keep showing spinner, extend timeout
-          setTimeout(() => setTimedOut(true), 8000);
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InViZWtnbXFvcWhlcWFxaWhub3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNzM4MTUsImV4cCI6MjA4Njk0OTgxNX0.ZBr2Qqfsv-TBcTHGtzNYm4HhRkuPzfrHlI8Li51QhCQ',
+          },
+        }).then((res) => {
+          if (res.ok || res.status === 200) {
+            // Supabase reachable but auth is slow — keep waiting longer
+            setTimeout(() => { if (loading) setTimedOut(true); }, 12000);
+          } else {
+            setTimeout(() => { if (loading) setTimedOut(true); }, 8000);
+          }
         }).catch(() => {
           setTimedOut(true);
         });
       }
-    }, 8000);
+    }, 10000);
     return () => clearTimeout(timer);
   }, [loading]);
 
