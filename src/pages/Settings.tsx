@@ -1121,12 +1121,23 @@ export default function Settings() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-card-foreground">PayTrack</h3>
-              <p className="text-sm text-muted-foreground">Version 3.1</p>
+              <p className="text-sm text-muted-foreground">Version 3.2</p>
             </div>
             <div className="text-left space-y-3">
               <div>
-                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v3.1</span><span className="text-xs text-muted-foreground">Latest</span></div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">v3.2</span><span className="text-xs text-muted-foreground">Latest</span></div>
                 <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                  <li>Stripe subscription system — 3-tier Premium (Monthly, Yearly, Lifetime)</li>
+                  <li>Manage Subscription via Stripe Customer Portal</li>
+                  <li>Removed legacy PayPal integration</li>
+                  <li>Split: Edit expenses (amount, participants) after creation</li>
+                  <li>Split: "What's New" activity log in groups for recent changes</li>
+                  <li>Glassmorphism Premium upgrade page redesign</li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">v3.1</span></div>
+                <ul className="text-sm text-muted-foreground/60 space-y-1.5 list-disc list-inside">
                   <li>Security hardening — DB input validation constraints</li>
                   <li>Fixed auth-register scalability (removed listUsers)</li>
                   <li>Improved CORS headers for all edge functions</li>
