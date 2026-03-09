@@ -71,8 +71,18 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
 
 function OfflineFallback() {
   return (
-    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-8 text-center gap-5">
-      <div className="w-16 h-16 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+      className="fixed inset-0 bg-black flex flex-col items-center justify-center px-8 text-center gap-5"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.15, duration: 0.4, type: 'spring', stiffness: 300, damping: 24 }}
+        className="w-16 h-16 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center"
+      >
         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
           <line x1="2" x2="22" y1="2" y2="22" />
           <path d="M8.5 16.5a5 5 0 0 1 7 0" />
@@ -82,20 +92,28 @@ function OfflineFallback() {
           <path d="M5 12.86a10 10 0 0 1 5.17-2.89" />
           <line x1="12" x2="12.01" y1="20" y2="20" />
         </svg>
-      </div>
-      <div>
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25, duration: 0.4 }}
+      >
         <h2 className="text-[20px] font-semibold text-white tracking-tight">No Connection</h2>
         <p className="text-white/30 text-[14px] mt-1.5 leading-relaxed">
           Check your internet connection and try again
         </p>
-      </div>
-      <button
+      </motion.div>
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.3 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => window.location.reload()}
         className="mt-2 px-6 h-[44px] text-[15px] font-medium rounded-xl bg-white/[0.08] border border-white/[0.1] text-white active:bg-white/[0.14] transition-colors"
       >
         Retry
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 }
 
