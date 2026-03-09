@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Users, ChevronRight, Crown, Trash2 } from 'lucide-react';
+import { Plus, Users, ChevronRight, Crown, Trash2, Bell } from 'lucide-react';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from '@/hooks/useCurrency';
 import { usePremium } from '@/hooks/usePremium';
