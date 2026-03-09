@@ -52,6 +52,28 @@ export default function EditExpenseSheet({ open, onClose, members, expense, curr
     onSave(expense.id, title.trim(), amt, paidBy, participants, date, notes);
   };
 
+  const handleShareUpdate = async () => {
+    const amt = parseFloat(amount);
+    if (!expense) return;
+    const payer = members.find(m => m.id === paidBy);
+    const participantNames = participants.map(pid => members.find(m => m.id === pid)?.name || 'Unknown');
+    const changes: string[] = [];
+    if (expense.amount !== amt) changes.push(`Amount changed to ${formatCurrency(amt)}`);
+    if (expense.title !== title.trim()) changes.push(`Renamed to "${title.trim()}"`);
+    if (expense.paid_by !== paidBy) changes.push(`Now paid by ${payer?.name}`);
+
+    const result = await shareExpenseUpdate({
+      groupName: groupName || 'Split Group',
+      expenseTitle: title.trim() || expense.title,
+      amount: formatCurrency(amt || expense.amount),
+      paidBy: payer?.name || 'Unknown',
+      participants: participantNames,
+      changes: changes.length > 0 ? changes : undefined,
+    });
+    haptic(10);
+    if (result === 'copied') toast.success('Summary copied to clipboard');
+  };
+
   return (
     <AnimatePresence>
       {open && expense && (
