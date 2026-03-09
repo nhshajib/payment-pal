@@ -196,6 +196,11 @@ export default function PaymentCard({ payment, index, onMarkPaid, onMarkUnpaid, 
         </div>
       </motion.div>
 
+      {/* Swipe tutorial overlay for first card */}
+      {tutorialVisible && (
+        <SwipeTutorialOverlay onDismiss={() => setTutorialVisible(false)} />
+      )}
+
       {/* Context menu */}
       <AnimatePresence>
         {showMenu && (
