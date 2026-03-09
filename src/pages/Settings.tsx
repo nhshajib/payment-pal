@@ -223,7 +223,7 @@ const slideVariants = {
 
 /* ─── Main Settings Page ─── */
 export default function Settings() {
-  const { userId, userName, updateName, logout, restore, changePin } = useUser();
+  const { userId, userName, updateName, logout, changePin } = useUser();
   const { currency, setCurrency } = useCurrency();
   const { mode, theme, setMode } = useTheme();
   const { isPremium, setPremium, accentColor, setAccentColor } = usePremium();

@@ -24,8 +24,8 @@ setTimeout(() => {
   const root = document.getElementById('root');
   if (root && root.children.length === 0) {
     if ('caches' in window) {
-      caches.keys().then((names) => {
-        Promise.all(names.map((name) => caches.delete(name))).then(() => {
+      caches.keys().then((names: string[]) => {
+        Promise.all(names.map((name: string) => caches.delete(name))).then(() => {
           window.location.reload();
         });
       });
