@@ -146,7 +146,7 @@ export default function Premium() {
 
   return (
     <PageTransition>
-      {showConfetti && <Confetti />}
+      {showConfetti && <Confetti trigger={showConfetti} />}
       <div className="min-h-screen pb-28 px-5 pt-6 max-w-md mx-auto">
         {/* Back */}
         <motion.button
