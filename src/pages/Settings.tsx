@@ -945,7 +945,7 @@ export default function Settings() {
         onClick={() => setActiveModal('about')}
         className="text-[12px] text-center mt-2 w-full py-2 text-muted-foreground/50"
       >
-        PayTrack v3.1
+        PayTrack v3.2
       </motion.button>
     </div>
   );
