@@ -321,6 +321,7 @@ export default function Schedule() {
                     onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
                     onDelete={handleDelete}
                     isPaidTab={false}
+                    showSwipeTutorial={idx === 0}
                   />
                 );
               })}
