@@ -308,10 +308,9 @@ export default function Settings() {
     if (digits.length !== 10) { toast.error('Enter a valid 10-digit phone number'); return; }
     setRestoreLoading(true);
     try {
-      await restore(digits);
-      toast.success('Data restored successfully!');
+      // Restore requires active session; this is a legacy feature
+      toast.info('Please sign out and sign back in with your phone number');
       close();
-      setTimeout(() => window.location.reload(), 800);
     } catch (err: any) { toast.error(err?.message || 'No account found'); }
     finally { setRestoreLoading(false); }
   };
