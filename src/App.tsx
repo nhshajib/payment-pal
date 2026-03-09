@@ -73,7 +73,13 @@ function AppRoutes() {
   const { isOnboarded, loading } = useUser();
   const [showSplash, setShowSplash] = useState(true);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (isOnboarded && showSplash) {
     return (
