@@ -359,29 +359,18 @@ export default function Settings() {
     toast.success('Payments exported!');
   }, [isPremium, payments]);
 
-  const handlePayPalPurchase = useCallback(async () => {
-    setPaypalLoading(true);
+  const handleManageSubscription = useCallback(async () => {
+    setManageLoading(true);
     try {
-      const { data: createData, error: createError } = await supabase.functions.invoke('paypal-payment', { body: { action: 'create-order' } });
-      if (createError || !createData?.id) throw new Error(createError?.message || 'Failed to create order');
-      const orderId = createData.id;
-      const approvalUrl = `https://www.paypal.com/checkoutnow?token=${orderId}`;
-      const popup = window.open(approvalUrl, 'paypal', 'width=500,height=700,left=200,top=100');
-      const pollInterval = setInterval(async () => {
-        try {
-          if (popup?.closed) {
-            clearInterval(pollInterval);
-            const { data: captureData, error: captureError } = await supabase.functions.invoke('paypal-payment', { body: { action: 'capture-order', order_id: orderId, user_id: userId } });
-            if (captureError) throw new Error(captureError.message);
-            if (captureData?.success) { setPremium(true); setActiveModal(null); toast.success('Welcome to Premium! 🎉'); }
-            else { toast.error('Payment was not completed. Please try again.'); }
-            setPaypalLoading(false);
-          }
-        } catch { clearInterval(pollInterval); setPaypalLoading(false); toast.error('Payment verification failed'); }
-      }, 1000);
-      setTimeout(() => { clearInterval(pollInterval); if (paypalLoading) setPaypalLoading(false); }, 300000);
-    } catch (err: any) { toast.error(err?.message || 'Payment failed'); setPaypalLoading(false); }
-  }, [userId, setPremium, paypalLoading]);
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+      if (error || !data?.url) throw new Error(error?.message || 'Failed to open portal');
+      window.open(data.url, '_blank');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not open subscription management');
+    } finally {
+      setManageLoading(false);
+    }
+  }, []);
 
   const notifSubtitle = notifStatus === 'denied' ? 'Blocked by browser' : notifStatus === 'granted' ? (notifPrefs.enabled ? 'Enabled' : 'Off') : 'Not set up';
 
