@@ -891,7 +891,7 @@ export default function Settings() {
       </IOSSection>
 
       {/* Block 2: Preferences */}
-      <IOSSection label="PREFERENCES" index={1}>
+      <IOSSection label="PREFERENCES" index={2}>
         <IOSRow
           icon={<Eye className="w-[18px] h-[18px]" />}
           title="Appearance"
