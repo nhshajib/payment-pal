@@ -344,6 +344,7 @@ export default function Schedule() {
               onEdit={(p) => { setEditing(p); setSheetOpen(true); }}
               onDelete={handleDelete}
               isPaidTab={activeTab === 'paid'}
+              showSwipeTutorial={i === 0 && activeTab === 'upcoming'}
               receiptData={activeTab === 'paid' ? getReceipt(p.id) : undefined}
               onReceiptTap={(id) => setReceiptPopover({ paymentId: id, paymentName: p.name })}
             />
