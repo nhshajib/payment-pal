@@ -256,7 +256,7 @@ export default function Settings() {
   const [currencySearch, setCurrencySearch] = useState('');
   const [tempCurrency, setTempCurrency] = useState(currency);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(getNotificationPrefs());
-  const [paypalLoading, setPaypalLoading] = useState(false);
+  const [manageLoading, setManageLoading] = useState(false);
   const [tempNotifPrefs, setTempNotifPrefs] = useState<NotificationPrefs>(notifPrefs);
   const [notifStatus, setNotifStatus] = useState(getNotificationStatus());
   const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
