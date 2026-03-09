@@ -102,8 +102,13 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
             <p className="text-xl font-extrabold text-foreground tracking-tight">{members.length}</p>
           </div>
           <div className="flex-1 rounded-2xl mono-card p-4 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.8px] text-muted-foreground/60 mb-1">Bills</p>
-            <p className="text-xl font-extrabold text-foreground tracking-tight">{expenses.length}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.8px] text-muted-foreground/60 mb-1">
+              {isPremium ? 'Bills' : `Bills`}
+            </p>
+            <p className="text-xl font-extrabold text-foreground tracking-tight">
+              {expenses.length}
+              {!isPremium && <span className="text-[13px] text-muted-foreground/40 font-normal">/{FREE_EXPENSE_LIMIT}</span>}
+            </p>
           </div>
         </div>
 
