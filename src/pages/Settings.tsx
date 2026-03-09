@@ -32,7 +32,7 @@ import {
   requestNotificationPermission, getNotificationStatus, sendTestNotification,
 } from '@/lib/notifications';
 
-type SettingsView = 'main' | 'profile' | 'appearance' | 'notifications' | 'data' | 'roommates';
+type SettingsView = 'main' | 'profile' | 'appearance' | 'notifications' | 'data' | 'roommates' | 'insights';
 
 /* ─── iOS-style bottom sheet modal ─── */
 function SettingsModal({
