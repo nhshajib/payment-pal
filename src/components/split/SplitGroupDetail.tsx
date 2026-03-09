@@ -514,6 +514,7 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
           members={members}
           expense={expenseToEdit || null}
           currentParticipantIds={editParticipantIds}
+          groupName={group.name}
           onSave={handleEditExpense}
         />
       </div>
