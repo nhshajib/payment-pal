@@ -12,6 +12,7 @@ import { usePremium, ACCENT_COLORS } from '@/hooks/usePremium';
 import { usePayments } from '@/hooks/usePayments';
 import { supabase } from '@/integrations/supabase/client';
 import PageTransition from '@/components/PageTransition';
+import Overview from '@/pages/Overview';
 import { toast } from 'sonner';
 import {
   Search, Trash2, CalendarDays, Bell, Coins, RefreshCw, LogOut,
@@ -32,7 +33,7 @@ import {
   requestNotificationPermission, getNotificationStatus, sendTestNotification,
 } from '@/lib/notifications';
 
-type SettingsView = 'main' | 'profile' | 'appearance' | 'notifications' | 'data' | 'roommates';
+type SettingsView = 'main' | 'profile' | 'appearance' | 'notifications' | 'data' | 'roommates' | 'insights';
 
 /* ─── iOS-style bottom sheet modal ─── */
 function SettingsModal({
@@ -802,6 +803,16 @@ export default function Settings() {
     </div>
   );
 
+  /* ─── SUB-PAGE: Financial Insights (moved from Insights tab) ─── */
+  const renderInsights = () => (
+    <div>
+      <SubPageHeader title="Financial Insights" onBack={navigateBack} />
+      <div className="-mx-4 -mt-2">
+        <Overview />
+      </div>
+    </div>
+  );
+
   /* ─── MAIN MENU ─── */
   const renderMain = () => (
     <div>
@@ -868,8 +879,19 @@ export default function Settings() {
         />
       </IOSSection>
 
+      {/* Block 2: Analytics */}
+      <IOSSection label="ANALYTICS" index={1}>
+        <IOSRow
+          icon={<TrendingUp className="w-[18px] h-[18px]" />}
+          title="Financial Insights"
+          subtitle="Paycheck, trials, shared bills"
+          onClick={() => navigateTo('insights')}
+          isLast
+        />
+      </IOSSection>
+
       {/* Block 2: Preferences */}
-      <IOSSection label="PREFERENCES" index={1}>
+      <IOSSection label="PREFERENCES" index={2}>
         <IOSRow
           icon={<Eye className="w-[18px] h-[18px]" />}
           title="Appearance"
@@ -971,6 +993,7 @@ export default function Settings() {
             {currentView === 'notifications' && renderNotifications()}
             {currentView === 'data' && renderData()}
             {currentView === 'roommates' && renderRoommates()}
+            {currentView === 'insights' && renderInsights()}
           </motion.div>
         </AnimatePresence>
 

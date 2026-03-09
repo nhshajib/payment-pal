@@ -13,7 +13,7 @@ import { ThemeProvider } from "@/hooks/useTheme";
 import { PremiumProvider } from "@/hooks/usePremium";
 import Onboarding from "./pages/Onboarding";
 import Schedule from "./pages/Schedule";
-import Overview from "./pages/Overview";
+import Split from "./pages/Split";
 import Settings from "./pages/Settings";
 import Premium from "./pages/Premium";
 import BottomNav from "./components/BottomNav";
@@ -139,12 +139,16 @@ function AppRoutes() {
           element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
         />
         <Route
+          path="/split"
+          element={isOnboarded ? <Split /> : <Navigate to="/" replace />}
+        />
+        <Route
           path="/insights"
-          element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
+          element={<Navigate to="/split" replace />}
         />
         <Route
           path="/overview"
-          element={<Navigate to="/insights" replace />}
+          element={<Navigate to="/split" replace />}
         />
         <Route
           path="/settings"

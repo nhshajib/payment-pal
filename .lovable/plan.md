@@ -1,81 +1,81 @@
 
 
-## Plan: Replace Insights Tab with "Split" (Bill Splitting Feature)
+## Plan: Premium Grant, Category Fix, PIN UX, Animations & Polish
 
-### Overview
-Move the current Insights content into Settings as a subsection. Replace the Insights tab with a new "Split" tab — a minimal Splitwise-like bill splitting feature with full backend support.
-
-### Database Schema (4 new tables)
-
-```text
-split_groups          split_members          split_expenses          split_shares
-┌──────────────┐     ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
-│ id (uuid PK) │──┐  │ id (uuid PK)     │   │ id (uuid PK)     │   │ id (uuid PK)     │
-│ user_id      │  │  │ group_id → groups │   │ group_id → groups│   │ expense_id →     │
-│ name         │  └──│ name             │   │ title            │   │ member_id →      │
-│ created_at   │     │ is_owner (bool)  │   │ amount (numeric) │   │ amount (numeric) │
-│ emoji        │     │ created_at       │   │ paid_by → member │   │ is_settled (bool)│
-└──────────────┘     └──────────────────┘   │ date             │   │ created_at       │
-                                            │ notes            │   └──────────────────┘
-                                            │ created_at       │
-                                            └──────────────────┘
+### 1. Grant Premium to All Current Users
+**Action:** SQL data update via insert tool
+```sql
+UPDATE public.users SET is_premium = true WHERE is_premium = false;
 ```
+Only 1 user exists and is already premium. This is a safety net for any future users added before this deploys.
 
-- **split_groups**: Events/groups created by the user (max 5 members per group for free users)
-- **split_members**: People in each group (name-based, no auth required for members)
-- **split_expenses**: Bills within a group — who paid, total amount
-- **split_shares**: Per-member share of each expense, with settlement tracking
+### 2. Remove "Free Trial" from Payment Categories
+**File:** `src/lib/categories.ts`
+- Remove the `free_trial` category entry from the `CATEGORIES` array (line 32)
+- Free Trial tracking remains exclusively in the premium Trials tab
 
-All tables have RLS policies using `get_internal_user_id()` pattern, scoped through group ownership.
+### 3. Fix PIN Input — Reliable Keyboard Trigger
+**File:** `src/pages/Onboarding.tsx`
 
-### Frontend Pages & Components
+The current hidden input approach (`position: fixed; top: -100; opacity: 0`) doesn't reliably trigger keyboards on iOS/Android. Fix:
 
-1. **Split.tsx** (new page at `/split`)
-   - Groups list view — iOS-style cards with emoji, name, member count, balance summary
-   - FAB to create new group
-   - Tap group → group detail view
+- Replace the off-screen hidden input with a **visible but transparent** input overlaid on the PIN dots area using `absolute inset-0`, `caret-color: transparent`, `color: transparent`, `background: transparent`
+- This makes the input tappable and focusable within the dot area, so the keyboard appears naturally
+- Keep `autoFocus` and the staggered `setTimeout` focus calls as fallback
+- Remove the `onClick` handler on the dot wrapper (no longer needed since input covers the area)
 
-2. **SplitGroupDetail.tsx** (new component)
-   - Header: group name + emoji, member avatars
-   - Balance summary: who owes whom (simplified)
-   - Expenses list with swipe actions
-   - Add expense button
-   - Members management
+### 4. Fix Biometric Login
+**File:** `src/pages/Settings.tsx` (line 416-417)
 
-3. **AddGroupSheet.tsx** — Bottom sheet to create group (name, emoji, add members up to 5)
+Bug: When enabling biometrics, the phone value passed is `localStorage.getItem('paytrack_phone_hash')` which may be empty/null since the app no longer stores phone hash in localStorage (it was removed in the Supabase Auth migration). 
 
-4. **AddExpenseSheet.tsx** — Bottom sheet: title, amount, paid by (select member), split among (checkboxes), date
+Fix: The `useBiometric.enableBiometric()` takes `phone` as a parameter for re-authentication via `restore()`. Since biometric login calls `restore(phone)` which needs the raw phone digits, we need to store the user's phone during login. But we can't — the phone is hashed.
 
-5. **SettlementView.tsx** — Shows optimized "who pays whom" with settle button
+**Root cause:** `authenticateWithBiometric()` returns the stored `BiometricUser.phone` which is then passed to `restore()`. But `restore()` calls `hashPhone(phone)` and then tries to find the user — it actually just checks the active Supabase session. So the phone value doesn't matter for auth, it just sets `phoneHash` state.
 
-### Navigation Changes
+**Real fix in `src/hooks/useBiometric.ts` and `src/pages/Settings.tsx`:**
+- In Settings, when enabling biometric, pass the user's `phoneHash` (which is available from `useUser()`) instead of reading from localStorage
+- In `useBiometric.enableBiometric()`, store `phoneHash` as the phone identifier
+- In `Onboarding.tsx` `handleBiometricLogin`, the `restore(user.phone)` call should work since it just checks active session — but if session expired, it fails. Add a fallback: if `restore` fails, show the PIN screen instead of a generic error.
 
-- **BottomNav.tsx**: Replace `Lightbulb`/Insights with `Scissors` (or `Split`)/Split icon
-- **App.tsx**: Replace `/insights` route with `/split`, add redirect from `/insights` to `/split`
-- **Settings.tsx**: Add "Insights" subsection with the Overview page content embedded
+### 5. Reduce Animations — Minimal & Fast
+**Files:** `src/pages/Onboarding.tsx`, `src/pages/Schedule.tsx`, `src/pages/Settings.tsx`, `src/App.tsx`
 
-### Key Features
-- Add up to 5 members per group (name only, no phone required)
-- Create expenses, select payer and participants
-- Auto-calculate equal splits or custom amounts
-- Balance summary per group (who owes whom)
-- Mark debts as settled
-- All data persisted in Supabase with RLS
+Changes:
+- **Splash screen:** Reduce from 3.2s to 1.8s. Remove the loading bar animation.
+- **Onboarding transitions:** Change `spring` config from `stiffness: 320, damping: 32` to `duration: 0.2` ease transitions. Remove bouncy spring animations.
+- **Schedule page:** Remove `whileTap` scale animations from minor buttons. Reduce card entrance animations from spring to simple `duration: 0.15` fades.
+- **Settings:** Remove slide variants delay. Use instant transitions.
+- **Payment cards:** Reduce entrance animation delay multiplier from `0.03` per card to `0.01`.
 
-### Files to Create
-1. `src/pages/Split.tsx` — Main split tab page
-2. `src/components/split/SplitGroupDetail.tsx` — Group detail view
-3. `src/components/split/AddGroupSheet.tsx` — Create group bottom sheet
-4. `src/components/split/AddExpenseSheet.tsx` — Add expense bottom sheet
-5. `src/components/split/BalanceSummary.tsx` — Who owes whom calculation
-6. `src/hooks/useSplitGroups.ts` — Data hook for all split operations
+### 6. Home Page (Schedule) Polish
+**File:** `src/pages/Schedule.tsx`
 
-### Files to Modify
-1. `src/components/BottomNav.tsx` — Replace Insights with Split
-2. `src/App.tsx` — Update routes
-3. `src/pages/Settings.tsx` — Add Insights subsection
-4. Database migration — 4 new tables with RLS
+- Clean up the hero section: tighten spacing, make greeting more prominent
+- Make the FAB picker cleaner — when on "upcoming" tab, tap FAB directly opens Add Payment (skip the picker menu). Only show the picker when premium user has trial option.
+- Improve empty states with clearer CTAs
+- Remove the long-press hint (too noisy for users)
 
-### Design
-iOS native aesthetic throughout — true black background, rounded cards with `mono-card` style, bottom sheets for creation forms, haptic feedback on actions, Netflix Red for primary actions.
+### 7. Auth Flow Polish
+**File:** `src/pages/Onboarding.tsx`
+
+- Reduce transition delays between screens
+- Make the landing page buttons larger and more inviting
+- Add subtle loading state feedback on PIN verification (show spinner immediately, not just at bottom)
+
+### 8. Settings Clarity
+**File:** `src/pages/Settings.tsx`
+
+- Add descriptive subtitles to main menu items
+- Make "Account & Security" more prominent
+
+### Files Changed
+1. `src/lib/categories.ts` — remove free_trial category
+2. `src/pages/Onboarding.tsx` — fix PIN input overlay, reduce animations, polish auth flow
+3. `src/hooks/useBiometric.ts` — no changes needed (logic is fine)
+4. `src/pages/Settings.tsx` — fix biometric enable phone param, add clarity
+5. `src/pages/Schedule.tsx` — simplify FAB, reduce animations, polish home
+6. `src/App.tsx` — reduce splash duration
+7. `src/components/PaymentCard.tsx` — reduce card animations (if applicable)
+8. SQL update — grant premium to all users
 
