@@ -50,9 +50,13 @@ export default function OnboardingTutorial({ onComplete }: { onComplete: () => v
   const [step, setStep] = useState(0);
   const isLast = step === STEPS.length - 1;
 
+  // Mark done immediately on mount so it never re-shows even if unmounted early
+  useEffect(() => {
+    markTutorialDone();
+  }, []);
+
   const handleNext = () => {
     if (isLast) {
-      markTutorialDone();
       onComplete();
     } else {
       setStep(s => s + 1);
@@ -60,7 +64,6 @@ export default function OnboardingTutorial({ onComplete }: { onComplete: () => v
   };
 
   const handleSkip = () => {
-    markTutorialDone();
     onComplete();
   };
 
