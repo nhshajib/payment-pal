@@ -139,12 +139,16 @@ function AppRoutes() {
           element={isOnboarded ? <Schedule /> : <Navigate to="/" replace />}
         />
         <Route
+          path="/split"
+          element={isOnboarded ? <Split /> : <Navigate to="/" replace />}
+        />
+        <Route
           path="/insights"
-          element={isOnboarded ? <Overview /> : <Navigate to="/" replace />}
+          element={<Navigate to="/split" replace />}
         />
         <Route
           path="/overview"
-          element={<Navigate to="/insights" replace />}
+          element={<Navigate to="/split" replace />}
         />
         <Route
           path="/settings"

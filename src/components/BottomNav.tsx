@@ -5,7 +5,7 @@ import { haptic } from '@/lib/haptics';
 
 const tabs = [
   { path: '/schedule', icon: CalendarDays, label: 'Schedule' },
-  { path: '/insights', icon: Lightbulb, label: 'Insights' },
+  { path: '/split', icon: Scissors, label: 'Split' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
