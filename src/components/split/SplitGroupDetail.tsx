@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users, Lock, Pencil, Bell } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -16,6 +16,7 @@ import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { getGroupActivity, addGroupActivity, markGroupSeen, getUnseenCount } from '@/lib/groupActivity';
+import { cacheSettlementsForSW } from '@/lib/notifications';
 
 const FREE_EXPENSE_LIMIT = 15;
 
