@@ -13,7 +13,7 @@ interface UserContextType {
   isOnboarded: boolean;
   register: (phone: string, name: string, pin: string) => Promise<string>;
   login: (phone: string, pin: string) => Promise<string>;
-  restore: (phone: string) => Promise<string>;
+  restoreFromBiometric: (phoneHash: string) => Promise<string>;
   updateName: (name: string) => Promise<void>;
   changePin: (currentPin: string, newPin: string) => Promise<void>;
   resetPin: (phone: string, newPin: string) => Promise<void>;
@@ -28,7 +28,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Listen for auth state changes and load user profile
   useEffect(() => {
     const loadUserProfile = async (authUserId: string) => {
       const { data } = await supabase
@@ -45,7 +44,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         await loadUserProfile(session.user.id);
@@ -57,7 +55,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // THEN check existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         await loadUserProfile(session.user.id);
@@ -79,7 +76,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message || 'Registration failed');
     if (data?.error) throw new Error(data.error);
 
-    // Set the session from the edge function response
     if (data?.session) {
       await supabase.auth.setSession({
         access_token: data.session.access_token,
@@ -99,7 +95,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const hash = await hashPhone(phone);
     const pinH = await hashPin(pin);
 
-    // Use synthetic email for Supabase Auth login
     const email = `${hash.slice(0, 40)}@paytrack.app`;
 
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -114,7 +109,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       throw signInError;
     }
 
-    // Load user profile - auth state change listener will handle setting state
     const { data: userData } = await supabase
       .from('users')
       .select('id, name, phone_hash')
@@ -131,15 +125,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return userData.id;
   }, []);
 
-  const restore = useCallback(async (phone: string) => {
-    // Restore is effectively a login - user needs to provide PIN
-    // This is kept for biometric auth which stores phone
-    const hash = await hashPhone(phone);
-    setPhoneHash(hash);
+  // Biometric restore: uses existing session, takes phone_hash directly (no re-hashing)
+  const restoreFromBiometric = useCallback(async (storedPhoneHash: string) => {
+    setPhoneHash(storedPhoneHash);
 
-    // Check if we have an active session
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('No active session. Please sign in again.');
+    if (!session) throw new Error('Session expired. Please sign in with your PIN.');
 
     const { data: userData } = await supabase
       .from('users')
@@ -203,7 +194,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     isOnboarded: !!userId,
     register,
     login,
-    restore,
+    restoreFromBiometric,
     updateName,
     changePin,
     resetPin,

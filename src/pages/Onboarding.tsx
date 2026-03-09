@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
 import { useCountryCode } from '@/hooks/useCountryCode';
@@ -11,6 +11,7 @@ import {
   ArrowRight, ChevronLeft, Hand, Phone, Lock, User, ChevronDown, Shield, Fingerprint, KeyRound, Search, X, Check,
 } from 'lucide-react';
 import PinInput from '@/components/PinInput';
+import NumberPad from '@/components/NumberPad';
 
 type Screen =
   | 'landing' | 'login-phone' | 'login-pin'
@@ -21,7 +22,6 @@ const slideIn = { initial: { opacity: 0, x: 30 }, animate: { opacity: 1, x: 0 },
 const fadeIn = { initial: { opacity: 0, scale: 0.98 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.98 } };
 const quickTrans = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const };
 
-// Signup step indicator
 const SIGNUP_STEPS = ['Info', 'PIN', 'Confirm'];
 
 function StepIndicator({ current }: { current: number }) {
@@ -53,34 +53,18 @@ export default function Onboarding() {
   const [confirmPin, setConfirmPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [pinError, setPinError] = useState(false);
-  const { register, login, restore, resetPin } = useUser();
+  const { register, login, restoreFromBiometric, resetPin } = useUser();
   const { country, allCountries, setCountry } = useCountryCode();
-  const { isAvailable: biometricAvailable, isEnabled: biometricEnabled, authenticateWithBiometric, hasSavedCredential, enableBiometric } = useBiometric();
+  const { isAvailable: biometricAvailable, isEnabled: biometricEnabled, authenticateWithBiometric, hasSavedCredential } = useBiometric();
   const navigate = useNavigate();
   const [screen, setScreen] = useState<Screen>('landing');
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
-  // Forgot PIN flow
   const [forgotPhone, setForgotPhone] = useState('');
   const [forgotPin, setForgotPin] = useState('');
   const [forgotConfirmPin, setForgotConfirmPin] = useState('');
-  
-  // Refs for hidden PIN inputs
-  const pinInputRef = useRef<HTMLInputElement>(null);
-
-  // Aggressively auto-focus PIN input when on any PIN screen
-  useEffect(() => {
-    const isPinScreen = ['login-pin', 'signup-pin', 'signup-confirm', 'forgot-new-pin', 'forgot-confirm-pin'].includes(screen);
-    if (isPinScreen && pinInputRef.current) {
-      pinInputRef.current.focus();
-      const t1 = setTimeout(() => pinInputRef.current?.focus(), 100);
-      const t2 = setTimeout(() => pinInputRef.current?.focus(), 300);
-      const t3 = setTimeout(() => pinInputRef.current?.focus(), 600);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-    }
-  }, [screen]);
 
   useEffect(() => {
     if (sessionStorage.getItem('paytrack_signed_out')) {
@@ -107,7 +91,6 @@ export default function Onboarding() {
     setLoading(false); setPinError(false);
   };
 
-  // Filtered countries for search
   const filteredCountries = countrySearch
     ? allCountries.filter(c =>
         c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
@@ -116,19 +99,18 @@ export default function Onboarding() {
       )
     : allCountries;
 
-  // ── Biometric login ──
+  // ── Biometric login — uses restoreFromBiometric (no double-hash) ──
   const handleBiometricLogin = useCallback(async () => {
     setLoading(true);
     try {
       const user = await authenticateWithBiometric();
       if (user) {
         try {
-          await restore(user.phone);
+          await restoreFromBiometric(user.phone); // phone is already a hash
           hapticSuccess();
           toast.success('Welcome back!');
           navigate('/schedule');
         } catch {
-          // Session expired — fall back to PIN screen
           hapticError();
           toast.error('Session expired. Please sign in with your PIN.');
           setScreen('login-phone');
@@ -143,7 +125,7 @@ export default function Onboarding() {
     } finally {
       setLoading(false);
     }
-  }, [authenticateWithBiometric, restore, navigate]);
+  }, [authenticateWithBiometric, restoreFromBiometric, navigate]);
 
   // ── Login handlers ──
   const handleContinueToPin = () => {
@@ -166,15 +148,19 @@ export default function Onboarding() {
     } finally { setLoading(false); }
   }, [login, navigate, fullPhone]);
 
-  // Hidden input handler for PIN screens
-  const handlePinChange = (value: string, setter: (v: string) => void, onComplete?: (pin: string) => void) => {
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-    setter(digits);
-    if (digits.length > 0) haptic(8);
-    if (digits.length === 4 && onComplete) {
-      onComplete(digits);
+  // NumberPad handlers for PIN entry
+  const handlePinDigit = useCallback((digit: string, currentPin: string, setter: (v: string) => void, onComplete?: (pin: string) => void) => {
+    if (currentPin.length >= 4) return;
+    const newPin = currentPin + digit;
+    setter(newPin);
+    if (newPin.length === 4 && onComplete) {
+      setTimeout(() => onComplete(newPin), 150);
     }
-  };
+  }, []);
+
+  const handlePinDelete = useCallback((currentPin: string, setter: (v: string) => void) => {
+    setter(currentPin.slice(0, -1));
+  }, []);
 
   // ── Signup handlers ──
   const handleSignupInfoContinue = () => {
@@ -258,7 +244,6 @@ export default function Onboarding() {
     </motion.button>
   );
 
-  // ── Country picker with search ──
   const handleCountrySelect = (c: CountryInfo) => {
     setCountry(c);
     setShowCountryPicker(false);
@@ -277,7 +262,6 @@ export default function Onboarding() {
     </motion.button>
   );
 
-  // Full-screen iOS-style country picker modal
   const countryPickerModal = () => (
     <AnimatePresence>
       {showCountryPicker && (
@@ -296,12 +280,9 @@ export default function Onboarding() {
             <div className="rounded-t-[22px] overflow-hidden bg-[#1c1c1e] border-t border-white/[0.08]"
               style={{ maxHeight: '85dvh' }}
             >
-              {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-9 h-[4px] rounded-full bg-white/20" />
               </div>
-
-              {/* Header */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
                 <h2 className="text-[17px] font-bold text-white tracking-tight">Select Country</h2>
                 <motion.button
@@ -312,8 +293,6 @@ export default function Onboarding() {
                   <X className="w-4 h-4 text-white/60" />
                 </motion.button>
               </div>
-
-              {/* Search */}
               <div className="px-4 py-3 border-b border-white/[0.04]">
                 <div className="flex items-center gap-2.5 bg-white/[0.06] rounded-xl px-3.5 py-2.5">
                   <Search className="w-4 h-4 text-white/30 flex-shrink-0" />
@@ -332,8 +311,6 @@ export default function Onboarding() {
                   )}
                 </div>
               </div>
-
-              {/* List */}
               <div className="overflow-y-auto" style={{ maxHeight: '60dvh' }}>
                 {filteredCountries.length === 0 ? (
                   <div className="px-4 py-10 text-center text-white/25 text-[14px]">No countries found</div>
@@ -356,8 +333,6 @@ export default function Onboarding() {
                   ))
                 )}
               </div>
-
-              {/* Safe area padding */}
               <div className="h-8" />
             </div>
           </motion.div>
@@ -366,7 +341,6 @@ export default function Onboarding() {
     </AnimatePresence>
   );
 
-  // ── Grouped iOS-style input card ──
   const iosCard = (children: React.ReactNode) => (
     <div className="rounded-2xl bg-white/[0.06] overflow-hidden">
       {children}
@@ -382,10 +356,11 @@ export default function Onboarding() {
     </div>
   );
 
-  // Phone input helper text
   const phoneHint = `${country.phoneLength} digits`;
 
-  // ── Passcode screen layout (keyboard-based) ──
+  const showBiometricOnPad = biometricAvailable && biometricEnabled && hasSavedCredential();
+
+  // ── Passcode screen with built-in NumberPad (no hidden input) ──
   const passcodeLayout = (
     icon: React.ReactNode,
     title: string,
@@ -406,14 +381,13 @@ export default function Onboarding() {
     >
       {backButton(onBack)}
 
-      {/* Step indicator */}
       {stepIndicator && <div className="pt-10 w-full">{stepIndicator}</div>}
 
       {/* Top section */}
-      <div className={`flex flex-col items-center ${stepIndicator ? 'pb-4' : 'pt-16 pb-4'}`}>
+      <div className={`flex flex-col items-center ${stepIndicator ? 'pb-3' : 'pt-12 pb-3'}`}>
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2 }}
-          className="w-14 h-14 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center mb-4"
+          className="w-14 h-14 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center mb-3"
         >
           {icon}
         </motion.div>
@@ -421,44 +395,31 @@ export default function Onboarding() {
         <p className="text-white/30 text-[13px] mt-1 text-center">{subtitle}</p>
       </div>
 
-      {/* PIN dots + transparent overlay input */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-6">
-        <div className="relative">
-          <PinInput length={pinLength} filled={pinValue.length} error={error} />
-          {/* Transparent input overlaid on PIN dots for reliable keyboard trigger */}
-          <input
-            ref={pinInputRef}
-            type="tel"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={4}
-            value={pinValue}
-            onChange={e => handlePinChange(e.target.value, setPinValue, onComplete)}
-            className="absolute inset-0 w-full h-full opacity-0 z-10"
-            style={{ caretColor: 'transparent', fontSize: '16px' }}
-            autoFocus
-            autoComplete="one-time-code"
-          />
-        </div>
+      {/* PIN dots */}
+      <div className="py-6">
+        <PinInput length={pinLength} filled={pinValue.length} error={error} />
       </div>
 
-      {/* Biometric + extra buttons */}
-      <div className="pb-12 flex flex-col items-center gap-3">
-        {showBiometric && biometricAvailable && biometricEnabled && hasSavedCredential() && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            onClick={handleBiometricLogin}
-            disabled={loading}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/70 active:bg-white/[0.1] transition-colors disabled:opacity-40"
-          >
-            <Fingerprint className="w-5 h-5" />
-            <span className="text-[15px] font-medium">Use Face ID</span>
-          </motion.button>
-        )}
-        {extra}
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Built-in Number Pad */}
+      <div className="pb-8">
+        <NumberPad
+          onPress={(digit) => handlePinDigit(digit, pinValue, setPinValue, onComplete)}
+          onDelete={() => handlePinDelete(pinValue, setPinValue)}
+          disabled={isLoading}
+          showBiometric={showBiometric && showBiometricOnPad}
+          onBiometric={handleBiometricLogin}
+        />
       </div>
+
+      {/* Extra buttons (e.g. Forgot PIN) */}
+      {extra && (
+        <div className="pb-6 flex flex-col items-center gap-3">
+          {extra}
+        </div>
+      )}
 
       {isLoading && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
@@ -479,7 +440,6 @@ export default function Onboarding() {
             <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }} className="flex flex-col min-h-[100dvh]"
             >
-              {/* Logo area */}
               <div className="flex-1 flex flex-col items-center justify-center pt-8 pb-4 min-h-[35dvh]">
                 <div className="relative">
                   <div className="absolute inset-0 blur-[80px] bg-white/[0.04] rounded-full scale-150" />
@@ -499,7 +459,6 @@ export default function Onboarding() {
                 </motion.p>
               </div>
 
-              {/* Welcome back */}
               <AnimatePresence>
                 {showWelcomeBack && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -517,7 +476,6 @@ export default function Onboarding() {
                 )}
               </AnimatePresence>
 
-              {/* Actions */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25, duration: 0.3 }}
                 className="pb-12 space-y-3"
@@ -624,7 +582,7 @@ export default function Onboarding() {
             </motion.button>,
             loading,
             undefined,
-            true, // show biometric
+            true,
           )}
 
           {/* ─── SIGNUP STEP 1: INFO ─── */}
@@ -790,7 +748,6 @@ export default function Onboarding() {
         </AnimatePresence>
       </div>
 
-      {/* Country picker modal - rendered outside scroll container */}
       {countryPickerModal()}
     </div>
   );
