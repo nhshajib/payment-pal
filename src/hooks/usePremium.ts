@@ -7,6 +7,9 @@ interface PremiumContextType {
   setPremium: (v: boolean) => void;
   accentColor: string;
   setAccentColor: (color: string) => void;
+  planType: string | null;
+  subscriptionEnd: string | null;
+  checkSubscription: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'paytrack_premium';
@@ -39,6 +42,9 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem(ACCENT_KEY) || 'red';
   });
 
+  const [planType, setPlanType] = useState<string | null>(null);
+  const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
+
   const setPremium = useCallback((v: boolean) => {
     setIsPremium(v);
     localStorage.setItem(STORAGE_KEY, String(v));
@@ -49,6 +55,25 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(ACCENT_KEY, colorId);
     applyAccent(colorId);
   }, []);
+
+  // Check Stripe subscription status
+  const checkSubscription = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+      if (error) return;
+      if (data?.subscribed) {
+        setPremium(true);
+        setPlanType(data.plan_type || null);
+        setSubscriptionEnd(data.subscription_end || null);
+      } else {
+        setPremium(false);
+        setPlanType(null);
+        setSubscriptionEnd(null);
+      }
+    } catch {
+      // silently fail
+    }
+  }, [setPremium]);
 
   // Apply accent on mount and theme changes
   useEffect(() => {
@@ -65,46 +90,22 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     return () => observer.disconnect();
   }, [isPremium, accentColor]);
 
-  // Sync with database using auth session (not localStorage)
+  // Sync with Stripe on mount and auth changes
   useEffect(() => {
-    const syncPremium = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+    checkSubscription();
 
-      const { data } = await supabase
-        .from('users')
-        .select('is_premium')
-        .eq('auth_id', session.user.id)
-        .maybeSingle();
-
-      if (data && (data as any).is_premium) {
-        setPremium(true);
-      }
-    };
-
-    syncPremium();
-
-    // Also sync when auth state changes (login)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        const { data } = await supabase
-          .from('users')
-          .select('is_premium')
-          .eq('auth_id', session.user.id)
-          .maybeSingle();
-
-        if (data && (data as any).is_premium) {
-          setPremium(true);
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        checkSubscription();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [setPremium]);
+  }, [checkSubscription]);
 
   return createElement(
     PremiumContext.Provider,
-    { value: { isPremium, setPremium, accentColor, setAccentColor } },
+    { value: { isPremium, setPremium, accentColor, setAccentColor, planType, subscriptionEnd, checkSubscription } },
     children
   );
 }
