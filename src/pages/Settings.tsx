@@ -971,6 +971,7 @@ export default function Settings() {
             {currentView === 'notifications' && renderNotifications()}
             {currentView === 'data' && renderData()}
             {currentView === 'roommates' && renderRoommates()}
+            {currentView === 'insights' && renderInsights()}
           </motion.div>
         </AnimatePresence>
 
