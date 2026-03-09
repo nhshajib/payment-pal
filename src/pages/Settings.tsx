@@ -994,7 +994,7 @@ export default function Settings() {
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-3"><Crown className="w-8 h-8 text-primary" /></div>
               <h3 className="text-lg font-bold text-card-foreground">Unlock Premium</h3>
-              <p className="text-sm text-muted-foreground mt-1">One-time purchase · $0.99</p>
+              <p className="text-sm text-muted-foreground mt-1">Choose a plan that works for you</p>
             </div>
             <div className="rounded-xl border border-border/50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Free</p>
@@ -1028,11 +1028,11 @@ export default function Settings() {
               </div>
             </div>
             <motion.div whileTap={{ scale: 0.97 }}>
-              <Button className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25" onClick={handlePayPalPurchase} disabled={paypalLoading}>
-                {paypalLoading ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Processing...</>) : (<><Crown className="w-5 h-5 mr-2" />Pay $0.99 with PayPal</>)}
+              <Button className="w-full rounded-[14px] h-[52px] text-[17px] font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/25" onClick={() => { close(); navigate('/premium'); }}>
+                <Crown className="w-5 h-5 mr-2" />View Plans & Subscribe
               </Button>
             </motion.div>
-            <p className="text-[11px] text-center text-muted-foreground">Secure payment via PayPal · One-time charge</p>
+            <p className="text-[11px] text-center text-muted-foreground">Secure payment via Stripe</p>
           </div>
         </SettingsModal>
 
