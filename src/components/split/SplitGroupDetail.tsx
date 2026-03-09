@@ -370,15 +370,47 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
           )}
         </AnimatePresence>
 
-        {/* FAB */}
+        {/* FAB - Disabled when at expense limit for free users */}
         {members.length >= 2 && (
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => { haptic(15); setShowAddExpense(true); }}
-            className="fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center"
-          >
-            <Plus className="w-6 h-6" />
-          </motion.button>
+          <>
+            {!isPremium && atExpenseLimit ? (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="fixed bottom-20 right-5 z-40"
+              >
+                <div className="relative">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      haptic(20);
+                      toast('Upgrade to Premium for unlimited expenses', {
+                        description: 'Free users can add up to 15 expenses per group',
+                        action: {
+                          label: 'Upgrade',
+                          onClick: () => navigate('/premium'),
+                        },
+                      });
+                    }}
+                    className="w-14 h-14 rounded-full bg-muted border border-border flex items-center justify-center relative"
+                  >
+                    <Lock className="w-5 h-5 text-muted-foreground" />
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                      <Crown className="w-3 h-3 text-primary-foreground" />
+                    </div>
+                  </motion.button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => { haptic(15); setShowAddExpense(true); }}
+                className="fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center"
+              >
+                <Plus className="w-6 h-6" />
+              </motion.button>
+            )}
+          </>
         )}
 
         <AddExpenseSheet
@@ -386,6 +418,11 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
           onClose={() => setShowAddExpense(false)}
           members={members}
           onAdd={async (title, amount, paidBy, participants, date, notes) => {
+            if (!isPremium && expenses.length >= FREE_EXPENSE_LIMIT) {
+              toast.error('Free limit reached. Upgrade to Premium.');
+              setShowAddExpense(false);
+              return;
+            }
             await addExpense(title, amount, paidBy, participants, date, notes);
             setShowAddExpense(false);
             toast.success('Expense added!');
