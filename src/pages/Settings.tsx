@@ -433,6 +433,14 @@ export default function Settings() {
       </IOSSection>
       <IOSSection label="DEVICE" index={2}>
         <IOSRow
+          icon={<Info className="w-[18px] h-[18px]" />}
+          title="Replay Tutorial"
+          onClick={() => {
+            localStorage.removeItem('paytrack_tutorial_done');
+            toast.success('Tutorial will show on next visit to Schedule');
+          }}
+        />
+        <IOSRow
           icon={<Smartphone className="w-[18px] h-[18px]" />}
           title="Restore / Change Device"
           onClick={() => { setPhone(''); setActiveModal('restore'); }}
