@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users, Lock } from 'lucide-react';
+import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users, Lock, Pencil, Bell } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useSplitGroupDetail, type SplitGroup } from '@/hooks/useSplitGroups';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -9,11 +9,13 @@ import { useRoommates } from '@/hooks/useRoommates';
 import { useUser } from '@/hooks/useUser';
 import { Input } from '@/components/ui/input';
 import AddExpenseSheet from '@/components/split/AddExpenseSheet';
+import EditExpenseSheet from '@/components/split/EditExpenseSheet';
 import BalanceSummary from '@/components/split/BalanceSummary';
 import PageTransition from '@/components/PageTransition';
 import { haptic } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { getGroupActivity, addGroupActivity, markGroupSeen, getUnseenCount } from '@/lib/groupActivity';
 
 const FREE_EXPENSE_LIMIT = 15;
 
@@ -25,7 +27,7 @@ interface Props {
 export default function SplitGroupDetail({ group, onBack }: Props) {
   const {
     members, expenses, shares, loading,
-    addMember, removeMember, addExpense, deleteExpense, settleShare,
+    addMember, removeMember, addExpense, deleteExpense, updateExpense, settleShare,
     balances, settlements, totalExpenses,
   } = useSplitGroupDetail(group.id);
   const { format: formatCurrency } = useCurrency();
@@ -37,13 +39,19 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const [showAddMember, setShowAddMember] = useState(false);
   const [showRoommatesPicker, setShowRoommatesPicker] = useState(false);
   const [newMemberName, setNewMemberName] = useState('');
-  const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
+  const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'activity'>('expenses');
+  const [editingExpense, setEditingExpense] = useState<string | null>(null);
+  const [showActivityBadge, setShowActivityBadge] = useState(() => getUnseenCount(group.id) > 0);
 
   const maxMembers = isPremium ? 999 : 5;
   const maxExpenses = isPremium ? 999 : FREE_EXPENSE_LIMIT;
   const atMemberLimit = members.length >= maxMembers;
   const atExpenseLimit = expenses.length >= maxExpenses;
   const confirmedRoommates = roommates.filter(r => r.status === 'confirmed' || r.nickname);
+
+  const activities = getGroupActivity(group.id);
+  const expenseToEdit = editingExpense ? expenses.find(e => e.id === editingExpense) : null;
+  const editParticipantIds = editingExpense ? shares.filter(s => s.expense_id === editingExpense).map(s => s.member_id) : [];
 
   const handleAddMember = async () => {
     if (!newMemberName.trim()) return;
@@ -69,6 +77,25 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
     await addMember(name);
     toast.success(`${name} added`);
     haptic(10);
+  };
+
+  const handleEditExpense = async (expenseId: string, title: string, amount: number, paidBy: string, participants: string[], date: string, notes: string) => {
+    const oldExpense = expenses.find(e => e.id === expenseId);
+    await updateExpense(expenseId, title, amount, paidBy, participants, date, notes);
+    setEditingExpense(null);
+
+    // Log the change
+    const changes: string[] = [];
+    if (oldExpense) {
+      if (oldExpense.amount !== amount) changes.push(`amount changed to ${formatCurrency(amount)}`);
+      if (oldExpense.title !== title) changes.push(`renamed to "${title}"`);
+    }
+    const participantNames = participants.map(pid => members.find(m => m.id === pid)?.name || 'Unknown').join(', ');
+    changes.push(`split among: ${participantNames}`);
+    
+    addGroupActivity(group.id, `"${title}" was edited — ${changes.join(', ')}`);
+    setShowActivityBadge(true);
+    toast.success('Expense updated');
   };
 
   return (
@@ -102,9 +129,7 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
             <p className="text-xl font-extrabold text-foreground tracking-tight">{members.length}</p>
           </div>
           <div className="flex-1 rounded-2xl mono-card p-4 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.8px] text-muted-foreground/60 mb-1">
-              {isPremium ? 'Bills' : `Bills`}
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.8px] text-muted-foreground/60 mb-1">Bills</p>
             <p className="text-xl font-extrabold text-foreground tracking-tight">
               {expenses.length}
               {!isPremium && <span className="text-[13px] text-muted-foreground/40 font-normal">/{FREE_EXPENSE_LIMIT}</span>}
@@ -235,11 +260,18 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
 
         {/* Tab Switcher */}
         <div className="flex p-1 rounded-[10px] bg-muted mb-5">
-          {(['expenses', 'balances'] as const).map(tab => (
+          {(['expenses', 'balances', 'activity'] as const).map(tab => (
             <motion.button
               key={tab}
               whileTap={{ scale: 0.96 }}
-              onClick={() => { setActiveTab(tab); haptic(10); }}
+              onClick={() => {
+                setActiveTab(tab);
+                haptic(10);
+                if (tab === 'activity') {
+                  markGroupSeen(group.id);
+                  setShowActivityBadge(false);
+                }
+              }}
               className={`relative flex-1 py-[7px] rounded-[8px] text-[13px] font-semibold z-10 transition-colors ${
                 activeTab === tab ? 'text-foreground' : 'text-muted-foreground'
               }`}
@@ -251,7 +283,12 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
                   transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }}
                 />
               )}
-              <span className="relative z-10 capitalize">{tab}</span>
+              <span className="relative z-10 capitalize flex items-center justify-center gap-1">
+                {tab === 'activity' && showActivityBadge && (
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                )}
+                {tab === 'activity' ? "What's New" : tab}
+              </span>
             </motion.button>
           ))}
         </div>
@@ -260,7 +297,6 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
         <AnimatePresence mode="wait">
           {activeTab === 'expenses' ? (
             <motion.div key="expenses" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-              {/* Expense limit banner for free users */}
               {!isPremium && atExpenseLimit && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -324,8 +360,15 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
                               <p className="text-[11px] text-muted-foreground/40 mt-1 truncate">{exp.notes}</p>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
                             <span className="text-[17px] font-bold text-foreground">{formatCurrency(Number(exp.amount))}</span>
+                            <motion.button
+                              whileTap={{ scale: 0.8 }}
+                              onClick={() => { setEditingExpense(exp.id); haptic(10); }}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-muted-foreground/40" />
+                            </motion.button>
                             <motion.button
                               whileTap={{ scale: 0.8 }}
                               onClick={() => { deleteExpense(exp.id); toast.success('Deleted'); }}
@@ -362,7 +405,7 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
                 </div>
               )}
             </motion.div>
-          ) : (
+          ) : activeTab === 'balances' ? (
             <motion.div key="balances" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <BalanceSummary balances={balances} settlements={settlements} />
               {balances.length === 0 && (
@@ -371,10 +414,39 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
                 </div>
               )}
             </motion.div>
+          ) : (
+            <motion.div key="activity" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              {activities.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mono-card mb-3">
+                    <Bell className="w-6 h-6 text-muted-foreground/30" />
+                  </div>
+                  <p className="text-sm text-muted-foreground/50">No changes yet</p>
+                  <p className="text-xs text-muted-foreground/30 mt-1">Edits to expenses will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {activities.map((entry, i) => (
+                    <motion.div
+                      key={entry.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                      className="rounded-2xl mono-card px-4 py-3"
+                    >
+                      <p className="text-[13px] text-foreground leading-relaxed">{entry.message}</p>
+                      <p className="text-[11px] text-muted-foreground/40 mt-1">
+                        {format(parseISO(entry.timestamp), 'MMM d, h:mm a')}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
 
-        {/* FAB - Disabled when at expense limit for free users */}
+        {/* FAB */}
         {members.length >= 2 && (
           <>
             {!isPremium && atExpenseLimit ? (
@@ -428,9 +500,20 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
               return;
             }
             await addExpense(title, amount, paidBy, participants, date, notes);
+            addGroupActivity(group.id, `New expense "${title}" added — ${formatCurrency(amount)}`);
+            setShowActivityBadge(true);
             setShowAddExpense(false);
             toast.success('Expense added!');
           }}
+        />
+
+        <EditExpenseSheet
+          open={!!editingExpense}
+          onClose={() => setEditingExpense(null)}
+          members={members}
+          expense={expenseToEdit || null}
+          currentParticipantIds={editParticipantIds}
+          onSave={handleEditExpense}
         />
       </div>
     </PageTransition>
