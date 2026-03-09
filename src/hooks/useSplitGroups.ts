@@ -176,22 +176,29 @@ export function useSplitGroupDetail(groupId: string | null) {
     setShares(prev => prev.map(s => s.id === shareId ? { ...s, is_settled: settled } : s));
   }, []);
 
-  // Calculate balances: positive = is owed, negative = owes
+  // Calculate balances: positive = is owed money, negative = owes money
+  // Only count UNSETTLED shares between DIFFERENT members
   const balances: MemberBalance[] = members.map(member => {
-    let balance = 0;
-    // Money paid by this member
+    let credit = 0;  // others owe me (unsettled shares on expenses I paid)
+    let debit = 0;   // I owe others (my unsettled shares on expenses others paid)
+
     expenses.forEach(exp => {
-      if (exp.paid_by === member.id) {
-        balance += Number(exp.amount);
-      }
+      const expShares = shares.filter(s => s.expense_id === exp.id);
+      expShares.forEach(share => {
+        if (!share.is_settled) {
+          // If I paid and this share belongs to someone else -> they owe me
+          if (exp.paid_by === member.id && share.member_id !== member.id) {
+            credit += Number(share.amount);
+          }
+          // If someone else paid and this share is mine -> I owe them
+          else if (exp.paid_by !== member.id && share.member_id === member.id) {
+            debit += Number(share.amount);
+          }
+        }
+      });
     });
-    // Money this member owes (their shares)
-    shares.forEach(share => {
-      if (share.member_id === member.id && !share.is_settled) {
-        balance -= Number(share.amount);
-      }
-    });
-    return { memberId: member.id, memberName: member.name, balance };
+
+    return { memberId: member.id, memberName: member.name, balance: credit - debit };
   });
 
   // Simplified settlements

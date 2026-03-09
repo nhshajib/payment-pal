@@ -162,7 +162,7 @@ export default function AddExpenseSheet({ open, onClose, members, onAdd }: Props
                   </div>
                   {participants.length > 0 && amount && (
                     <p className="text-[12px] text-muted-foreground/50 mt-2 ml-1">
-                      Each pays: {(parseFloat(amount || '0') / participants.length).toFixed(2)}
+                      Each pays: {formatCurrency(parseFloat(amount || '0') / participants.length)}
                     </p>
                   )}
                 </div>
