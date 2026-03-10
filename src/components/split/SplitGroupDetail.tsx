@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, UserPlus, Trash2, Receipt, X, Crown, Lock, Pencil, Bell } from 'lucide-react';
+import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Lock, Pencil, Bell } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useSplitGroupDetail, type SplitGroup } from '@/hooks/useSplitGroups';
 import { useCurrency } from '@/hooks/useCurrency';
