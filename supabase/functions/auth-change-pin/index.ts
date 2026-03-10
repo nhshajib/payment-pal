@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     const { data: userData } = await supabaseAdmin
       .from("users")
       .select("id, pin_hash")
-      .eq("auth_id", authUser.id)
+      .eq("auth_id", authUserId)
       .single();
 
     if (!userData || userData.pin_hash !== current_pin_hash) {
