@@ -10,6 +10,7 @@ import { useUser } from '@/hooks/useUser';
 import { Input } from '@/components/ui/input';
 import AddExpenseSheet from '@/components/split/AddExpenseSheet';
 import EditExpenseSheet from '@/components/split/EditExpenseSheet';
+import AddMemberSheet from '@/components/split/AddMemberSheet';
 import BalanceSummary from '@/components/split/BalanceSummary';
 import PageTransition from '@/components/PageTransition';
 import { haptic } from '@/lib/haptics';
