@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users, Lock, Pencil, Bell } from 'lucide-react';
+import { ChevronLeft, UserPlus, Trash2, Receipt, X, Crown, Lock, Pencil, Bell } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useSplitGroupDetail, type SplitGroup } from '@/hooks/useSplitGroups';
 import { useCurrency } from '@/hooks/useCurrency';
 import { usePremium } from '@/hooks/usePremium';
-import { useRoommates } from '@/hooks/useRoommates';
 import { useUser } from '@/hooks/useUser';
-import { Input } from '@/components/ui/input';
 import AddExpenseSheet from '@/components/split/AddExpenseSheet';
 import EditExpenseSheet from '@/components/split/EditExpenseSheet';
 import AddMemberSheet from '@/components/split/AddMemberSheet';
