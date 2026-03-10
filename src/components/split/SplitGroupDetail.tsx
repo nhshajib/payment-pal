@@ -39,7 +39,6 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const navigate = useNavigate();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [showRoommatesPicker, setShowRoommatesPicker] = useState(false);
   const [newMemberName, setNewMemberName] = useState('');
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'activity'>('expenses');
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
