@@ -66,30 +66,12 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
     }
   }, [settlements, formatCurrency]);
 
-  const handleAddMember = async () => {
-    if (!newMemberName.trim()) return;
+  const handleNewMember = async (name: string) => {
     if (atMemberLimit) {
       toast.error(isPremium ? 'Member limit reached' : 'Free limit: 5 members. Upgrade for unlimited.');
       return;
     }
-    await addMember(newMemberName.trim());
-    setNewMemberName('');
-    setShowAddMember(false);
-    toast.success('Member added');
-  };
-
-  const handleAddRoommate = async (name: string) => {
-    if (members.find(m => m.name === name)) {
-      toast('Already in group');
-      return;
-    }
-    if (atMemberLimit) {
-      toast.error(isPremium ? 'Member limit reached' : 'Upgrade to add more members');
-      return;
-    }
     await addMember(name);
-    toast.success(`${name} added`);
-    haptic(10);
   };
 
   const handleEditExpense = async (expenseId: string, title: string, amount: number, paidBy: string, participants: string[], date: string, notes: string) => {
