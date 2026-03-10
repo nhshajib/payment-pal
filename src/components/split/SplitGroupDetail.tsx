@@ -33,11 +33,9 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const { format: formatCurrency } = useCurrency();
   const { isPremium } = usePremium();
   const { userId } = useUser();
-  const { roommates } = useRoommates(userId);
   const navigate = useNavigate();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [newMemberName, setNewMemberName] = useState('');
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'activity'>('expenses');
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
   const [showActivityBadge, setShowActivityBadge] = useState(() => getUnseenCount(group.id) > 0);
