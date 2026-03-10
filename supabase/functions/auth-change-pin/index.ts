@@ -47,19 +47,21 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !authUser) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
       return new Response(JSON.stringify({ error: "Invalid session" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const authUserId = claimsData.claims.sub;
 
     // Verify current PIN by checking pin_hash in users table
     const { data: userData } = await supabaseAdmin
       .from("users")
       .select("id, pin_hash")
-      .eq("auth_id", authUser.id)
+      .eq("auth_id", authUserId)
       .single();
 
     if (!userData || userData.pin_hash !== current_pin_hash) {
@@ -71,7 +73,7 @@ Deno.serve(async (req) => {
 
     // Update auth password
     const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
-      authUser.id,
+      authUserId,
       { password: new_pin_hash }
     );
 
