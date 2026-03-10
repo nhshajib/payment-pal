@@ -48,7 +48,7 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const maxExpenses = isPremium ? 999 : FREE_EXPENSE_LIMIT;
   const atMemberLimit = members.length >= maxMembers;
   const atExpenseLimit = expenses.length >= maxExpenses;
-  const confirmedRoommates = roommates.filter(r => r.status === 'confirmed' || r.nickname);
+  
 
   const activities = getGroupActivity(group.id);
   const expenseToEdit = editingExpense ? expenses.find(e => e.id === editingExpense) : null;
