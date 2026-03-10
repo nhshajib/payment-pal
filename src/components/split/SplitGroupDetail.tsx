@@ -442,6 +442,14 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
           groupName={group.name}
           onSave={handleEditExpense}
         />
+
+        <AddMemberSheet
+          open={showAddMember}
+          onClose={() => setShowAddMember(false)}
+          onAddMember={handleNewMember}
+          existingMemberNames={members.map(m => m.name)}
+          groupName={group.name}
+        />
       </div>
     </PageTransition>
   );
