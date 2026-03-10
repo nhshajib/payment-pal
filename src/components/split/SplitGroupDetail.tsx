@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Users, Lock, Pencil, Bell } from 'lucide-react';
+import { ChevronLeft, Plus, UserPlus, Trash2, Receipt, X, Crown, Lock, Pencil, Bell } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useSplitGroupDetail, type SplitGroup } from '@/hooks/useSplitGroups';
 import { useCurrency } from '@/hooks/useCurrency';
 import { usePremium } from '@/hooks/usePremium';
-import { useRoommates } from '@/hooks/useRoommates';
 import { useUser } from '@/hooks/useUser';
-import { Input } from '@/components/ui/input';
 import AddExpenseSheet from '@/components/split/AddExpenseSheet';
 import EditExpenseSheet from '@/components/split/EditExpenseSheet';
+import AddMemberSheet from '@/components/split/AddMemberSheet';
 import BalanceSummary from '@/components/split/BalanceSummary';
 import PageTransition from '@/components/PageTransition';
 import { haptic } from '@/lib/haptics';
@@ -34,12 +33,9 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const { format: formatCurrency } = useCurrency();
   const { isPremium } = usePremium();
   const { userId } = useUser();
-  const { roommates } = useRoommates(userId);
   const navigate = useNavigate();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [showRoommatesPicker, setShowRoommatesPicker] = useState(false);
-  const [newMemberName, setNewMemberName] = useState('');
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'activity'>('expenses');
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
   const [showActivityBadge, setShowActivityBadge] = useState(() => getUnseenCount(group.id) > 0);
@@ -48,7 +44,7 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
   const maxExpenses = isPremium ? 999 : FREE_EXPENSE_LIMIT;
   const atMemberLimit = members.length >= maxMembers;
   const atExpenseLimit = expenses.length >= maxExpenses;
-  const confirmedRoommates = roommates.filter(r => r.status === 'confirmed' || r.nickname);
+  
 
   const activities = getGroupActivity(group.id);
   const expenseToEdit = editingExpense ? expenses.find(e => e.id === editingExpense) : null;
@@ -66,30 +62,12 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
     }
   }, [settlements, formatCurrency]);
 
-  const handleAddMember = async () => {
-    if (!newMemberName.trim()) return;
+  const handleNewMember = async (name: string) => {
     if (atMemberLimit) {
       toast.error(isPremium ? 'Member limit reached' : 'Free limit: 5 members. Upgrade for unlimited.');
       return;
     }
-    await addMember(newMemberName.trim());
-    setNewMemberName('');
-    setShowAddMember(false);
-    toast.success('Member added');
-  };
-
-  const handleAddRoommate = async (name: string) => {
-    if (members.find(m => m.name === name)) {
-      toast('Already in group');
-      return;
-    }
-    if (atMemberLimit) {
-      toast.error(isPremium ? 'Member limit reached' : 'Upgrade to add more members');
-      return;
-    }
     await addMember(name);
-    toast.success(`${name} added`);
-    haptic(10);
   };
 
   const handleEditExpense = async (expenseId: string, title: string, amount: number, paidBy: string, participants: string[], date: string, notes: string) => {
@@ -155,84 +133,15 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
           <div className="flex items-center justify-between mb-2 ml-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.8px] text-muted-foreground">Members</p>
             {!atMemberLimit && (
-              <div className="flex items-center gap-2">
-                {confirmedRoommates.length > 0 && (
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => { setShowRoommatesPicker(!showRoommatesPicker); haptic(10); }}
-                    className="text-[12px] font-semibold text-primary flex items-center gap-1"
-                  >
-                    <Users className="w-3.5 h-3.5" /> Roommates
-                  </motion.button>
-                )}
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => { setShowAddMember(!showAddMember); haptic(10); }}
-                  className="text-[12px] font-semibold text-primary flex items-center gap-1"
-                >
-                  <UserPlus className="w-3.5 h-3.5" /> Add
-                </motion.button>
-              </div>
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => { setShowAddMember(true); haptic(10); }}
+                className="text-[12px] font-semibold text-primary flex items-center gap-1"
+              >
+                <UserPlus className="w-3.5 h-3.5" /> Add
+              </motion.button>
             )}
           </div>
-
-          <AnimatePresence>
-            {showRoommatesPicker && confirmedRoommates.length > 0 && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden mb-2"
-              >
-                <div className="rounded-xl mono-card p-2 flex flex-wrap gap-2">
-                  {confirmedRoommates.map(r => {
-                    const displayName = r.partner_name || r.nickname || 'Roommate';
-                    const exists = members.some(m => m.name === displayName);
-                    return (
-                      <motion.button
-                        key={r.id}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => handleAddRoommate(displayName)}
-                        disabled={exists || atMemberLimit}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                          exists ? 'bg-primary/10 text-primary' : 'mono-card-solid text-foreground'
-                        } disabled:opacity-50`}
-                      >
-                        {displayName} {exists ? '✓' : ''}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-
-            {showAddMember && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden mb-2"
-              >
-                <div className="flex gap-2">
-                  <Input
-                    value={newMemberName}
-                    onChange={e => setNewMemberName(e.target.value)}
-                    placeholder="Name"
-                    className="h-11 bg-secondary/50 border-0 rounded-xl text-sm flex-1"
-                    maxLength={30}
-                    onKeyDown={e => e.key === 'Enter' && handleAddMember()}
-                  />
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleAddMember}
-                    className="w-11 h-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </motion.button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {!isPremium && atMemberLimit && (
             <div className="rounded-xl bg-primary/10 border border-primary/20 p-3 mb-2 flex items-center justify-between gap-3">
@@ -528,6 +437,14 @@ export default function SplitGroupDetail({ group, onBack }: Props) {
           currentParticipantIds={editParticipantIds}
           groupName={group.name}
           onSave={handleEditExpense}
+        />
+
+        <AddMemberSheet
+          open={showAddMember}
+          onClose={() => setShowAddMember(false)}
+          onAddMember={handleNewMember}
+          existingMemberNames={members.map(m => m.name)}
+          groupName={group.name}
         />
       </div>
     </PageTransition>
